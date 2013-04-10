@@ -215,7 +215,7 @@ function feedList()
 {
 	document.getElementById('feeds_status').innerHTML='<img src="static/mozilla_giallo.gif" height="10">';
 	current_view='feed';
-	$.ajax({type: "GET",url: '/feedList/', success:function(html){$('#feeds_div').html(html);document.getElementById('feeds_status').innerHTML='';}})
+	$.ajax({type: "GET",url: '/feed/list/', success:function(html){$('#feeds_div').html(html);document.getElementById('feeds_status').innerHTML='';}})
 }
 
 function mark_list_read()

@@ -3,6 +3,7 @@ package main
 import (
 	"html/template"
 	"strconv"
+	"database/sql"
 )
 
 type Category struct {
@@ -46,6 +47,23 @@ type Entry struct {
 	FeedID   int
 	Content  template.HTML
 	Unread   bool
+}
+func entriesFromSql(s *sql.Stmt,id string, ur int) []Entry {
+	rows,err := s.Query(id,ur)
+	var el []Entry
+	if err != nil {
+		err.Error()
+	}
+	var count int
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		e:=getEntry(id)
+		e.Evenodd=evenodd(count)
+		el = append(el,e)
+		count=count+1
+	}
+	return el
 }
 
 func getCat(id string) Category {
@@ -117,6 +135,20 @@ func unreadCategoryCount(id int) int {
 		err.Error()
 	}
 	return count
+}
+func getFeedsWithoutCats() []Feed {
+	var allFeeds []Feed
+	rows, err := stmtGetFeedsWithoutCats.Query(userName)
+	if err != nil {
+		err.Error()
+	}
+	for rows.Next(){
+		var id string
+		rows.Scan(&id)
+		f :=getFeed(id)
+		allFeeds=append(allFeeds,f)
+	}
+	return allFeeds
 }
 func unreadFeedCount(id int) int {
 	var count int

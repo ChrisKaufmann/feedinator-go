@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -38,7 +36,8 @@ func main() {
 	http.HandleFunc("/authorize", handleAuthorize)
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 	http.HandleFunc("/categoryList/", handleCategoryList)
-	http.HandleFunc("/feedList/", handleFeedList)
+	http.HandleFunc("/feed/list/", handleFeedList)
+	http.HandleFunc("/feed/",handleFeed)
 	http.HandleFunc("/entry/mark/", handleMarkEntry)
 	http.HandleFunc("/entry/", handleEntry)
 	http.HandleFunc("/entries/", handleEntries)
@@ -49,6 +48,9 @@ func main() {
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
 	print("Listening on 127.0.0.1:9000\n")
 	http.ListenAndServe("127.0.0.1:9000", nil)
+}
+func handleFeed(w http.ResponseWriter, r *http.Request) {
+	return
 }
 func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
@@ -155,6 +157,7 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		cat := allthecats[i]
 		categoryHtml.Execute(w, cat)
 		fmt.Fprintf(w, "<br>\n")
+		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
 			catFeeds := getCategoryFeeds(currentCat)
 			for j := range catFeeds {
@@ -163,27 +166,18 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	fmt.Fprintf(w, "<br>")
-	rows, err := stmtGetFeedsWithoutCats.Query(userName)
-	if err != nil {
-		fmt.Println(w, err)
-		err.Error()
-		return
+	//and the categories 
+	allFeeds := getFeedsWithoutCats()
+	for i := range allFeeds {
+		feedHtml.Execute(w,allFeeds[i])
 	}
-	for rows.Next() {
-		var t string
-		var id string
-		rows.Scan(&t, &id)
-		feed := getFeed(id)
-		feedHtml.Execute(w, feed)
-	}
-
 	//print the footer for the categories list
 	fmt.Fprintf(w, "</ul>\n<td align='right'>\n<form name='add_feed_form'>\n<input type='text' name='add_feed_text'>\n<input type='button' value='Add' onclick='add_feed(this.form)'>\n	</form>\n</td>\n")
 }
 
 //print the list of entries for the selected category, feed, or marked
 func handleEntries(w http.ResponseWriter, r *http.Request) {
-	var err error
+	//var err error
 	// format is /entries/{feed|category}/<id>/{read|unread|next|previous}[/{feed_id|cat_id}]
 	a := strings.Split(r.URL.Path[len("/entries/"):], "/")
 	feedOrCat := a[0]
@@ -214,47 +208,18 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 			return
 	}
 	//print header for list
-	//fmt.Fprintf(w, "<form action='backend.php' method='POST' id='entries_form'>\n<input type='hidden' name='op' value='mark_list_read'>\n
 	fmt.Fprintf(w,"<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>")
-	// templates/listentry.html
-	var rows *sql.Rows
-	if feedOrCat == "feed" {
-		rows, err = stmtFeedEntries.Query(id, ur)
-		if err != nil {
-			fmt.Println(w, err)
-			err.Error()
-			return
-		}
+	var el []Entry
+	switch feedOrCat {
+		case "feed":
+			el = entriesFromSql(stmtFeedEntries,id,ur)
+		case "category":
+			el = entriesFromSql(stmtCatEntries,id,ur)
+		case "marked":
+			el = entriesFromSql(stmtMarkedEntries,id,ur)
 	}
-	if feedOrCat == "category" {
-		rows, err = stmtCatEntries.Query(id, ur)
-		if err != nil {
-			fmt.Println(w, err)
-			err.Error()
-			return
-		}
-	}
-	if feedOrCat == "marked" {
-		rows, err = stmtMarkedEntries.Query(userName)
-		if err != nil {
-			fmt.Println(w, err)
-			err.Error()
-			return
-		}
-	}
-	var count int
-	for rows.Next() {
-		var entry Entry
-		rows.Scan(&entry.ID, &entry.Title, &entry.Date, &entry.Link, &entry.Marked, &entry.FeedName)
-		if entry.Marked == "1" {
-			entry.MarkSet = "set"
-		} else {
-			entry.MarkSet = "unset"
-		}
-		entry.Evenodd = evenodd(count)
-		entry.Title = unescape(entry.Title)
-		listEntryHtml.Execute(w, entry)
-		count = count + 1
+	for a := range el {
+		listEntryHtml.Execute(w,el[a])
 	}
 
 	//print footer for entries list

@@ -83,7 +83,7 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
-	stmtGetFeedsWithoutCats, err = db.Prepare("select title, id from ttrss_feeds where user_name=? and category_id is NULL")
+	stmtGetFeedsWithoutCats, err = db.Prepare("select id from ttrss_feeds where user_name=? and category_id is NULL")
 	if err != nil {
 		err.Error()
 	}
@@ -91,11 +91,11 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
-	stmtCatEntries, err = db.Prepare("select e.id,e.title,e.updated,e.link,e.marked,f.title from ttrss_entries as e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ?")
+	stmtCatEntries, err = db.Prepare("select e.id from ttrss_entries as e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ?")
 	if err != nil {
 		err.Error()
 	}
-	stmtMarkedEntries, err = db.Prepare("select e.id,e.title,e.updated,e.link,e.marked,f.title from ttrss_entries as e, ttrss_feeds as f where f.id=e.feed_id and  f.user_name = ? and e.marked=1")
+	stmtMarkedEntries, err = db.Prepare("select e.id from ttrss_entries as e, ttrss_feeds as f where f.id=e.feed_id and  f.user_name = ? and e.marked=1")
 	if err != nil {
 		err.Error()
 	}
@@ -103,7 +103,7 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
-	stmtFeedEntries, err = db.Prepare("select e.id,e.title,e.updated,e.link,e.marked,f.title from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ?")
+	stmtFeedEntries, err = db.Prepare("select e.id from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ?")
 	if err != nil {
 		err.Error()
 	}
