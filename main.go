@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"aggregator"
 )
 
 type Category struct {
@@ -64,6 +65,7 @@ type Entry struct {
 }
 
 var (
+	anum := aggregator.getId()
 	userName                string
 	cachefile               = "cache.json"
 	indexHtml               = template.Must(template.ParseFiles("templates/index-nologin.html"))
