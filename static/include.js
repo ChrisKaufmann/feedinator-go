@@ -1,5 +1,5 @@
 // include file for index.php  :)
-var backend='http://www.feedinator.com/gui/backend.php';
+var backend='';// 'http://www.feedinator.com/gui/backend.php';
 var current_view='';		//  category or feed - for what's currently viewed
 var current_view_id='';		//  id of the category or feed currently being viewed.
 var current_entry_id='';	//  id of current entry being viewed
@@ -50,16 +50,15 @@ function showPreviousEntry(id)
 {
 	var url='op=previous_entry&id='+id+'&view_mode='+current_view+'&view_mode_id='+current_view_id;
 	document.getElementById('menu_status').innerHTML='Getting next id';
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){
+	$.ajax({type: "GET",url: '/entries/'+current_view+"/"+id+"/previous/"+current_view_id, success:function(html){
 		$('#menu_status').html(html);
 		show_entry(html);
 	}});
 }
 function showNextEntry(id)
 {
-	var url='op=next_entry&id='+id+'&view_mode='+current_view+'&view_mode_id='+current_view_id;
 	document.getElementById('menu_status').innerHTML='Getting next id';
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){
+	$.ajax({type: "GET",url: "/entries/"+current_view+"/"+id+"/next/"+current_view_id, success:function(html){
 		$('#menu_status').html(html);
 		show_entry(html);
 	}});
@@ -222,7 +221,10 @@ function feedList()
 function mark_list_read()
 {
 	data=$("#entries_form").serialize();
-	$.ajax({type: "POST",url: backend, data:data,success:function(html){$('#entries_list_div').html(html);$('#menu_status').html('');empty_count();}});
+	ndata=data.replace(/id%5B%5D=/g,',')
+	data=ndata.replace(/&/g,'')
+	alert(data)
+	$.ajax({type: "GET",url: '/entry/mark/'+data+'/read', success:function(html){$('#entries_list_div').html(html);$('#menu_status').html('');empty_count();}});
 }
 // Populates the feeds_div with a list of categories.
 // If id is given, shows the feeds inside that category

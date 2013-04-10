@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/msbranco/goconfig"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -17,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/msbranco/goconfig"
 )
 
 type Category struct {
@@ -74,11 +74,11 @@ var (
 	listEntryHtml           = template.Must(template.ParseFiles("templates/listentry.html"))
 	feedMenuHtml            = template.Must(template.ParseFiles("templates/feed_menu.html"))
 	catMenuHtml             = template.Must(template.ParseFiles("templates/category_menu.html"))
-	entryLinkHtml			= template.Must(template.ParseFiles("templates/entry_link.html"))
-	entryHtml				= template.Must(template.ParseFiles("templates/entry.html"))
+	entryLinkHtml           = template.Must(template.ParseFiles("templates/entry_link.html"))
+	entryHtml               = template.Must(template.ParseFiles("templates/entry.html"))
 	cookieName              = "feedinator_auth"
 	viewModes               = [...]string{"Default", "Link", "Extended", "Proxy"}
-	db						*sql.DB
+	db                      *sql.DB
 	stmtCatList             *sql.Stmt
 	stmtCookieIns           *sql.Stmt
 	stmtCatUnread           *sql.Stmt
@@ -95,19 +95,23 @@ var (
 	stmtGetEntry            *sql.Stmt
 	stmtGetCats             *sql.Stmt
 	stmtGetFeeds            *sql.Stmt
-	stmtUpdateMarkEntry		*sql.Stmt
-	stmtUpdateReadEntry		*sql.Stmt
-	db_name					string
-	db_host					string
-	db_user					string
-	db_pass					string
+	stmtUpdateMarkEntry     *sql.Stmt
+	stmtUpdateReadEntry     *sql.Stmt
+	stmtNextCategoryEntry	*sql.Stmt
+	stmtPreviousCategoryEntry	*sql.Stmt
+	stmtNextFeedEntry		*sql.Stmt
+	stmtPreviousFeedEntry	*sql.Stmt
+	db_name                 string
+	db_host                 string
+	db_user                 string
+	db_pass                 string
 )
 var oauthCfg = &oauth.Config{
-	AuthURL:      "https://accounts.google.com/o/oauth2/auth",
-	TokenURL:     "https://accounts.google.com/o/oauth2/token",
-	RedirectURL:  "http://dev.feedinator.com/oauth2callback",
-	Scope:        "https://www.googleapis.com/auth/userinfo.profile",
-	TokenCache:   oauth.CacheFile(cachefile),
+	AuthURL:     "https://accounts.google.com/o/oauth2/auth",
+	TokenURL:    "https://accounts.google.com/o/oauth2/token",
+	RedirectURL: "http://dev.feedinator.com/oauth2callback",
+	Scope:       "https://www.googleapis.com/auth/userinfo.profile",
+	TokenCache:  oauth.CacheFile(cachefile),
 }
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -116,18 +120,28 @@ const port = "9000"
 func init() {
 	var err error
 	c, err := goconfig.ReadConfigFile("config")
-	if err != nil {err.Error()}
-	db_name,err = c.GetString("DB", "db")
-	if err != nil {err.Error()}
-	db_host,err = c.GetString("DB", "host")
-	if err != nil {err.Error()}
-	db_user,err = c.GetString("DB", "user")
-	if err != nil {err.Error()}
-	db_pass,err = c.GetString("DB", "pass")
-	if err != nil {err.Error()}
-	oauthCfg.ClientId,err = c.GetString("Google", "ClientId")
-	oauthCfg.ClientSecret,err = c.GetString("Google","ClientSecret")
-	db, err      = sql.Open("mysql", db_user+":"+db_pass+"@"+db_host+"/"+db_name)
+	if err != nil {
+		err.Error()
+	}
+	db_name, err = c.GetString("DB", "db")
+	if err != nil {
+		err.Error()
+	}
+	db_host, err = c.GetString("DB", "host")
+	if err != nil {
+		err.Error()
+	}
+	db_user, err = c.GetString("DB", "user")
+	if err != nil {
+		err.Error()
+	}
+	db_pass, err = c.GetString("DB", "pass")
+	if err != nil {
+		err.Error()
+	}
+	oauthCfg.ClientId, err = c.GetString("Google", "ClientId")
+	oauthCfg.ClientSecret, err = c.GetString("Google", "ClientSecret")
+	db, err = sql.Open("mysql", db_user+":"+db_pass+"@"+db_host+"/"+db_name)
 	if err != nil {
 		panic(err)
 	}
@@ -203,6 +217,22 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
+	stmtNextCategoryEntry, err = db.Prepare("select e.id from ttrss_entries as e,ttrss_feeds as f  where f.category_id=? and e.feed_id=f.id and e.id > ? order by e.id ASC limit 1")
+	if err != nil {
+		err.Error()
+	}
+	stmtPreviousCategoryEntry, err = db.Prepare("select e.id from ttrss_entries as e, ttrss_feeds as f where f.category_id=? and e.feed_id=f.id and e.id<? order by e.id DESC limit 1")
+	if err != nil {
+		err.Error()
+	}
+	stmtNextFeedEntry, err = db.Prepare("select id from ttrss_entries where feed_id=? and id > ? limit 1")
+	if err != nil {
+		err.Error()
+	}
+	stmtPreviousFeedEntry, err = db.Prepare("select id from ttrss_entries where feed_id=? and id<? order by id DESC limit 1")
+	if err != nil {
+		err.Error()
+	}
 }
 
 func main() {
@@ -211,14 +241,15 @@ func main() {
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 	http.HandleFunc("/categoryList/", handleCategoryList)
 	http.HandleFunc("/feedList/", handleFeedList)
-	http.HandleFunc("/entry/", handleEntry)
 	http.HandleFunc("/entry/mark/", handleMarkEntry)
+	http.HandleFunc("/entry/", handleEntry)
 	http.HandleFunc("/entries/", handleEntries)
 	http.HandleFunc("/", handleRoot)
 	http.HandleFunc("/menu/", handleMenu)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
+	print("Listening on 127.0.0.1:9000\n")
 	http.ListenAndServe("127.0.0.1:9000", nil)
 }
 func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
@@ -226,12 +257,15 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	a := strings.Split(r.URL.Path[len("/entry/mark/"):],"/")
-	id := a[0]
-	tomark := a[1]
-
-	retstr := markEntry(id,tomark)
-	fmt.Fprintf(w,retstr)
+	var retstr string
+	a := strings.Split(r.URL.Path[len("/entry/mark/"):], "/")
+	id := a[0]     //id of the entry, mark, or feed
+	tomark := a[1] //mark read, unread, starred(marked)
+	b := strings.Split(id, ",")
+	for i := range b {
+		retstr = markEntry(b[i], tomark)
+	}
+	fmt.Fprintf(w, retstr)
 
 }
 func handleEntry(w http.ResponseWriter, r *http.Request) {
@@ -239,17 +273,17 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	a := strings.Split(r.URL.Path[len("/entry/"):],"/")
+	a := strings.Split(r.URL.Path[len("/entry/"):], "/")
 	id := a[0]
 
-	e:=getEntry(id)
+	e := getEntry(id)
 	if e.ViewMode == "link" {
-		e.Link=unescape(e.Link)
-		entryLinkHtml.Execute(w,e)
+		e.Link = unescape(e.Link)
+		entryLinkHtml.Execute(w, e)
 	} else {
-		entryHtml.Execute(w,e)
+		entryHtml.Execute(w, e)
 	}
-	markEntry(id,"read")
+	markEntry(id, "read")
 }
 func handleMenu(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
@@ -352,17 +386,38 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 //print the list of entries for the selected category, feed, or marked
 func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var err error
+	// format is /entries/{feed|category}/<id>/{read|unread|next|previous}[/{feed_id|cat_id}]
 	a := strings.Split(r.URL.Path[len("/entries/"):], "/")
 	feedOrCat := a[0]
 	id := a[1]
 	var ur int
-	if a[2] == "read" {
-		ur = 0
-	} else {
-		ur = 1
+	switch a[2] {
+		case "read":
+			ur = 0
+		case "unread":
+			ur = 1
+		case "next":
+			var retval string
+			if feedOrCat == "feed" {
+				stmtNextFeedEntry.QueryRow(a[3],id).Scan(&retval)
+			} else {
+				stmtNextCategoryEntry.QueryRow(a[3],id).Scan(&retval)
+			}
+			fmt.Fprintf(w,retval)
+			return
+		case "previous":
+			var retval string
+			if feedOrCat == "feed" {
+				stmtPreviousFeedEntry.QueryRow(a[3],id).Scan(&retval)
+			} else {
+				stmtPreviousCategoryEntry.QueryRow(a[3],id).Scan(&retval)
+			}
+			fmt.Fprintf(w,retval)
+			return
 	}
 	//print header for list
-	fmt.Fprintf(w, "<form action='backend.php' method='POST' id='entries_form'>\n<input type='hidden' name='op' value='mark_list_read'>\n<table class='headlinesList' id='headlinesList' width='100%'>")
+	//fmt.Fprintf(w, "<form action='backend.php' method='POST' id='entries_form'>\n<input type='hidden' name='op' value='mark_list_read'>\n
+	fmt.Fprintf(w,"<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>")
 	// templates/listentry.html
 	var rows *sql.Rows
 	if feedOrCat == "feed" {
@@ -420,7 +475,6 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-	print("in handleroot\n")
 	if !loggedIn(w, r) {
 		if err := indexHtml.Execute(w, nil); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -594,29 +648,28 @@ func getEntry(id string) Entry {
 		e.MarkSet = "unset"
 	}
 	f := getFeed(strconv.Itoa(e.FeedID))
-	e.Content=template.HTML(unescape(c))
-	e.Title=unescape(e.Title)
-	e.FeedName=f.Title
-	e.ViewMode=f.ViewMode
-	print("feed title: "+f.Title+"\n")
+	e.Content = template.HTML(unescape(c))
+	e.Title = unescape(e.Title)
+	e.FeedName = f.Title
+	e.ViewMode = f.ViewMode
 	return e
 }
-func markEntry(id string,m string) string {
+func markEntry(id string, m string) string {
 	var ret string
 	switch m {
-		case "read":
-			stmtUpdateReadEntry.Exec("0",id)
-		case "unread":
-			stmtUpdateReadEntry.Exec("1",id)
-		case "marked":
-			stmtUpdateMarkEntry.Exec("1",id)
-		case "unmarked":
-			stmtUpdateMarkEntry.Exec("0",id)
-		case "togglemarked":
-			e:=getEntry(id)
-			stmtUpdateMarkEntry.Exec(toint(e.Marked)^1,id)
-			en:=getEntry(id)
-			ret = "<img src='static/mark_"+en.MarkSet+".png' alt='Set mark' onclick='javascript:toggleMark("+id+");'>\n"
+	case "read":
+		stmtUpdateReadEntry.Exec("0", id)
+	case "unread":
+		stmtUpdateReadEntry.Exec("1", id)
+	case "marked":
+		stmtUpdateMarkEntry.Exec("1", id)
+	case "unmarked":
+		stmtUpdateMarkEntry.Exec("0", id)
+	case "togglemarked":
+		e := getEntry(id)
+		stmtUpdateMarkEntry.Exec(toint(e.Marked)^1, id)
+		en := getEntry(id)
+		ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
 	}
 	return ret
 }
@@ -677,11 +730,11 @@ func unreadFeedCount(id int) int {
 	return count
 }
 func toint(s string) int {
-	i,_ := strconv.Atoi(s)
+	i, _ := strconv.Atoi(s)
 	return i
 }
 func unescape(s string) string {
-	s = strings.Replace(s, "&#34;","\"",-1)
-	s = strings.Replace(s, "&#47;","/",-1)
+	s = strings.Replace(s, "&#34;", "\"", -1)
+	s = strings.Replace(s, "&#47;", "/", -1)
 	return s
 }
