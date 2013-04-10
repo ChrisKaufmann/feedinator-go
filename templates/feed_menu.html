@@ -1,0 +1,76 @@
+<div id='settings_div'>
+	<table width='100%'>
+		<tr>
+			<td align='left'>
+				<div id='menu_status' style='height:20px;width:140px'></div>
+			</td>
+			<td align='right'>
+				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
+				<a href='javascript:view_starred();'>Starred</a>&nbsp;
+				<a href='javascript:view_read();'>Read</a>&nbsp;
+				<a href='prefs.php' target='_default'>Preferences</a>&nbsp;
+				<a href='javascript:mark_list_read();'>Mark all read</a>
+			</td>
+			<td>
+				<div id='toggle_settings_div'><a href='javascript:toggle_visible("modify_div");'>^</a></div>
+			</td>
+		</tr>
+	</table>
+
+	<div id='modify_div' style='border:1px solid #979797;display:none'>
+		<table>
+			<tr>
+				<td>
+				</td>
+				<td align='right'>
+					<div id='customize_dropdown'>
+						<form name='view_customize_form'>
+							<select name='select' onchange='customize(this.form)'>
+								<option value=''>Customize
+								<option value=''>--View Mode--
+								{{.ViewModeSelect }}
+								<option value='none'>--Category--
+								{{.CategorySelect}}
+								<option value='null'>None
+								<option value=''>--Delete--
+								<option value='delete'>Delete Feed
+							</select>
+						</form>
+	
+					</div>
+				</td>
+				<td align='right' valign='center'>
+					<form name='rename_feed_form'>
+						<input type='text' size=20 name='rename_feed_text' value='{{.Title}}'>
+						<input type='button' value='Rename' onclick='rename_feed(this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_link_form'>
+						<input type='text' name='update_link_text' value='{{.Url}}'>
+						<input type='button' value='Change Link' onclick='update_link(this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_feed_expirey'>
+						<input type='text' size=10 name='update_feed_expirey' value='{{.Expirey}}'>
+						<input type='button' value='Update Expirey' onclick='update_expirey(this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_feed_autoscroll'>
+						<input type='text' size=5 name='update_feed_autoscroll' value='{{.AutoscrollPX}}'>
+						<input type='button' value='Update Autoscroll' onclick='update_autoscroll(this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_exclude_list'>
+						<input type='text' size=20 name='rename_exclude_text' value='{{.Exclude}}'>
+						<input type='button' value='Exclude' onclick='update_exclude(this.form)'>
+					</form>
+				</td>
+			</tr>
+		</table>
+	</div>
+</div>
+

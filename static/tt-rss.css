@@ -1,0 +1,351 @@
+html,body {
+	background : white;
+	color : black;
+	margin : 0px;
+	padding : 0px;
+	font-family : sans-serif;
+}
+
+/* common styles */
+
+table.main td.header {
+	padding : 10px 10px 10px 50px;
+	height : 90px;
+	font-size : 24pt;
+	font-weight : bold;	
+	background-image : url("images/vgrad_light_rev2.png");
+	background-position : top left;
+	background-repeat : repeat-x;
+}
+
+table.main td.mainToolbar {
+	border-width : 0px 0px 0px 0px;
+	border-style : solid;
+	border-color : #c0c0c0;
+	padding : 3px 25px 3px 10px;
+}
+
+table.main td.prefsToolbar {
+	border-width : 0px 0px 0px 0px;
+	border-style : solid;
+	border-color : #c0c0c0;
+	padding : 3px 25px 15px 10px;
+}
+/*
+table.main td.feeds {
+	width : 300px;
+	height : 100%;
+	border-width : 1px 0px 0px 0px;
+	border-style : solid;
+	border-color : #c0c0c0;
+	padding : 0px;
+}*/
+
+table.main td.headlinesToolbarBox {
+	padding : 10px;
+	border-width : 0px 0px 1px 1px;
+	border-style : solid;
+	border-color : #c0c0c0;
+	background-image : url("images/vgrad_light.png");
+	background-position : bottom left;
+	background-repeat : repeat-x;
+}
+
+table.main td.footer {
+	border-width : 1px 0px 0px 0px;
+	border-style : solid;
+	border-color : #c0c0c0;
+	padding : 10px;
+	text-align : center;
+	font-size : x-small;
+	background-image : url("images/vgrad_light_rev2.png");
+	background-position : top left;
+	background-repeat : repeat-x;
+	color : gray;
+}
+
+table.main td.footer a {
+	color : gray;
+}
+
+table.main td.footer a:hover {
+	color : #5050aa;
+}
+
+table.main td.headlines {
+	height : 25%;
+	border-width : 0px 0px 1px 1px;
+	border-style : solid;
+	border-color : #c0c0c0;
+}
+
+table.main td.content {
+	height : 100%;
+	background-image : url("images/vgrad_light_rev.png");
+	background-position : top left;
+	background-repeat : repeat-x;
+	border-width : 0px 0px 0px 1px;
+	border-style : solid;
+	border-color : #c0c0c0;
+}
+
+table.main td.prefContent {
+	height : 100%;
+	background-image : url("images/vgrad_light_rev.png");
+	background-position : top left;
+	background-repeat : repeat-x;
+	border-width : 1px 0px 0px 0px;
+	border-style : solid;
+	border-color : #c0c0c0;
+	padding : 20px;
+}
+
+div.postReply {
+	background-image : url("images/vgrad_light_rev.png");
+	background-position : top left;
+	background-repeat : repeat-x;
+	height : 100%;
+	padding : 10px;
+}
+
+div.postReply a {
+	color : #5050aa;
+}
+
+div.postReply a:hover {
+	color : black;
+}
+
+div.postReply div.postHeader {
+	background : white;
+	border : 1px solid #c0c0c0;
+	padding : 5px;
+}
+
+div.postReply div.postContent {
+	height : 200%;
+	padding : 10px;
+}
+
+div.postReply div.postIcon {
+	float : right;
+	border : 0px;
+	margin : 10px 0px 10px 10px;
+}
+
+ul.feedList {
+	list-style-type : none;
+	margin : 0px;
+	padding : 5px;	
+	height: 800px;
+	overflow: auto;
+	overflow-x: hidden;
+}
+
+ul.feedList li {
+	margin : 0px;
+}
+
+ul.feedList li.oddSelected, ul.feedList li.evenSelected,
+	li.oddUnreadSelected, li.evenUnreadSelected, li.evenSelectedUnread,
+	li.oddSelectedUnread {
+	background-color : white;
+} 
+
+li.oddSelected a, li.evenSelected a,
+	li.oddUnreadSelected a, li.evenUnreadSelected a {
+	color : #5050aa;
+} 
+
+ul.feedList img {
+	margin : 0px 3px 0px 0px;
+	width : 16px;
+	height : 16px;
+}
+
+h1 {
+	font-size : 16pt;	
+}
+
+h2 {
+	font-size : 14pt;
+	font-weight : bold;
+	border-width : 0px 0px 1px 0px;
+	border-style : solid;
+	border-color : #e0e0e0;
+}
+
+hr {
+	border-width : 0px 0px 1px 0px;
+	border-style : dashed;
+	border-color : #e0e0e0;
+}
+
+a {
+	color : black;
+	text-decoration : none;
+	font-size : 8pt;
+}
+
+a:hover {
+	color : #5050aa;
+}
+
+#iedit_title, #iedit_link, #iedit_regexp, #iedit_descr, #iedit_expr {
+	width : 100%;
+	padding-left : 2px;
+}
+
+#notify {
+	font-weight : bold;
+	font-size : 10pt;
+	display : none;
+	width : 350px;
+	color : gray;
+}
+
+#dispSwitch {
+	text-align : right;
+	padding : 5px 5px 5px 0px;
+	font-size : x-small;
+}
+
+#dispSwitch a {
+	color : gray;
+}
+
+#dispSwitch a:hover {
+	color : #5050aa;
+}
+
+div.expPane {
+	margin : 15px;
+}
+
+iframe {
+	border : 0px solid white;
+}
+
+iframe.feedsFrame {
+	width : 100%;
+	height : 100%;
+	margin : 0px;
+	padding : 0px;
+}
+
+iframe.contentFrame {
+	width : 100%;
+	padding : 0px;
+	margin : 0px;
+	height : 400px;
+}
+iframe.headlinesFrame {
+	width : 100%;
+	padding : 0px;
+	margin : 0px;
+}
+
+.button {
+	border : 1px solid #d0d0d0;
+	background-image : url("images/button.png");
+	background-position : top;
+	background-repeat : repeat-x;
+	background-color : white;
+	color : black;	
+}
+
+.button:hover {
+	background : white;
+	text-decoration : none;
+	color : black;
+}
+
+a.button {
+	padding : 2px 5px 2px 5px;
+	font-size : small;
+}
+
+.evenUnreadSelected, .evenSelectedUnread {
+	background-color : #e0e0ff;
+	font-weight : bold;
+	font-size : 8pt;
+}
+
+.oddUnreadSelected, .oddSelectedUnread {
+	background-color : #e0e0ff;
+	font-weight : bold;
+	font-size : 8pt;
+}
+
+.evenSelected {
+	background-color : #e0e0ff;
+}
+
+.oddSelected {
+	background-color : #e0e0ff;
+	font-size : 8pt;
+}
+
+.disabledButton {
+	border : 1px solid #c0c0c0;
+	background-color : white;
+	color : gray;	
+}
+
+.evenGrayed {
+	background-color : #f0f0f0;
+	color : #909090;
+	font-size : 8pt;
+}
+
+.oddGrayed {
+	color : #909090;
+	font-size : 8pt;
+}
+
+.even {
+	background-color : #f0f0f0;
+	font-size : 8pt;
+}
+
+.odd{
+	font-size : 8pt;
+}
+
+.evenUnread {
+	background-color : #f0f0f0;
+	font-weight : bold;
+	font-size : 8pt;
+}
+
+.oddUnread {
+	font-weight : bold;
+	font-size : 8pt;
+}
+
+.invisible {
+	display : none;
+}
+
+input {
+	border : 1px solid #a0a0a0;
+}
+
+/* preferences */
+
+table.prefAddFeed td {
+	padding : 2px;
+}
+
+table.prefAddFeed input {
+	width : 250px;
+}
+
+table.prefFeedList tr.title td, table.prefFilterList tr.title td,
+	table.headlinesList tr.title td, table.prefLabelList tr.title td {
+	font-weight : bold;
+	border-width : 0px 0px 1px 0px;
+	border-color : #f0f0f0;
+	border-style : solid;
+}
+

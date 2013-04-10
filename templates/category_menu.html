@@ -1,0 +1,37 @@
+<div id='settings_div'>
+	<table width='100%'>
+		<tr>
+			<td align='left'>
+				<div id='menu_status' style='height:20px;width:140px'></div>
+			</td>
+			<td align='right'>
+				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
+				<a href='javascript:view_starred();'>Starred</a>&nbsp;
+				<a href='javascript:view_read();'>Read</a>&nbsp;
+				<a href='prefs.php' target='_default'>Preferences</a>&nbsp;
+				<a href='javascript:mark_list_read();'>Mark all read</a>
+			</td>
+			<td>
+				<div id='toggle_settings_div'><a href='javascript:toggle_visible("modify_div");'>^</a></div>
+			</td>
+		</tr>
+	</table>
+	<div id='modify_div' style='border:1px solid #979797;display:none'>
+		<table>
+			<tr>
+				<td>
+					<form name='rename_category_form'>
+						<input type='text' name='rename_category_text' value='{{.Name}}'>
+						<input type='button' value='Rename' onclick='rename_category(this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='description_form'>
+						<input type='text' name='describe_category_text' value='{{.Description}}'>
+						<input type='button' value='Describe' onclick='describe_category(this.form)'>
+					</form>
+				</td>
+			</tr>
+		</table>
+	</div>
+</div>

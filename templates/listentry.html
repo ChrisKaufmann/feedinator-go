@@ -1,0 +1,10 @@
+
+<tr class='{{.Evenodd}}unread' id='RROW-{{.ID}}'>
+<input type='hidden' name='id[]' value='{{.ID}}'>
+	<td valign='center' align='center'><div id='FMARKPIC-{{.ID}}'><img src='static/mark_{{.MarkSet}}.png' alt='Set mark' onclick='javascript:toggleMark({{.ID}});'></div></td>
+	<td ><a href='javascript:remove_entry({{.ID}});'>-</a></td>
+	<td width='22%'><a href='javascript:show_entry({{.ID}});'>{{.FeedName}}</a></td>
+	<td width='60%'><a href='javascript:show_entry({{.ID}});'>{{.Title}}</a></td>
+	<td width='12%'><a href='javascript:show_entry({{.ID}});'>{{.Date}}</a></td>
+	<td align='right'><a href='{{.Link}}' target='_blank'>-></a></td>
+</tr>

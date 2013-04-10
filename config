@@ -1,0 +1,7 @@
+[DB]
+db=<mydb>
+host=<myhost>
+user=<myuser>
+pass=<mypass>
+[Google]
+

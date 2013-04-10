@@ -1,0 +1,30 @@
+<div id='content_container'>
+	<div id='table_container' style='z-index:1;position:relative;opacity:1;background-color:#FFFFFF'>
+		<table width='100%'>
+			<tr class='evenunread'>
+				<td width=150>{{.FeedName}}</td>
+				<td style='text-overflow:ellipsis;white-space:nowrap;overflow:hidden'>{{.Title}}</td>
+				<td width=100 align='right'>
+					<div id='viewentry-dropdown'>
+					<select name='select' onchange='customizeentry(this.form)'>
+						<option value=''>--Mark--</option>
+						<option value='unread'>Unread</option>
+						<option value=''>--View--</option>
+						<option value='viewdefault'>Default</option>
+						<option value='viewproxy'>Proxy</option>
+						<option valie='viewlink'>Link</option>
+					</option>
+					</div>
+				</td>
+				<td align='right' width=18><a href='https://twitter.com/home?status={{.Link}}' target='_blank' ><img src='static/025.png' height='15' ></a></td>
+				<td align='right' width=22><a href='{{.Link}}' target='_blank'>New</a>
+				<td align='right' width=22><a href="javascript:showPreviousEntry('{{.ID}}');">Previous</a>
+				<td align='right' width=22><a href="javascript:showNextEntry('{{.ID}}');">Next</a>
+				<td align='right' width=16><div id='EMARKPIC-{{.ID}}'><img src='static/mark_{{.MarkSet}}.png' alt='Set mark' onclick='javascript:toggleMark({{.ID}});'></div></td>
+				<td width=11></td>	
+			</tr>
+		</table>
+	</div>
+	<div id='entry_content' style='position:absolute;height:70%;overflow:auto;width:100%' >{{.Content}}
+	</div>
+</div>
