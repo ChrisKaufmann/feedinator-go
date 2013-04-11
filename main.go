@@ -9,20 +9,20 @@ import (
 )
 
 var (
-	userName                string
-	cachefile               = "cache.json"
-	indexHtml               = template.Must(template.ParseFiles("templates/index-nologin.html"))
-	mainHtml                = template.Must(template.ParseFiles("templates/main.html"))
-	categoryHtml            = template.Must(template.ParseFiles("templates/category.html"))
-	feedHtml                = template.Must(template.ParseFiles("templates/feed.html"))
-	feedHtmlSpaced          = template.Must(template.ParseFiles("templates/feed_spaced.html"))
-	listEntryHtml           = template.Must(template.ParseFiles("templates/listentry.html"))
-	feedMenuHtml            = template.Must(template.ParseFiles("templates/feed_menu.html"))
-	catMenuHtml             = template.Must(template.ParseFiles("templates/category_menu.html"))
-	entryLinkHtml           = template.Must(template.ParseFiles("templates/entry_link.html"))
-	entryHtml               = template.Must(template.ParseFiles("templates/entry.html"))
-	cookieName              = "feedinator_auth"
-	viewModes               = [...]string{"Default", "Link", "Extended", "Proxy"}
+	userName       string
+	cachefile      = "cache.json"
+	indexHtml      = template.Must(template.ParseFiles("templates/index-nologin.html"))
+	mainHtml       = template.Must(template.ParseFiles("templates/main.html"))
+	categoryHtml   = template.Must(template.ParseFiles("templates/category.html"))
+	feedHtml       = template.Must(template.ParseFiles("templates/feed.html"))
+	feedHtmlSpaced = template.Must(template.ParseFiles("templates/feed_spaced.html"))
+	listEntryHtml  = template.Must(template.ParseFiles("templates/listentry.html"))
+	feedMenuHtml   = template.Must(template.ParseFiles("templates/feed_menu.html"))
+	catMenuHtml    = template.Must(template.ParseFiles("templates/category_menu.html"))
+	entryLinkHtml  = template.Must(template.ParseFiles("templates/entry_link.html"))
+	entryHtml      = template.Must(template.ParseFiles("templates/entry.html"))
+	cookieName     = "feedinator_auth"
+	viewModes      = [...]string{"Default", "Link", "Extended", "Proxy"}
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -37,7 +37,7 @@ func main() {
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 	http.HandleFunc("/categoryList/", handleCategoryList)
 	http.HandleFunc("/feed/list/", handleFeedList)
-	http.HandleFunc("/feed/",handleFeed)
+	http.HandleFunc("/feed/", handleFeed)
 	http.HandleFunc("/entry/mark/", handleMarkEntry)
 	http.HandleFunc("/entry/", handleEntry)
 	http.HandleFunc("/entries/", handleEntries)
@@ -50,6 +50,28 @@ func main() {
 	http.ListenAndServe("127.0.0.1:9000", nil)
 }
 func handleFeed(w http.ResponseWriter, r *http.Request) {
+	if !loggedIn(w, r) {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	var id string
+	var todo string
+	var val string
+	pathVars(r, "/feed/", &id, &todo, &val)
+	f := getFeed(id)
+	switch todo {
+	case "name":
+		print("name " + id + ", todo: " + todo + ", val: " + val)
+		f.Title=val
+	case "link":
+		print("name " + id + ", todo: " + todo + ", val: " + val)
+	case "expirey":
+		print("name " + id + ", todo: " + todo + ", val: " + val)
+	case "autoscroll":
+		print("name " + id + ", todo: " + todo + ", val: " + val)
+	case "exclude":
+		print("name " + id + ", todo: " + todo + ", val: " + val)
+	}
 	return
 }
 func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +191,7 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	//and the categories 
 	allFeeds := getFeedsWithoutCats()
 	for i := range allFeeds {
-		feedHtml.Execute(w,allFeeds[i])
+		feedHtml.Execute(w, allFeeds[i])
 	}
 	//print the footer for the categories list
 	fmt.Fprintf(w, "</ul>\n<td align='right'>\n<form name='add_feed_form'>\n<input type='text' name='add_feed_text'>\n<input type='button' value='Add' onclick='add_feed(this.form)'>\n	</form>\n</td>\n")
@@ -184,42 +206,42 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	id := a[1]
 	var ur int
 	switch a[2] {
-		case "read":
-			ur = 0
-		case "unread":
-			ur = 1
-		case "next":
-			var retval string
-			if feedOrCat == "feed" {
-				stmtNextFeedEntry.QueryRow(a[3],id).Scan(&retval)
-			} else {
-				stmtNextCategoryEntry.QueryRow(a[3],id).Scan(&retval)
-			}
-			fmt.Fprintf(w,retval)
-			return
-		case "previous":
-			var retval string
-			if feedOrCat == "feed" {
-				stmtPreviousFeedEntry.QueryRow(a[3],id).Scan(&retval)
-			} else {
-				stmtPreviousCategoryEntry.QueryRow(a[3],id).Scan(&retval)
-			}
-			fmt.Fprintf(w,retval)
-			return
+	case "read":
+		ur = 0
+	case "unread":
+		ur = 1
+	case "next":
+		var retval string
+		if feedOrCat == "feed" {
+			stmtNextFeedEntry.QueryRow(a[3], id).Scan(&retval)
+		} else {
+			stmtNextCategoryEntry.QueryRow(a[3], id).Scan(&retval)
+		}
+		fmt.Fprintf(w, retval)
+		return
+	case "previous":
+		var retval string
+		if feedOrCat == "feed" {
+			stmtPreviousFeedEntry.QueryRow(a[3], id).Scan(&retval)
+		} else {
+			stmtPreviousCategoryEntry.QueryRow(a[3], id).Scan(&retval)
+		}
+		fmt.Fprintf(w, retval)
+		return
 	}
 	//print header for list
-	fmt.Fprintf(w,"<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>")
+	fmt.Fprintf(w, "<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>")
 	var el []Entry
 	switch feedOrCat {
-		case "feed":
-			el = entriesFromSql(stmtFeedEntries,id,ur)
-		case "category":
-			el = entriesFromSql(stmtCatEntries,id,ur)
-		case "marked":
-			el = entriesFromSql(stmtMarkedEntries,id,ur)
+	case "feed":
+		el = entriesFromSql(stmtFeedEntries, id, ur)
+	case "category":
+		el = entriesFromSql(stmtCatEntries, id, ur)
+	case "marked":
+		el = entriesFromSql(stmtMarkedEntries, id, ur)
 	}
 	for a := range el {
-		listEntryHtml.Execute(w,el[a])
+		listEntryHtml.Execute(w, el[a])
 	}
 
 	//print footer for entries list
@@ -245,17 +267,4 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Redirect(w, r, "/main", http.StatusFound)
 	}
-}
-
-
-func evenodd(i int) string {
-	if i%2 == 0 {
-		return "even"
-	}
-	return "odd"
-}
-func unescape(s string) string {
-	s = strings.Replace(s, "&#34;", "\"", -1)
-	s = strings.Replace(s, "&#47;", "/", -1)
-	return s
 }
