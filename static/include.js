@@ -223,7 +223,6 @@ function mark_list_read()
 	data=$("#entries_form").serialize();
 	ndata=data.replace(/id%5B%5D=/g,',')
 	data=ndata.replace(/&/g,'')
-	alert(data)
 	$.ajax({type: "GET",url: '/entry/mark/'+data+'/read', success:function(html){$('#entries_list_div').html(html);$('#menu_status').html('');empty_count();}});
 }
 // Populates the feeds_div with a list of categories.
@@ -268,13 +267,19 @@ function customize(form)
 	var url='';
 	if(selvalue == 'delete'){url='op=delete_feed&id='+current_view_id;}
 	else if(selvalue=='default' || selvalue=='link' || selvalue=='extended'||selvalue=='proxy')
-		{url='op=update_viewmode&view_mode='+selvalue+'&id='+current_view_id+'&skip_div=1';}
+		{
+		url='/feed/'+current_view_id+'/view_mode/'+selvalue
+		//url='op=update_viewmode&view_mode='+selvalue+'&id='+current_view_id+'&skip_div=1';
+		}
 	else
-		{url='op=update_category&id='+current_view_id+'&category='+selvalue+'&skip_div=1';}
-	$.ajax({type: "GET",url: backend, data:url,success:function(html)
+		{
+		url='/feed/'+current_view_id+'/category/'+selvalue
+		//url='op=update_category&id='+current_view_id+'&category='+selvalue+'&skip_div=1';
+		}
+	$.ajax({type: "GET",url: url,success:function(html)
 	{
 		$('#menu_status').html(html);
-		$.ajax({type: "GET",url: backend, data:'op=view_customize_dropdown&id='+current_view_id,success:function(html){$('#customize_dropdown').html(html);}})
+		$.ajax({type: "GET",url: '/menu/select/'+current_view_id,success:function(html){$('#customize_dropdown').html(html);}})
 	}})
 }
 function add_feed(form)
@@ -289,22 +294,19 @@ function update_expirey(form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
 	var newexpirey=form.update_feed_expirey.value;
-	var url='op=update_expirey&id='+current_view_id+'&expirey='+newexpirey;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/expirey/'+newexpirey,success:function(html){$('#menu_status').html(html);}})
 }
 function update_autoscroll(form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
 	var newautoscroll=form.update_feed_autoscroll.value;
-	var url='op=update_feed_autoscroll&id='+current_view_id+'&autoscroll='+newautoscroll;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/autoscroll/'+newautoscroll,success:function(html){$('#menu_status').html(html);}})
 }
 function rename_feed(form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
 	var newname=form.rename_feed_text.value;
-	var url='op=rename_feed&id='+current_view_id +'&name='+newname;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/name/'+newname, data:url,success:function(html){$('#menu_status').html(html);}})
 }
 function rename_category(form)
 {

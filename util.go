@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"database/sql"
 	"strings"
 	"strconv"
 )
@@ -17,6 +18,14 @@ func pathVars(r *http.Request, root string, vals ...*string) {
 			*vals[i] = ""
 		}
 	}
+}
+func sth(db *sql.DB,s string) *sql.Stmt {
+	a, err := db.Prepare(s)
+	if err != nil {
+		print (s)
+		panic(err)
+	}
+	return a
 }
 
 func evenodd(i int) string {

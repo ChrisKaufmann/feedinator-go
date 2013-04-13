@@ -6,6 +6,24 @@ import (
 	"strconv"
 )
 
+var (
+	stmtGetEntry        *sql.Stmt
+	stmtUpdateMarkEntry *sql.Stmt
+	stmtUpdateReadEntry *sql.Stmt
+	stmtSaveEntry		*sql.Stmt
+)
+
+func (e Entry)Save () {
+	stmtSaveEntry.Exec(e.Title,e.Link,e.Date,e.FeedID,e.Marked,e.Unread,e.ID)
+}
+
+func init() {
+	stmtGetEntry=sth(db,"select id,title,link,updated,feed_id,marked,content,unread from ttrss_entries where id= ?")
+	stmtUpdateMarkEntry=sth(db,"update ttrss_entries set marked=? where id=?")
+	stmtUpdateReadEntry=sth(db,"update ttrss_entries set unread=? where id=?")
+	stmtSaveEntry=sth(db,"update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
+}
+
 type Entry struct {
 	ID       int
 	Evenodd  string
@@ -53,6 +71,7 @@ func getEntry(id string) Entry {
 	}
 	f := getFeed(strconv.Itoa(e.FeedID))
 	e.Content = template.HTML(unescape(c))
+	e.Link = unescape(e.Link)
 	e.Title = unescape(e.Title)
 	e.FeedName = f.Title
 	e.ViewMode = f.ViewMode

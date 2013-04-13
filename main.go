@@ -21,15 +21,13 @@ var (
 	catMenuHtml    = template.Must(template.ParseFiles("templates/category_menu.html"))
 	entryLinkHtml  = template.Must(template.ParseFiles("templates/entry_link.html"))
 	entryHtml      = template.Must(template.ParseFiles("templates/entry.html"))
+	menuDropHtml   = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
 	cookieName     = "feedinator_auth"
 	viewModes      = [...]string{"Default", "Link", "Extended", "Proxy"}
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
 const port = "9000"
-
-func init() {
-}
 
 func main() {
 	http.HandleFunc("/main", handleMain)
@@ -42,6 +40,7 @@ func main() {
 	http.HandleFunc("/entry/", handleEntry)
 	http.HandleFunc("/entries/", handleEntries)
 	http.HandleFunc("/", handleRoot)
+	http.HandleFunc("/menu/select/", handleSelectMenu)
 	http.HandleFunc("/menu/", handleMenu)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
@@ -62,15 +61,31 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	switch todo {
 	case "name":
 		print("name " + id + ", todo: " + todo + ", val: " + val)
-		f.Title=val
+		f.Title = val
+		f.Save()
+		fmt.Fprintf(w,"Name: "+val
 	case "link":
 		print("name " + id + ", todo: " + todo + ", val: " + val)
 	case "expirey":
 		print("name " + id + ", todo: " + todo + ", val: " + val)
+		f.Expirey = val
+		f.Save()
+		fmt.Fprintf(w,"Expirey: "+val
 	case "autoscroll":
 		print("name " + id + ", todo: " + todo + ", val: " + val)
+		f.AutoscrollPX = toint(val)
+		f.Save()
+		fmt.Fprintf(w,"Autoscroll: "+val
 	case "exclude":
 		print("name " + id + ", todo: " + todo + ", val: " + val)
+	case "category":
+		f.CategoryID = toint(val)
+		f.Save()
+		fmt.Fprintf(w, "Category: "+val)
+	case "view_mode":
+		f.ViewMode = val
+		f.Save()
+		fmt.Fprintf(w, "View Mode: "+val)
 	}
 	return
 }
@@ -112,39 +127,51 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	a := strings.Split(r.URL.Path[len("/menu/"):], "/")
-	feedOrCat := a[0]
-	id := a[1]
+	var feedOrCat string
+	var id string
+	pathVars(r,"/menu/",&feedOrCat,&id)
+//	a := strings.Split(r.URL.Path[len("/menu/"):], "/")
+//	feedOrCat := a[0]
+//	id := a[1]
 	if feedOrCat == "category" {
 		cat := getCat(id)
 		catMenuHtml.Execute(w, cat)
 	}
 	if feedOrCat == "feed" {
 		f := getFeed(id)
-		// Create the ViewModeSelect
-		var optionHtml string
-		for i := range viewModes {
-			m := viewModes[i]
-			lbl := m
-			if strings.ToLower(m) == strings.ToLower(f.ViewMode) {
-				lbl = "*" + m
-			}
-			optionHtml = optionHtml + "<option value='" + strings.ToLower(m) + "'>" + lbl + "\n"
-		}
-		//This prints the dropdown category select
-		var catHtml string
-		allthecats := getCategories()
-		for i := range allthecats {
-			cat := allthecats[i]
-			if cat.ID == f.CategoryID {
-				cat.Name = "*" + cat.Name
-			}
-			catHtml = catHtml + "<option value='" + strconv.Itoa(cat.ID) + "'>" + cat.Name + "\n"
-		}
-		f.ViewModeSelect = template.HTML(optionHtml)
-		f.CategorySelect = template.HTML(catHtml)
+		setSelects(&f)
 		feedMenuHtml.Execute(w, f)
 	}
+}
+func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
+	var id string
+	pathVars(r, "/menu/select/", &id)
+	print("id="+id+"\n")
+	f := getFeed(id)
+	setSelects(&f)
+	menuDropHtml.Execute(w,f)
+}
+func setSelects(f *Feed) {
+	var catHtml string
+	var optionHtml string
+	for i := range viewModes {
+		m := viewModes[i]
+		lbl := m
+		if strings.ToLower(m) == strings.ToLower(f.ViewMode) {
+			lbl = "*" + m
+		}
+		optionHtml = optionHtml + "<option value='" + strings.ToLower(m) + "'>" + lbl + "\n"
+		}
+	allthecats := getCategories()
+	for i := range allthecats {
+		cat := allthecats[i]
+		if cat.ID == f.CategoryID {
+			cat.Name = "*" + cat.Name
+		}
+		catHtml = catHtml + "<option value='" + strconv.Itoa(cat.ID) + "'>" + cat.Name + "\n"
+	}
+	f.ViewModeSelect = template.HTML(optionHtml)
+	f.CategorySelect = template.HTML(catHtml)
 }
 
 //print the list of all feeds

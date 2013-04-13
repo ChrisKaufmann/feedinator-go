@@ -1,5 +1,10 @@
 package main
 
+import (
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
+)
+
 type Category struct {
 	Name        string
 	Description string
@@ -8,6 +13,35 @@ type Category struct {
 	Unread      int
 	Evenodd     string
 	Class       string
+}
+
+var (
+	stmtCatList               *sql.Stmt
+	stmtCatUnread             *sql.Stmt
+	stmtCatEntries            *sql.Stmt
+	stmtGetCat                *sql.Stmt
+	stmtGetCats               *sql.Stmt
+	stmtNextCategoryEntry     *sql.Stmt
+	stmtPreviousCategoryEntry *sql.Stmt
+	stmtGetCatFeeds           *sql.Stmt
+	stmtGetFeedsInCat         *sql.Stmt
+	stmtSaveCat				  *sql.Stmt
+)
+
+func init() {
+	stmtCatList = sth(db, "select name,id from ttrss_categories where user_name=?")
+	stmtCatUnread = sth(db, "select count(e.id) as unread from ttrss_entries as e,ttrss_feeds as f where f.category_id= ? and e.feed_id=f.id and e.unread='1' order by e.id ASC")
+	stmtCatEntries = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? order by e.id ASC")
+	stmtGetCatFeeds = sth(db, "select f.id from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and c.id= ?")
+	stmtGetCat = sth(db, "select name,user_name,description,id from ttrss_categories where id = ?")
+	stmtGetCats = sth(db, "select name,user_name,description,id from ttrss_categories where user_name= ?")
+	stmtNextCategoryEntry = sth(db, "select e.id from ttrss_entries as e,ttrss_feeds as f  where f.category_id=? and e.feed_id=f.id and e.id > ? order by e.id ASC limit 1")
+	stmtPreviousCategoryEntry = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f where f.category_id=? and e.feed_id=f.id and e.id<? order by e.id DESC limit 1")
+	stmtSaveCat=sth(db,"update ttrss_categories set name=?,description=? where id=? limit 1")
+
+}
+func (c Category) Save() {
+	stmtSaveCat.Exec(c.Name, c.Description, c.ID)
 }
 
 func getCat(id string) Category {
