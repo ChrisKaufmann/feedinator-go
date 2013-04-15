@@ -257,6 +257,18 @@ function showExtendedContentPane(feed_id)
 
 	var myAjax=new Ajax.Updater('extendedContentPane',backend,{method:'get',parameters:url});
 }
+function view_starred()
+{
+	document.getElementById('menu_status').innerHTML='Loading...';
+	$.ajax({
+		type: "GET",
+		url: '/entries/'+current_view+'/'+current_view_id+'/marked/',
+		success: function(html){
+			$('#entries_list_div').html(html);
+			document.getElementById('menu_status').innerHTML='';
+		}
+	});
+}
 function customize(form)
 {
 	document.getElementById('menu_status').innerHTML='Loading...';
@@ -264,7 +276,7 @@ function customize(form)
 	var selvalue=form.select.options[index].value;
 	if(selvalue == ''){return;}
 	var url='';
-	if(selvalue == 'delete'){url='op=delete_feed&id='+current_view_id;}
+	if(selvalue == 'delete'){url='/feed/'+current_view_id+'/delete/';}
 	else if(selvalue=='default' || selvalue=='link' || selvalue=='extended'||selvalue=='proxy')
 		{
 		url='/feed/'+current_view_id+'/view_mode/'+selvalue
@@ -286,8 +298,8 @@ function add_feed(form)
 	$('menu_status').innerHTML='Adding...';
 	var newfeed	=form.add_feed_text.value;
 	newfeed		=encodeURIComponent(newfeed);
-	var url		='op=add_feed&url='+newfeed;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	var url		='url='+newfeed;
+	$.ajax({type: "GET",url: '/feed/new/', data:url,success:function(html){$('#menu_status').html(html);}})
 }
 function update_expirey(form)
 {

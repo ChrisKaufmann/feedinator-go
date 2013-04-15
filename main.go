@@ -35,6 +35,7 @@ func main() {
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 	http.HandleFunc("/categoryList/", handleCategoryList)
 	http.HandleFunc("/feed/list/", handleFeedList)
+	http.HandleFunc("/feed/new/", handleNewFeed)
 	http.HandleFunc("/feed/", handleFeed)
 	http.HandleFunc("/entry/mark/", handleMarkEntry)
 	http.HandleFunc("/entry/", handleEntry)
@@ -48,6 +49,18 @@ func main() {
 	print("Listening on 127.0.0.1:9000\n")
 	http.ListenAndServe("127.0.0.1:9000", nil)
 }
+func handleNewFeed(w http.ResponseWriter, r *http.Request) {
+	if !loggedIn(w, r) {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	url := r.FormValue("url")
+	var f Feed
+	f.Url=url
+	f.UserName=userName
+	f.Insert()
+	fmt.Fprintf(w,"Added")
+}
 func handleFeed(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
@@ -58,28 +71,32 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	var val string
 	pathVars(r, "/feed/", &id, &todo, &val)
 	f := getFeed(id)
+	if f.UserName != userName {
+		fmt.Fprintf(w,"Auth err")
+		return
+	}
 	switch todo {
 	case "name":
 		f.Title = val
 		f.Save()
-		fmt.Fprintf(w,"Name: "+val)
+		fmt.Fprintf(w, "Name: "+val)
 	case "link":
 		url := r.FormValue("url")
 		f.Url = url
 		f.Save()
-		fmt.Fprintf(w,f.Url)
+		fmt.Fprintf(w, f.Url)
 	case "expirey":
 		f.Expirey = val
 		f.Save()
-		fmt.Fprintf(w,"Expirey: "+val)
+		fmt.Fprintf(w, "Expirey: "+val)
 	case "autoscroll":
 		f.AutoscrollPX = toint(val)
 		f.Save()
-		fmt.Fprintf(w,"Autoscroll: "+val)
+		fmt.Fprintf(w, "Autoscroll: "+val)
 	case "exclude":
 		f.Exclude = val
 		f.Save()
-		fmt.Fprintf(w,"Exclude saved")
+		fmt.Fprintf(w, "Exclude saved")
 	case "category":
 		f.CategoryID = toint(val)
 		f.Save()
@@ -88,6 +105,9 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.ViewMode = val
 		f.Save()
 		fmt.Fprintf(w, "View Mode: "+val)
+	case "delete":
+		f.Delete()
+		fmt.Fprintf(w, "Deleted")
 	}
 	return
 }
@@ -99,7 +119,7 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	var retstr string
 	var id string
 	var tomark string
-	pathVars(r,"/entry/mark",&id,&tomark)
+	pathVars(r, "/entry/mark/", &id, &tomark)
 	b := strings.Split(id, ",")
 	for i := range b {
 		retstr = markEntry(b[i], tomark)
@@ -113,7 +133,7 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var id string
-	pathVars(r,"/entry/",&id)
+	pathVars(r, "/entry/", &id)
 
 	e := getEntry(id)
 	if e.ViewMode == "link" {
@@ -131,10 +151,7 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	}
 	var feedOrCat string
 	var id string
-	pathVars(r,"/menu/",&feedOrCat,&id)
-//	a := strings.Split(r.URL.Path[len("/menu/"):], "/")
-//	feedOrCat := a[0]
-//	id := a[1]
+	pathVars(r, "/menu/", &feedOrCat, &id)
 	if feedOrCat == "category" {
 		cat := getCat(id)
 		catMenuHtml.Execute(w, cat)
@@ -146,11 +163,15 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
+	if !loggedIn(w, r) {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	var id string
 	pathVars(r, "/menu/select/", &id)
 	f := getFeed(id)
 	setSelects(&f)
-	menuDropHtml.Execute(w,f)
+	menuDropHtml.Execute(w, f)
 }
 func setSelects(f *Feed) {
 	var catHtml string
@@ -162,7 +183,7 @@ func setSelects(f *Feed) {
 			lbl = "*" + m
 		}
 		optionHtml = optionHtml + "<option value='" + strings.ToLower(m) + "'>" + lbl + "\n"
-		}
+	}
 	allthecats := getCategories()
 	for i := range allthecats {
 		cat := allthecats[i]
@@ -192,15 +213,12 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 
 //print the list of categories (possibly with feeds in that cat), then the uncategorized feeds
 func handleCategoryList(w http.ResponseWriter, r *http.Request) {
-	a := strings.Split(r.URL.Path[len("categoryList/"):], "/")
-	currentCat := "0"
-	if len(a) > 1 {
-		currentCat = a[1]
-	}
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	var currentCat string
+	pathVars(r, "/categoryList/",&currentCat)
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthecats := getCategories()
 	for i := range allthecats {
@@ -227,50 +245,53 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 
 //print the list of entries for the selected category, feed, or marked
 func handleEntries(w http.ResponseWriter, r *http.Request) {
-	//var err error
+	if !loggedIn(w, r) {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	// format is /entries/{feed|category|marked}/<id>/{read|unread|marked|next|previous}[/{feed_id|cat_id}]
 	var feedOrCat string
-	var id string 
+	var id string
 	var mode string
 	var curID string //only really needed for getting the next one in a feed/cat
-	pathVars(r, "/entries/",&feedOrCat, &id,&mode, &curID)
+	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID)
 	ur := 1  //unread/read to unread by default
 	mkd := 0 //marked to unmarked by default
 	switch mode {
-		case "read":
-			ur = 0
-		case "marked":
-			mkd = 1
-			ur = 0
-		case "next":
-			var retval string
-			if feedOrCat == "feed" {
-				stmtNextFeedEntry.QueryRow(curID, id).Scan(&retval)
-			} else {
-				stmtNextCategoryEntry.QueryRow(curID, id).Scan(&retval)
-			}
-			fmt.Fprintf(w, retval)
-			return
-		case "previous":
-			var retval string
-			if feedOrCat == "feed" {
-				stmtPreviousFeedEntry.QueryRow(curID, id).Scan(&retval)
-			} else {
-				stmtPreviousCategoryEntry.QueryRow(curID, id).Scan(&retval)
-			}
-			fmt.Fprintf(w, retval)
-			return
+	case "read":
+		ur = 0
+	case "marked":
+		mkd = 1
+		ur = 0
+	case "next":
+		var retval string
+		if feedOrCat == "feed" {
+			stmtNextFeedEntry.QueryRow(curID, id).Scan(&retval)
+		} else {
+			stmtNextCategoryEntry.QueryRow(curID, id).Scan(&retval)
+		}
+		fmt.Fprintf(w, retval)
+		return
+	case "previous":
+		var retval string
+		if feedOrCat == "feed" {
+			stmtPreviousFeedEntry.QueryRow(curID, id).Scan(&retval)
+		} else {
+			stmtPreviousCategoryEntry.QueryRow(curID, id).Scan(&retval)
+		}
+		fmt.Fprintf(w, retval)
+		return
 	}
 	//print header for list
 	fmt.Fprintf(w, "<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>\n")
 	var el []Entry
 	switch feedOrCat {
-		case "feed":
-			el = entriesFromSql(stmtFeedEntries, id, ur, mkd)
-		case "category":
-			el = entriesFromSql(stmtCatEntries, id, ur, mkd)
-		case "marked":
-			el = allMarkedEntries()
+	case "feed":
+		el = entriesFromSql(stmtFeedEntries, id, ur, mkd)
+	case "category":
+		el = entriesFromSql(stmtCatEntries, id, ur, mkd)
+	case "marked":
+		el = allMarkedEntries()
 	}
 	for a := range el {
 		listEntryHtml.Execute(w, el[a])
