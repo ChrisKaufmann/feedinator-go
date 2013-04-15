@@ -11,6 +11,7 @@ var (
 	stmtUpdateMarkEntry *sql.Stmt
 	stmtUpdateReadEntry *sql.Stmt
 	stmtSaveEntry		*sql.Stmt
+	stmtGetMarked		*sql.Stmt
 )
 
 func (e Entry)Save () {
@@ -19,6 +20,7 @@ func (e Entry)Save () {
 
 func init() {
 	stmtGetEntry=sth(db,"select id,title,link,updated,feed_id,marked,content,unread from ttrss_entries where id= ?")
+	stmtGetMarked=sth(db,"select e.id,e.title,e.link,e.updated,e.feed_id,e.marked,e.content,e.unread from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
 	stmtUpdateMarkEntry=sth(db,"update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry=sth(db,"update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry=sth(db,"update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
@@ -39,8 +41,25 @@ type Entry struct {
 	Unread   bool
 }
 
-func entriesFromSql(s *sql.Stmt, id string, ur int) []Entry {
-	rows, err := s.Query(id, ur)
+func entriesFromSql(s *sql.Stmt, id string, ur int,mkd int) []Entry {
+	rows, err := s.Query(id, strconv.Itoa(ur), mkd)
+	var el []Entry
+	if err != nil {
+		err.Error()
+	}
+	var count int
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		e := getEntry(id)
+		e.Evenodd = evenodd(count)
+		el = append(el, e)
+		count = count + 1
+	}
+	return el
+}
+func allMarkedEntries() []Entry {
+	rows,err := stmtGetMarked.Query(userName)
 	var el []Entry
 	if err != nil {
 		err.Error()

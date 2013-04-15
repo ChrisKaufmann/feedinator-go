@@ -70,8 +70,8 @@ function update_link(form)
 	document.getElementById('menu_status').innerHTML='Updating...';
 	var link	=form.update_link_text.value;
 	link		=encodeURIComponent(link);
-	var url		='op=update_feed_link&id='+eurrent_view_id+'&skip_div=1&link='+link;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	url			="url="+link
+	$.ajax({type: "POST",url: '/feed/'+current_view_id+'/link/', data: url,success:function(html){$('#menu_status').html(html);}})
 }
 
 //update the exclude list for a given feed
@@ -80,7 +80,7 @@ function update_exclude(form)
 	document.getElementById('menu_status').innerHTML='Updating...';
 	var list	=form.rename_exclude_text.value;
 	var url		='op=update_exclude_list&id='+current_view_id+'&exclude_list='+list;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/exclude/'+list,success:function(html){$('#menu_status').html(html);}})
 }
 
 //toggle the visibility of a given passed div id
@@ -137,8 +137,7 @@ function feed_entries(id)
 function view_read()
 {
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // may be nul
-	var url='op='+current_view+'_entries&id=' + current_view_id+'&view_read=1';
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#entries_list_div').html(html);}})
+	$.ajax({type: "GET",url:  "/entries/"+current_view+"/"+id+"/read", success:function(html){$('#entries_list_div').html(html);}})
 }
 // Set the current_view_id to look read, and the number unread to zero.  
 // Could throw errors if the div has since been hidden or removed.
@@ -242,7 +241,7 @@ function marked_entries()
 	var myval='marked_entries';
 	$.ajax({
 		type: "GET",
-		url: "/entries/marked/0/0",
+		url: "/entries/marked/0/read",
 		success: function(html){
 			$('#entries_list_div').html(html);
 			document.getElementById('menu_status').innerHTML='';
@@ -306,7 +305,7 @@ function rename_feed(form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
 	var newname=form.rename_feed_text.value;
-	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/name/'+newname, data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/name/'+newname, success:function(html){$('#menu_status').html(html);}})
 }
 function rename_category(form)
 {

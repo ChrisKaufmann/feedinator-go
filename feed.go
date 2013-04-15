@@ -47,9 +47,9 @@ var (
 func init() {
 	stmtGetFeeds=sth(db,"select id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,'') from ttrss_feeds where user_name = ?")
 	stmtGetFeed=sth(db,"select id,IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,''),IFNULL(expirey,'') from ttrss_feeds where id = ?")
-	stmtFeedEntries=sth(db,"select e.id from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ?")
+	stmtFeedEntries=sth(db,"select e.id from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ? and marked = ?")
 	stmtFeedUnread=sth(db,"select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
-	stmtGetFeedsWithoutCats=sth(db,"select id from ttrss_feeds where user_name=? and category_id is NULL or category_id=0 order by id ASC")
+	stmtGetFeedsWithoutCats=sth(db,"select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
 	stmtNextFeedEntry=sth(db,"select id from ttrss_entries where feed_id=? and id > ? limit 1")
 	stmtPreviousFeedEntry=sth(db,"select id from ttrss_entries where feed_id=? and id<? order by id DESC limit 1")
 	stmtSaveFeed=sth(db,"update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,expirey=? where id=? limit 1")

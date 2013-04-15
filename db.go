@@ -47,6 +47,6 @@ func init() {
 	stmtCookieIns=sth(db,"INSERT INTO ttrss_sessions (name,userid) VALUES( ?, ? )") // ? = placeholder
 	stmtGetUserId=sth(db,"select name from ttrss_sessions where userid = ?")
 	stmtGetFeedsInCat=sth(db,"select title, id from ttrss_feeds where user_name= ? and category_id = ?")
-	stmtMarkedEntries=sth(db,"select e.id from ttrss_entries as e, ttrss_feeds as f where f.id=e.feed_id and  f.user_name = ? and e.marked=1")
+	stmtMarkedEntries=sth(db,"select e.id from ttrss_entries as e, ttrss_feeds as f where f.id=e.feed_id and  f.user_name = ? and e.marked = ?")
 	stmtGet=sth(db,"select name from ttrss_sessions where userid = ?")
 }
