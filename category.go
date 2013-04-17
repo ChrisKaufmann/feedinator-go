@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"strconv"
 )
 
 type Category struct {
@@ -25,7 +26,10 @@ var (
 	stmtPreviousCategoryEntry *sql.Stmt
 	stmtGetCatFeeds           *sql.Stmt
 	stmtGetFeedsInCat         *sql.Stmt
-	stmtSaveCat				  *sql.Stmt
+	stmtSaveCat               *sql.Stmt
+	stmtAddCat                *sql.Stmt
+	stmtResetCategories       *sql.Stmt
+	stmtDeleteCategory        *sql.Stmt
 )
 
 func init() {
@@ -33,15 +37,28 @@ func init() {
 	stmtCatUnread = sth(db, "select count(e.id) as unread from ttrss_entries as e,ttrss_feeds as f where f.category_id= ? and e.feed_id=f.id and e.unread='1' order by e.id ASC")
 	stmtCatEntries = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? and marked = ? order by e.id ASC")
 	stmtGetCatFeeds = sth(db, "select f.id from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and c.id= ?")
-	stmtGetCat = sth(db, "select name,user_name,description,id from ttrss_categories where id = ?")
-	stmtGetCats = sth(db, "select name,user_name,description,id from ttrss_categories where user_name= ?")
+	stmtGetCat = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where id = ?")
+	stmtGetCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where user_name= ?")
 	stmtNextCategoryEntry = sth(db, "select e.id from ttrss_entries as e,ttrss_feeds as f  where f.category_id=? and e.feed_id=f.id and e.id > ? order by e.id ASC limit 1")
 	stmtPreviousCategoryEntry = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f where f.category_id=? and e.feed_id=f.id and e.id<? order by e.id DESC limit 1")
-	stmtSaveCat=sth(db,"update ttrss_categories set name=?,description=? where id=? limit 1")
-
+	stmtSaveCat = sth(db, "update ttrss_categories set name=?,description=? where id=? limit 1")
+	stmtAddCat = sth(db, "insert into ttrss_categories (user_name,name) values (?,?)")
+	stmtResetCategories = sth(db, "update ttrss_feeds set category_id=NULL where category_id= ?")
+	stmtDeleteCategory = sth(db, "delete from ttrss_categories where id=? limit 1")
 }
 func (c Category) Save() {
+	if c.Description == ""{
+		c.Description=" "
+	}
 	stmtSaveCat.Exec(c.Name, c.Description, c.ID)
+}
+func (c Category) Insert() {
+	stmtAddCat.Exec(userName, c.Name)
+}
+func (c Category) Delete() {
+print ("In delete, id="+strconv.Itoa(c.ID))
+	stmtResetCategories.Exec(c.ID)
+	stmtDeleteCategory.Exec(c.ID)
 }
 
 func getCat(id string) Category {

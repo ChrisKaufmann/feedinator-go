@@ -34,6 +34,7 @@ func main() {
 	http.HandleFunc("/authorize", handleAuthorize)
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 	http.HandleFunc("/categoryList/", handleCategoryList)
+	http.HandleFunc("/category/", handleCategory)
 	http.HandleFunc("/feed/list/", handleFeedList)
 	http.HandleFunc("/feed/new/", handleNewFeed)
 	http.HandleFunc("/feed/", handleFeed)
@@ -49,6 +50,37 @@ func main() {
 	print("Listening on 127.0.0.1:9000\n")
 	http.ListenAndServe("127.0.0.1:9000", nil)
 }
+func handleCategory(w http.ResponseWriter, r *http.Request) {
+	if !loggedIn(w, r) {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	var id string
+	var todo string
+	var val string
+	pathVars(r, "/category/", &id,&todo,&val)
+	switch todo {
+	case "new":
+		var c Category
+		c.Name = val
+		c.Insert()
+		fmt.Fprintf(w, "Added")
+	case "name":
+		c := getCat(id)
+		c.Name = val
+		c.Save()
+		fmt.Fprintf(w, id+"Renamed: "+val)
+	case "desc":
+		c := getCat(id)
+		c.Description = val
+		c.Save()
+		fmt.Fprintf(w, "Desc: "+val)
+	case "delete":
+		c := getCat(id)
+		c.Delete()
+		fmt.Fprintf(w, id+c.Name+"Deleted"+strconv.Itoa(c.ID))
+	}
+}
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
@@ -56,10 +88,10 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	url := r.FormValue("url")
 	var f Feed
-	f.Url=url
-	f.UserName=userName
+	f.Url = url
+	f.UserName = userName
 	f.Insert()
-	fmt.Fprintf(w,"Added")
+	fmt.Fprintf(w, "Added")
 }
 func handleFeed(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
@@ -72,7 +104,7 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	pathVars(r, "/feed/", &id, &todo, &val)
 	f := getFeed(id)
 	if f.UserName != userName {
-		fmt.Fprintf(w,"Auth err")
+		fmt.Fprintf(w, "Auth err")
 		return
 	}
 	switch todo {
@@ -208,7 +240,6 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 		f := allthefeeds[i]
 		feedHtml.Execute(w, f)
 	}
-	fmt.Fprintf(w, "</ul><td align='right'><form name='add_feed_form'><input type='text' name='add_feed_text'><input type='button' value='Add' onclick='add_feed(this.form)'></form></td>\n")
 }
 
 //print the list of categories (possibly with feeds in that cat), then the uncategorized feeds
@@ -218,7 +249,7 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var currentCat string
-	pathVars(r, "/categoryList/",&currentCat)
+	pathVars(r, "/categoryList/", &currentCat)
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthecats := getCategories()
 	for i := range allthecats {
@@ -239,8 +270,6 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	for i := range allFeeds {
 		feedHtml.Execute(w, allFeeds[i])
 	}
-	//print the footer for the categories list
-	fmt.Fprintf(w, "</ul>\n<td align='right'>\n<form name='add_feed_form'>\n<input type='text' name='add_feed_text'>\n<input type='button' value='Add' onclick='add_feed(this.form)'>\n	</form>\n</td>\n")
 }
 
 //print the list of entries for the selected category, feed, or marked

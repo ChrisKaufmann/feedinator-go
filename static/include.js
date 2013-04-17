@@ -293,13 +293,27 @@ function customize(form)
 		$.ajax({type: "GET",url: '/menu/select/'+current_view_id,success:function(html){$('#customize_dropdown').html(html);}})
 	}})
 }
+function add_category(form)
+{
+	$('menu_status').innerHTML='Adding...';
+	var newcat =form.add_category_text.value;
+	$.ajax({type: "GET",url: '/category/ /new/'+newcat,success:function(html)
+	{
+		$('#menu_status').html(html);
+		form.add_category_text.value="";
+	}})
+}
 function add_feed(form)
 {
 	$('menu_status').innerHTML='Adding...';
 	var newfeed	=form.add_feed_text.value;
 	newfeed		=encodeURIComponent(newfeed);
 	var url		='url='+newfeed;
-	$.ajax({type: "GET",url: '/feed/new/', data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/feed/new/', data:url,success:function(html)
+	{
+		$('#menu_status').html(html);
+		form.add_feed_text.value="";
+	}})
 }
 function update_expirey(form)
 {
@@ -323,15 +337,18 @@ function rename_category(form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
 	var newname=form.rename_category_text.value;
-	var url='op=rename_category&id='+current_view_id +'&name='+newname;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/category/'+current_view_id+'/name/'+newname, success:function(html){$('#menu_status').html(html);}})
 }
 function describe_category(form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
-        var newdesc=form.describe_category_text.value;
-	var url='op=describe_category&id='+current_view_id +'&description='+newdesc;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#menu_status').html(html);}})
+	var newdesc=form.describe_category_text.value;
+	$.ajax({type: "GET",url: '/category/'+current_view_id+'/desc/'+newdesc  ,success:function(html){$('#menu_status').html(html);}})
+}
+function delete_category(form)
+{
+	document.getElementById('menu_status').innerHTML='Submitting...';
+	$.ajax({type: "GET",url: '/category/'+current_view_id+'/delete/0', success:function(html){$('#menu_status').html(html);}})
 }
 //Just for scrolling to the top when loading something
 function scrollup(id)
