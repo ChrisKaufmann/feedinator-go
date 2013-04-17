@@ -137,7 +137,10 @@ function feed_entries(id)
 function view_read()
 {
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // may be nul
-	$.ajax({type: "GET",url:  "/entries/"+current_view+"/"+id+"/read", success:function(html){$('#entries_list_div').html(html);}})
+	$.ajax({type: "GET",url:  "/entries/"+current_view+"/"+current_view_id+"/read", success:function(html){
+		$('#entries_list_div').html(html);
+		try{document.getElementById('menu_status').innerHTML='';}catch(err){}
+	}})
 }
 // Set the current_view_id to look read, and the number unread to zero.  
 // Could throw errors if the div has since been hidden or removed.

@@ -39,9 +39,10 @@ type Entry struct {
 	FeedID   int
 	Content  template.HTML
 	Unread   bool
+	ReadUnread string
 }
 
-func entriesFromSql(s *sql.Stmt, id string, ur int,mkd int) []Entry {
+func entriesFromSql(s *sql.Stmt, id string, ur int,mkd string) []Entry {
 	rows, err := s.Query(id, strconv.Itoa(ur), mkd)
 	var el []Entry
 	if err != nil {
@@ -87,6 +88,11 @@ func getEntry(id string) Entry {
 		e.MarkSet = "set"
 	} else {
 		e.MarkSet = "unset"
+	}
+	if e.Unread == true {
+		e.ReadUnread = "unread"
+	} else {
+		e.ReadUnread = ""
 	}
 	f := getFeed(strconv.Itoa(e.FeedID))
 	e.Content = template.HTML(unescape(c))

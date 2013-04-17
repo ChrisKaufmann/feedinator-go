@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
-	"strconv"
 )
 
 type Category struct {
@@ -56,7 +55,6 @@ func (c Category) Insert() {
 	stmtAddCat.Exec(userName, c.Name)
 }
 func (c Category) Delete() {
-print ("In delete, id="+strconv.Itoa(c.ID))
 	stmtResetCategories.Exec(c.ID)
 	stmtDeleteCategory.Exec(c.ID)
 }

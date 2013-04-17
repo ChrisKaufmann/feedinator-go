@@ -285,12 +285,13 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var curID string //only really needed for getting the next one in a feed/cat
 	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID)
 	ur := 1  //unread/read to unread by default
-	mkd := 0 //marked to unmarked by default
+	mkd := "0" //marked to unmarked by default
 	switch mode {
 	case "read":
 		ur = 0
+		mkd = "%"
 	case "marked":
-		mkd = 1
+		mkd = "1"
 		ur = 0
 	case "next":
 		var retval string
