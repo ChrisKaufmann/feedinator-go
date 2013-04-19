@@ -10,15 +10,12 @@ type Category struct {
 	Description string
 	UserName    string
 	ID          int
-	Unread      int
 	Evenodd     string
-	Class       string
 }
 
 var (
 	stmtCatList               *sql.Stmt
 	stmtCatUnread             *sql.Stmt
-	stmtCatEntries            *sql.Stmt
 	stmtGetCat                *sql.Stmt
 	stmtGetCats               *sql.Stmt
 	stmtNextCategoryEntry     *sql.Stmt
@@ -34,7 +31,6 @@ var (
 func init() {
 	stmtCatList = sth(db, "select name,id from ttrss_categories where user_name=?")
 	stmtCatUnread = sth(db, "select count(e.id) as unread from ttrss_entries as e,ttrss_feeds as f where f.category_id= ? and e.feed_id=f.id and e.unread='1' order by e.id ASC")
-	stmtCatEntries = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? and marked = ? order by e.id ASC")
 	stmtGetCatFeeds = sth(db, "select f.id from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and c.id= ?")
 	stmtGetCat = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where id = ?")
 	stmtGetCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where user_name= ?")
@@ -57,6 +53,20 @@ func (c Category) Insert() {
 func (c Category) Delete() {
 	stmtResetCategories.Exec(c.ID)
 	stmtDeleteCategory.Exec(c.ID)
+}
+func (c Category) Unread() int {
+	var count int
+	err := stmtCatUnread.QueryRow(c.ID).Scan(&count)
+	if err != nil {
+		err.Error()
+	}
+	return count
+}
+func (c Category) Class() string {
+	if c.Unread() > 0 {
+		return "oddUnread"
+	}
+	return "odd"
 }
 
 func getCat(id string) Category {
@@ -91,21 +101,7 @@ func getCategories() []Category {
 	for rows.Next() {
 		var cat Category
 		rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
-		cat.Unread = unreadCategoryCount(cat.ID)
-		if cat.Unread > 0 {
-			cat.Class = "oddUnread"
-		} else {
-			cat.Class = "odd"
-		}
 		allCats = append(allCats, cat)
 	}
 	return allCats
-}
-func unreadCategoryCount(id int) int {
-	var count int
-	err := stmtCatUnread.QueryRow(id).Scan(&count)
-	if err != nil {
-		err.Error()
-	}
-	return count
 }

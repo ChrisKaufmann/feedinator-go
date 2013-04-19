@@ -12,6 +12,8 @@ var (
 	stmtUpdateReadEntry *sql.Stmt
 	stmtSaveEntry		*sql.Stmt
 	stmtGetMarked		*sql.Stmt
+	stmtCatEntries		*sql.Stmt
+	stmtFeedEntries		*sql.Stmt
 )
 
 func (e Entry)Save () {
@@ -24,6 +26,8 @@ func init() {
 	stmtUpdateMarkEntry=sth(db,"update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry=sth(db,"update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry=sth(db,"update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
+	stmtFeedEntries=sth(db,"select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ? and marked = ?")
+	stmtCatEntries=sth(db,"select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? and marked = ? order by e.id ASC")
 }
 
 type Entry struct {
@@ -33,7 +37,6 @@ type Entry struct {
 	Link     string
 	Date     string
 	FeedName string
-	ViewMode string
 	Marked   string
 	MarkSet  string
 	FeedID   int
@@ -50,10 +53,22 @@ func entriesFromSql(s *sql.Stmt, id string, ur int,mkd string) []Entry {
 	}
 	var count int
 	for rows.Next() {
-		var id string
-		rows.Scan(&id)
-		e := getEntry(id)
+		var e Entry
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
 		e.Evenodd = evenodd(count)
+		e.Link = unescape(e.Link)
+		e.Title = unescape(e.Title)
+		e.FeedName = unescape(e.FeedName)
+		if e.Marked == "1" {
+			e.MarkSet = "set"
+		} else {
+			e.MarkSet = "unset"
+		}
+		if e.Unread == true {
+			e.ReadUnread = "unread"
+		} else {
+			e.ReadUnread = ""
+		}
 		el = append(el, e)
 		count = count + 1
 	}
@@ -76,6 +91,14 @@ func allMarkedEntries() []Entry {
 	}
 	return el
 }
+func (e Entry) ViewMode() string {
+	f := getFeed(strconv.Itoa(e.FeedID))
+	return f.ViewMode
+}
+func (e Entry) AutoscrollPX() int {
+	f := getFeed(strconv.Itoa(e.FeedID))
+	return f.AutoscrollPX
+}
 func getEntry(id string) Entry {
 	//id,title,link,updated,feed_id,marked,content,unread
 	var e Entry
@@ -84,6 +107,9 @@ func getEntry(id string) Entry {
 	if err != nil {
 		err.Error()
 	}
+	e.Content = template.HTML(unescape(c))
+	e.Link = unescape(e.Link)
+	e.Title = unescape(e.Title)
 	if e.Marked == "1" {
 		e.MarkSet = "set"
 	} else {
@@ -94,12 +120,6 @@ func getEntry(id string) Entry {
 	} else {
 		e.ReadUnread = ""
 	}
-	f := getFeed(strconv.Itoa(e.FeedID))
-	e.Content = template.HTML(unescape(c))
-	e.Link = unescape(e.Link)
-	e.Title = unescape(e.Title)
-	e.FeedName = f.Title
-	e.ViewMode = f.ViewMode
 	return e
 }
 func markEntry(id string, m string) string {

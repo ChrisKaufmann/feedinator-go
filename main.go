@@ -78,7 +78,7 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 	case "delete":
 		c := getCat(id)
 		c.Delete()
-		fmt.Fprintf(w, id+c.Name+"Deleted"+strconv.Itoa(c.ID))
+		fmt.Fprintf(w,"Deleted")
 	}
 }
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +157,6 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 		retstr = markEntry(b[i], tomark)
 	}
 	fmt.Fprintf(w, retstr)
-
 }
 func handleEntry(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
@@ -168,7 +167,9 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	pathVars(r, "/entry/", &id)
 
 	e := getEntry(id)
-	if e.ViewMode == "link" {
+	f := getFeed(tostr(e.FeedID))
+	e.FeedName=f.Title
+	if e.ViewMode() == "link" {
 		e.Link = unescape(e.Link)
 		entryLinkHtml.Execute(w, e)
 	} else {
@@ -323,10 +324,12 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	case "marked":
 		el = allMarkedEntries()
 	}
+	if len(el)==0 {
+		fmt.Fprintf(w,"No entries found")
+	}
 	for a := range el {
 		listEntryHtml.Execute(w, el[a])
 	}
-
 	//print footer for entries list
 	fmt.Fprintf(w, "</form>\n</table>\n")
 }

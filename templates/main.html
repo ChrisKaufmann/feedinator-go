@@ -3,6 +3,7 @@
 	<title>Feedinator</title>
 	<script type="text/javascript" src="static/jquery.js"></script>
 	<script type="text/javascript" src="static/include.js"></script><!-- ajax functions -->
+	<script type="text/javascript" src="static/jquery.touchSwipe.js"></script><!-- ajax functions -->
 	<link rel="stylesheet" href="static/tt-rss.css" type="text/css">
 	<style media="screen" type="text/css">
 	/* <!-- */
@@ -163,7 +164,7 @@
 	/* --> */
 	</style>
 </head>
-<body>
+<body onload='javascript:categoryList()'>
 	<div class="colmask leftmenu">
 		<div class="colleft">
 			<div class="col1">
@@ -177,7 +178,6 @@
 								<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
 								<a href='javascript:view_starred();'>Starred</a>&nbsp;
 								<a href='javascript:view_read();'>Read</a>&nbsp;
-								<a href='prefs.php' target='_default'>Preferences</a>&nbsp;
 								<a href='javascript:mark_list_read();'>Mark all read</a>
 							</td>
 							<td>
@@ -199,7 +199,7 @@
 					<table><tr>
 					<td><a href="javascript:categoryList();">Categories</a>&nbsp;</td>
 					<td><a href="javascript:feedList();">Feeds</a>&nbsp;</td>
-					<td><a href="javascript:marked_entries();">Starred</a></td>
+					<td><a href="javascript:marked_entries();">Starred</a>&nbsp;</td>
 					<td><div id='feeds_status' style='width:20px'></div></td>
 					</tr></table>
 				</div>

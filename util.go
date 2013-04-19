@@ -37,9 +37,16 @@ func evenodd(i int) string {
 func unescape(s string) string {
 	s = strings.Replace(s, "&#34;", "\"", -1)
 	s = strings.Replace(s, "&#47;", "/", -1)
+	s = strings.Replace(s, "&#39;", "'", -1)
+	s = strings.Replace(s, "&#42;", "*", -1)
+	s = strings.Replace(s, "&#63;", "?", -1)
+	s = strings.Replace(s, "&#8217;", "'", -1)
 	return s
 }
-
+func tostr(i int) string {
+	s := strconv.Itoa(i)
+	return s
+}
 func toint(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
