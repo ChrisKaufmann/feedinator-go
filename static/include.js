@@ -19,36 +19,9 @@ var entries_data='';		// hash containing all data about the entries
 			showPreviousEntry(current_entry_id);
 		}
 	});
-// Take a json array and populate the entries_list_div
-function populate_list()
-{
-	var json=entries_data;
-	var div='entries_list_div';
-	$(div).innerHTML='';
-	var table_data='';
-	scrollup(div);
-	table_data='<table class="headlinesList" id="headlinesList" width="100%">';
-	// do populate stuff here
-	for(i in json.entries)
-	{
-		var readunread=json.entries[i].unread?'unread':'read';
-		var link='javascript:show_entry('+i+');';
-		table_data+="<tr class='even"+readunread+"' id='RROW-"+i+"'>";
-		table_data+='<td><div id="FMARKPIC-'+i+'"><img src="images/'+json.entries[i].img+'" onclick="javascript:toggleMark('+i+');"></div></td>';
-		table_data+="<td><a href='javascript:remove_entry("+i+");'>-</a></td>";
-		table_data+="<td width='22%'><a href='"+link+"'>"+json.entries[i].feed_name+"</a></td>";
-		table_data+="<td width='60%'><a href='"+link+"'>"+json.entries[i].title+"</a></td>";
-		table_data+="<td width='12%'>"+json.entries[i].updated+"</td>";
-		table_data+="<td><a href='"+json.entries[i].link+"' target='_blank'>-></a></td>";
-		table_data+='</tr>\n';
-	}
-	table_data+="</table>";
-	$(div).innerHTML+=table_data;
-}
 
 function showPreviousEntry(id)
 {
-	var url='op=previous_entry&id='+id+'&view_mode='+current_view+'&view_mode_id='+current_view_id;
 	document.getElementById('menu_status').innerHTML='Getting next id';
 	$.ajax({type: "GET",url: '/entries/'+current_view+"/"+id+"/previous/"+current_view_id, success:function(html){
 		$('#menu_status').html(html);
@@ -79,7 +52,6 @@ function update_exclude(form)
 {
 	document.getElementById('menu_status').innerHTML='Updating...';
 	var list	=form.rename_exclude_text.value;
-	var url		='op=update_exclude_list&id='+current_view_id+'&exclude_list='+list;
 	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/exclude/'+list,success:function(html){$('#menu_status').html(html);}})
 }
 
@@ -113,34 +85,6 @@ function toggleMark(id)
 function reportError(request) 
 {
 	alert("There was a problem");
-}
-// Populate the list_div with the entries for a feed of the given id
-function feed_entries(id)
-{
-	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // may be null
-	current_view='feed';
-	current_view_id=id;
-	var div='entries_list_div';
-	var menuurl='op=print_menu&id='+id+'&view_mode=feed';
-	scrollup(div)
-	$.ajax({type: "GET",url: "menu/feed/"+id, success:function(html){$('#settings_div').html(html);}})
-	$.ajax({type: "GET",url: "entries/feed/"+id+"/unread", success:function(html){
-		$('#entries_list_div').html(html);
-		if($('#entries_list_div').is(":hidden")){
-			$('#entries_list_div').toggle();
-        }
-	}})
-
-	try{$('#menu_status').text='';}catch(err){} // may be null
-}
-//populate the list_div with read entries
-function view_read()
-{
-	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // may be nul
-	$.ajax({type: "GET",url:  "/entries/"+current_view+"/"+current_view_id+"/read", success:function(html){
-		$('#entries_list_div').html(html);
-		try{document.getElementById('menu_status').innerHTML='';}catch(err){}
-	}})
 }
 // Set the current_view_id to look read, and the number unread to zero.  
 // Could throw errors if the div has since been hidden or removed.
@@ -178,32 +122,11 @@ function set_entryview()
 		$('#entry_content').css("height","70%");
 	}
 }
-//populate list_div with the entries for a given category id
-function category_entries(id)
-{
-	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){}	// May be null
-	current_view='category';
-	var div='entries_list_div';
-	current_view_id=id;
-	var menuurl='op=print_menu&view_mode=category&id=' +id;
-	scrollup(div);
-//	$.ajax({type: "GET",url: '/categoryList', success:function(html){$('#settings_div').html(html);}})
-	$.ajax({type: "GET",url: '/menu/category/'+id, success:function(html){$('#settings_div').html(html);}})
-	$.ajax({type: "GET",url: "/entries/category/"+id+"/unread", success:function(html){
-		$('#entries_list_div').html(html);
-		if($('#entries_list_div').is(":hidden")){
-			$('#entries_list_div').toggle();
-		}
-	}})
-}
 // Populates view_div with the content for a given id.
 function show_entry(id)
 {
-	try{previous=entries_data[id].previous_id} catch(err){}
-	try{next=entries_data[id].next_id}catch(err){}
 	list_row=document.getElementById('RROW-'+id);
 	current_entry_id=id;
-	var url='op=view_entry&id='+id;
 	$.ajax({type: "GET",url: "/entry/"+id, success:function(html){
 		$('#view_div').html(html);
 		set_entryview();
@@ -236,39 +159,16 @@ function categoryList(id)
 	$.ajax({type: "GET",url: "/categoryList/"+id, success:function(html){$('#feeds_div').html(html);	document.getElementById('feeds_status').innerHTML='';
 }})
 }
-// Populates list_div with all entries marked as marked
-function marked_entries()
+function entries(path)
 {
-	document.getElementById('menu_status').innerHTML='Loading...';
-	var url='op=marked_entries';
-	var myval='marked_entries';
-	$.ajax({
-		type: "GET",
-		url: "/entries/marked/0/read",
+	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
+	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
+	 $.ajax({
+	 	type: "GET",
+		url: '/entries/'+path, 
 		success: function(html){
-			$('#entries_list_div').html(html);
-			document.getElementById('menu_status').innerHTML='';
-		}
-	});
-//	var myAjax=new Ajax.Updater('entries_list_div',backend,{method:'get',parameters:url});
-}
-function showExtendedContentPane(feed_id)
-{
-	document.getElementById('extendedContentPane').innerHTML='Loading...';
-	var url='op=extended_content&id='+feed_id;
-	$.ajax({type: "GET",url: backend, data:url,success:function(html){$('#status_div').html(html);}})
-
-	var myAjax=new Ajax.Updater('extendedContentPane',backend,{method:'get',parameters:url});
-}
-function view_starred()
-{
-	document.getElementById('menu_status').innerHTML='Loading...';
-	$.ajax({
-		type: "GET",
-		url: '/entries/'+current_view+'/'+current_view_id+'/marked/',
-		success: function(html){
-			$('#entries_list_div').html(html);
-			document.getElementById('menu_status').innerHTML='';
+			 $('#entries_list_div').html(html);
+			 document.getElementById('menu_status').innerHTML='';
 		}
 	});
 }
@@ -278,7 +178,6 @@ function customize(form)
 	var index=form.select.selectedIndex;
 	var selvalue=form.select.options[index].value;
 	if(selvalue == ''){return;}
-	var url='';
 	if(selvalue == 'delete'){url='/feed/'+current_view_id+'/delete/';}
 	else if(selvalue=='default' || selvalue=='link' || selvalue=='extended'||selvalue=='proxy')
 		{
@@ -311,7 +210,6 @@ function add_feed(form)
 	$('menu_status').innerHTML='Adding...';
 	var newfeed	=form.add_feed_text.value;
 	newfeed		=encodeURIComponent(newfeed);
-	var url		='url='+newfeed;
 	$.ajax({type: "GET",url: '/feed/new/', data:url,success:function(html)
 	{
 		$('#menu_status').html(html);

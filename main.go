@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/msbranco/goconfig"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -24,10 +25,22 @@ var (
 	menuDropHtml   = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
 	cookieName     = "feedinator_auth"
 	viewModes      = [...]string{"Default", "Link", "Extended", "Proxy"}
+	port           string
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
-const port = "9000"
+
+func init() {
+	var err error
+	c, err := goconfig.ReadConfigFile("config")
+	if err != nil {
+		err.Error()
+	}
+	port, err = c.GetString("Web", "port")
+	if err != nil {
+		err.Error()
+	}
+}
 
 func main() {
 	http.HandleFunc("/main", handleMain)
@@ -47,8 +60,8 @@ func main() {
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
 	http.HandleFunc("/", handleRoot)
 
-	print("Listening on 127.0.0.1:9000\n")
-	http.ListenAndServe("127.0.0.1:9000", nil)
+	print("Listening on 127.0.0.1:"+port+"\n")
+	http.ListenAndServe("127.0.0.1:"+port, nil)
 }
 func handleCategory(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
@@ -58,7 +71,7 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 	var id string
 	var todo string
 	var val string
-	pathVars(r, "/category/", &id,&todo,&val)
+	pathVars(r, "/category/", &id, &todo, &val)
 	switch todo {
 	case "new":
 		var c Category
@@ -78,7 +91,7 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 	case "delete":
 		c := getCat(id)
 		c.Delete()
-		fmt.Fprintf(w,"Deleted")
+		fmt.Fprintf(w, "Deleted")
 	}
 }
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +181,7 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 
 	e := getEntry(id)
 	f := getFeed(tostr(e.FeedID))
-	e.FeedName=f.Title
+	e.FeedName = f.Title
 	if e.ViewMode() == "link" {
 		e.Link = unescape(e.Link)
 		entryLinkHtml.Execute(w, e)
@@ -285,7 +298,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var mode string
 	var curID string //only really needed for getting the next one in a feed/cat
 	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID)
-	ur := 1  //unread/read to unread by default
+	ur := 1    //unread/read to unread by default
 	mkd := "0" //marked to unmarked by default
 	switch mode {
 	case "read":
@@ -324,8 +337,8 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	case "marked":
 		el = allMarkedEntries()
 	}
-	if len(el)==0 {
-		fmt.Fprintf(w,"No entries found")
+	if len(el) == 0 {
+		fmt.Fprintf(w, "No entries found")
 	}
 	for a := range el {
 		listEntryHtml.Execute(w, el[a])

@@ -22,7 +22,7 @@ func (e Entry)Save () {
 
 func init() {
 	stmtGetEntry=sth(db,"select id,title,link,updated,feed_id,marked,content,unread from ttrss_entries where id= ?")
-	stmtGetMarked=sth(db,"select e.id,e.title,e.link,e.updated,e.feed_id,e.marked,e.content,e.unread from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
+	stmtGetMarked=sth(db,"select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
 	stmtUpdateMarkEntry=sth(db,"update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry=sth(db,"update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry=sth(db,"update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
