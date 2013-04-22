@@ -127,5 +127,6 @@ func getFeed(id string) Feed {
 	if feed.Title == "" {
 		feed.Title = "--untitled--"
 	}
+	feed.Title=unescape(feed.Title)
 	return feed
 }

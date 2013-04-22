@@ -17,7 +17,7 @@ import (
 var oauthCfg = &oauth.Config{
 	AuthURL:     "https://accounts.google.com/o/oauth2/auth",
 	TokenURL:    "https://accounts.google.com/o/oauth2/token",
-	RedirectURL: "http://dev.feedinator.com/oauth2callback",
+	RedirectURL: "https://www.feedinator.com/oauth2callback",
 	Scope:       "https://www.googleapis.com/auth/userinfo.profile",
 	TokenCache:  oauth.CacheFile(cachefile),
 }
