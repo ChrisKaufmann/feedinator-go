@@ -1,7 +1,7 @@
 <li id='FEEDROW-{{.ID}}' class='{{.Class}}'>
 	<div id='FEEDN-{{.ID}}' style='width:240px;'>
 		<div id='SPC-{{.ID}}' style='float:left'><img src="static/blank_icon.gif"></div>
-		<div id='LBL-{{.ID}}' style='float:left;'><a href="javascript:entries('feed/{{.ID}}/');">{{.Title}}</a></div>
+		<div id='LBL-{{.ID}}' style='float:left;'><a href="#" onClick="entries('feed',{{.ID}},'unread');">{{.Title}}</a></div>
 		<div style='float:left;'>(</div>
 		<div id="FEEDU-{{.ID}}" style='float:left;'>{{.Unread}}</div>
 		<div style='float:left;'>)</div>

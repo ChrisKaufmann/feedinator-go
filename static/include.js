@@ -1,11 +1,8 @@
 // include file for index.php  :)
-var backend='';// 'http://www.feedinator.com/gui/backend.php';
 var current_view='';		//  category or feed - for what's currently viewed
 var current_view_id='';		//  id of the category or feed currently being viewed.
 var current_entry_id='';	//  id of current entry being viewed
-var set_mark_id='';		//  id of an entry to toggle the mark - normally not used.
 var status_div='left_notify'; //  id of the status div
-var entries_data='';		// hash containing all data about the entries
 //Stuff for the arrow navigation, from http://api.jquery.com/keydown/
 	$(window).keydown(function (e) {
 		if(e.which==39)
@@ -36,7 +33,6 @@ function showNextEntry(id)
 		show_entry(html);
 	}});
 }
-
 // Update the link for a given feed
 function update_link(form)
 {
@@ -74,7 +70,6 @@ function remove_entry(id)
 // Toggles the marked/unmarked for a given id, and replaces the div with the src for the appropriate image.
 function toggleMark(id) 
 {
-	set_mark_id=id;
 	var mark_div='FMARKPIC-' +id;
 	var page_mark_div='EMARKPIC-' +id;
 	$.ajax({type: "GET",url: '/entry/mark/'+id+'/togglemarked', success:function(html){
@@ -99,7 +94,6 @@ function empty_count()
 	// expected because the div could have been hidden.
 	try{document.getElementById(unread_div).innerHTML='0';}catch (err){} 
 	try{document.getElementById(name_div).className='odd';}catch (err){}
-	try{entries_data=[]}catch (err){}
 }
 // Lowers the unread count for the current_view_id by one - if that zeroes, calls empty_count.
 function decrement_count()
@@ -159,8 +153,11 @@ function categoryList(id)
 	$.ajax({type: "GET",url: "/categoryList/"+id, success:function(html){$('#feeds_div').html(html);	document.getElementById('feeds_status').innerHTML='';
 }})
 }
-function entries(path)
+function entries(feedcat,id,mode)
 {
+	current_view=feedcat;
+	current_view_id=id;
+	path=feedcat+"/"+id+"/"+mode;
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
 	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
 	 $.ajax({
