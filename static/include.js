@@ -168,6 +168,7 @@ function entries(feedcat,id,mode)
 			 document.getElementById('menu_status').innerHTML='';
 		}
 	});
+	scrollup('#entries_list_div');
 }
 function customize(form)
 {
@@ -207,7 +208,8 @@ function add_feed(form)
 	$('menu_status').innerHTML='Adding...';
 	var newfeed	=form.add_feed_text.value;
 	newfeed		=encodeURIComponent(newfeed);
-	$.ajax({type: "GET",url: '/feed/new/', data:url,success:function(html)
+	url			="url="+newfeed;
+	$.ajax({type: "POST",url: '/feed/new/', data:url,success:function(html)
 	{
 		$('#menu_status').html(html);
 		form.add_feed_text.value="";

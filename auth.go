@@ -17,7 +17,6 @@ import (
 var oauthCfg = &oauth.Config{
 	AuthURL:     "https://accounts.google.com/o/oauth2/auth",
 	TokenURL:    "https://accounts.google.com/o/oauth2/token",
-	RedirectURL: "https://www.feedinator.com/oauth2callback",
 	Scope:       "https://www.googleapis.com/auth/userinfo.profile",
 	TokenCache:  oauth.CacheFile(cachefile),
 }
@@ -36,6 +35,11 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	url, err := c.GetString("Web","url")
+	if err != nil {
+		panic(err)
+	}
+	oauthCfg.RedirectURL = url+"oauth2callback"
 }
 
 // Start the authorization process
