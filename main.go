@@ -145,7 +145,8 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	case "category":
 		f.CategoryID = toint(val)
 		f.Save()
-		fmt.Fprintf(w, "Category: "+val)
+		c:=getCat(val)
+		fmt.Fprintf(w, "Category: "+c.Name)
 	case "view_mode":
 		f.ViewMode = val
 		f.Save()

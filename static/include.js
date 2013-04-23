@@ -164,11 +164,14 @@ function entries(feedcat,id,mode)
 	 	type: "GET",
 		url: '/entries/'+path, 
 		success: function(html){
-			 $('#entries_list_div').html(html);
-			 document.getElementById('menu_status').innerHTML='';
+			$('#entries_list_div').html(html);
+			document.getElementById('menu_status').innerHTML='';
+			scrollup('#entries_list_div');
+			if($('#entries_list_div').is(":hidden")){
+				$('#entries_list_div').toggle();
+			}
 		}
 	});
-	scrollup('#entries_list_div');
 }
 function customize(form)
 {
