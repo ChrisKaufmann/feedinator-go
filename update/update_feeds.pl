@@ -12,7 +12,7 @@ my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
 my $db_user =$config{'DB'}{'user'};
 my $db_pass =$config{'DB'}{'pass'};
-my $db_host =$config{'DB'}{'host'};
+my $db_host =$config{'DB'}{'host'}?$config{'DB'}{'host'}:'localhost';
 my $db_db   =$config{'DB'}{'db'};
 my $debug   =$cgi->param('debug') || 0;
 my $dbh=DBI->connect("DBI:mysql:$db_db:$db_host","$db_user","$db_pass");
@@ -37,24 +37,29 @@ foreach my $id(@feed_ids)
 		&update_feed($id,$feed_list{$id},$namehash{$id});
 }
 $dbh->do("analyze table ttrss_entries;");
+print "$count feeds updated\n" unless $cgi->param('feed_id');
 exit();
 
 sub update_feed
 {
 	my $id=shift			|| return;
+	print "\nID: $id\n";
 	my $source=shift		|| return;
 	my $username=shift;
-	my $feed = XML::Feed->parse(URI->new($source))
+	my $feed;
+	eval{
+	$feed = XML::Feed->parse(URI->new($source))
 		or do {
 			print XML::Feed->errstr.", feed id=$id\n";
 			add_feed_error($id,XML::Feed->errstr);
 			return;				
 		};
+	};  return if $@;
+	return unless $feed;
 	my @excludes=split(',',$excludehash{$id});
 	my %existing_entries=&get_existing_entries($id);
 
-	print "\nTitle: ".encode_utf8($feed->title())."\n"; 
-	print "ID: $id\n";
+	print "Title: ".encode_utf8($feed->title())."\n"; 
 	print "Date: ". $feed->modified(). "\n";
 	print scalar(keys %existing_entries)." existing entries\n";
 	my $sql=qq{insert into ttrss_entries 
@@ -120,8 +125,7 @@ sub get_existing_entries
 sub get_feedlist
 {
 		my %rethash=();
-		my $where='1';
-		if($cgi->param('feed_id')){$where = " id = ".$cgi->param('feed_id')." ";}
+		my $where=$cgi->param('feed_id') ? " id = "..$cgi->param('feed_id')." ": 1;
 		my $sql=qq{select id, feed_url,user_name,title,exclude from ttrss_feeds where $where};
 		my $sth=$dbh->prepare($sql);
 		$sth->execute();

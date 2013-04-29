@@ -13,7 +13,7 @@ print Dumper \%config;
 
 my $db_user	=$config{'DB'}{'user'};
 my $db_pass	=$config{'DB'}{'pass'};
-my $db_host	=$config{'DB'}{'host'};
+my $db_host	=$config{'DB'}{'host'}?$config{'DB'}{'host'}:'localhost';
 my $db_db	=$config{'DB'}{'db'};
 my $dbh=DBI->connect("DBI:mysql:$db_db:$db_host","$db_user","$db_pass");
 
@@ -31,3 +31,4 @@ threadx4 my $id(@all_ids)
 {
 	system("perl update_feeds.pl feed_id=$id");
 }
+print scalar(@all_ids)." feeds updated\n";
