@@ -27,7 +27,7 @@ while(my ($id)=$sth->fetchrow_array)
 	push(@all_ids,$id);
 }
 
-threadx4 my $id(@all_ids)
+threadx3 my $id(@all_ids)
 {
 	system("perl update_feeds.pl feed_id=$id");
 }
