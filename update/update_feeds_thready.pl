@@ -3,6 +3,7 @@ use strict;
 use DBI;
 use threadeach;
 use Config::Std;
+`killthe update_feeds`;
 
 my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
@@ -27,7 +28,7 @@ while(my ($id)=$sth->fetchrow_array)
 	push(@all_ids,$id);
 }
 
-threadx3 my $id(@all_ids)
+threadeach my $id(@all_ids)
 {
 	system("perl update_feeds.pl feed_id=$id");
 }
