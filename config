@@ -1,8 +1,11 @@
 [DB]
 db=<mydb>
-host=<myhost>
+host=<myhost or empty>
 user=<myuser>
 pass=<mypass>
 [Google]
 ClientId=<my client id>
 ClientSecret=<my client secret>
+[Web]
+port=9001
+url=http://my.url.here/
