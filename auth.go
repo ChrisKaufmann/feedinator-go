@@ -17,7 +17,7 @@ import (
 var oauthCfg = &oauth.Config{
 	AuthURL:     "https://accounts.google.com/o/oauth2/auth",
 	TokenURL:    "https://accounts.google.com/o/oauth2/token",
-	Scope:       "https://www.googleapis.com/auth/userinfo.profile",
+	Scope:       "https://www.googleapis.com/auth/userinfo.email",
 	TokenCache:  oauth.CacheFile(cachefile),
 }
 
@@ -84,17 +84,19 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	defer req.Body.Close()
 	body, _ := ioutil.ReadAll(req.Body)
 	log.Println(string(body))
+	print(string(body))
 	//body.id is the google id to use
 	//set a cookie with the id, and random hash. then save the id/hash pair to db for lookup
 	var f interface{}
 	err = json.Unmarshal(body, &f)
 	m := f.(map[string]interface{})
-	print(m["id"].(string))
+//	print(m["id"].(string))
+	print(m["email"].(string))
 	if err != nil {
 		panic(err.Error())
 	}
 	var authString = randomString(64)
-	_, err = stmtCookieIns.Exec(m["id"], hash(authString))
+	_, err = stmtCookieIns.Exec(m["email"], hash(authString))
 
 	if err != nil {
 		panic(err.Error())
