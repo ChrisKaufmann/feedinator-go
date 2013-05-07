@@ -1,18 +1,5 @@
 <div id='content_container'>
 	<div id='table_container' style='z-index:1;position:relative;opacity:1;background-color:#FFFFFF'>
-		<script id="swipe-code">
-		$(function() {
-			$("#entry_content").swipe({
-				swipeRight:function() {
-					showPreviousEntry({{.ID}});
-				},
-				swipeLeft:function() {
-					showNextEntry({{.ID}});
-				},
-			threshold:0
-			});
-		});
-		</script>
 		<table width='100%'>
 			<tr class='evenunread'>
 				<td width=150>{{.FeedName}}</td>
