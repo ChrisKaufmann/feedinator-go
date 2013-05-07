@@ -102,7 +102,8 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 		panic(err.Error())
 	}
 	//set the cookie
-	cookie := http.Cookie{Name: cookieName, Value: authString}
+	expire := time.Now().AddDate(1, 0, 0) // year expirey seems reasonable
+	cookie := http.Cookie{Name: cookieName, Value: authString, Expires: expire}
 	http.SetCookie(w, &cookie)
 	http.Redirect(w, r, "/main", http.StatusFound)
 }
