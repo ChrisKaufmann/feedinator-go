@@ -12,6 +12,8 @@ var (
 	stmtCookieIns             *sql.Stmt
 	stmtGetUserId             *sql.Stmt
 	stmtMarkedEntries         *sql.Stmt
+	stmtGetUsername			  *sql.Stmt
+	stmtInsertUser			  *sql.Stmt
 	db_name                   string
 	db_host                   string
 	db_user                   string
@@ -47,6 +49,8 @@ func init() {
 	stmtCookieIns=sth(db,"INSERT INTO ttrss_sessions (name,userid) VALUES( ?, ? )") // ? = placeholder
 	stmtGetUserId=sth(db,"select name from ttrss_sessions where userid = ?")
 	stmtGetFeedsInCat=sth(db,"select title, id from ttrss_feeds where user_name= ? and category_id = ?")
+	stmtGetUsername=sth(db,"select username from users where email = ?")
 	stmtMarkedEntries=sth(db,"select e.id from ttrss_entries as e, ttrss_feeds as f where f.id=e.feed_id and  f.user_name = ? and e.marked = ?")
+	stmtInsertUser=sth(db,"insert into users (username,email) values ( ?, ?) ")
 	stmtGet=sth(db,"select u.username from users as u, ttrss_sessions as s where s.userid = ? and s.name=u.email")
 }

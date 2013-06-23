@@ -66,7 +66,8 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 
 		err := tokenCache.PutToken(tok)
 		if err != nil {
-			log.Fatal("Cache write:", err)
+			panic(err.Error())
+			return
 		}
 		log.Printf("Token is cached in %v\n", tokenCache)
 	}
@@ -79,23 +80,24 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	// Make the request.
 	req, err := t.Client().Get(profileInfoURL)
 	if err != nil {
-		log.Fatal("Request Error:", err)
+		panic(err.Error())
+		return
 	}
 	defer req.Body.Close()
 	body, _ := ioutil.ReadAll(req.Body)
 	log.Println(string(body))
-	print(string(body))
+	//print(string(body))
 	//body.id is the google id to use
 	//set a cookie with the id, and random hash. then save the id/hash pair to db for lookup
 	var f interface{}
 	err = json.Unmarshal(body, &f)
 	m := f.(map[string]interface{})
-//	print(m["id"].(string))
 	print(m["email"].(string))
 	if err != nil {
 		panic(err.Error())
 	}
 	var authString = randomString(64)
+	makeSureUserExists(m["email"].(string))
 	_, err = stmtCookieIns.Exec(m["email"], hash(authString))
 
 	if err != nil {
@@ -106,6 +108,14 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{Name: cookieName, Value: authString, Expires: expire}
 	http.SetCookie(w, &cookie)
 	http.Redirect(w, r, "/main", http.StatusFound)
+}
+func makeSureUserExists(e string) {
+	var userId string
+	err := stmtGetUsername.QueryRow(e).Scan(&userId)
+	if err != nil {
+		// in this case, emans there's no username - create one
+		_, err = stmtInsertUser.Exec(e,e)
+	}
 }
 func loggedIn(w http.ResponseWriter, r *http.Request) bool {
 	cookie, err := r.Cookie(cookieName)
