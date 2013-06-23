@@ -216,6 +216,8 @@ function add_feed(form)
 	{
 		$('#menu_status').html(html);
 		form.add_feed_text.value="";
+		if(current_view == 'category') { categoryList(); }
+		if(current_view == 'feed') {feedList();}
 	}})
 }
 function update_expirey(form)
