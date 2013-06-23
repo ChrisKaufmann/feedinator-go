@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"net/url"
 )
 
 var (
@@ -99,10 +100,12 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	url := r.FormValue("url")
+	formurl := r.FormValue("url")
 	var f Feed
-	f.Url = url
+	f.Url = formurl
 	f.UserName = userName
+	purl,_ := url.Parse(formurl)
+	f.Title=purl.Host
 	f.Insert()
 	fmt.Fprintf(w, "Added")
 }

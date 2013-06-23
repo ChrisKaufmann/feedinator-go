@@ -52,7 +52,7 @@ func (f Feed) Insert() {
 	if f.UserName == "" {
 		panic("username is blank fornew feed")
 	}
-	stmtInsertFeed.Exec(f.Url,f.UserName)
+	stmtInsertFeed.Exec(f.Url,f.UserName,f.Title)
 }
 func (f Feed) Delete() {
 	//first, delete all of the entries that aren't starred
@@ -76,7 +76,7 @@ var (
 )
 
 func init() {
-	stmtInsertFeed=sth(db,"insert into ttrss_feeds (feed_url,user_name) values (?,?)")
+	stmtInsertFeed=sth(db,"insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
 	stmtGetFeeds=sth(db,"select id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,'') from ttrss_feeds where user_name = ?")
 	stmtGetFeed=sth(db,"select id,IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,''),IFNULL(expirey,'') from ttrss_feeds where id = ?")
 	stmtFeedUnread=sth(db,"select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
