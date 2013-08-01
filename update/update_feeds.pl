@@ -125,7 +125,7 @@ sub get_existing_entries
 sub get_feedlist
 {
 		my %rethash=();
-		my $where=$cgi->param('feed_id') ? " id = "..$cgi->param('feed_id')." ": 1;
+		my $where=$cgi->param('feed_id') ? " id = ".$cgi->param('feed_id')." ": 1;
 		my $sql=qq{select id, feed_url,user_name,title,exclude from ttrss_feeds where $where};
 		my $sth=$dbh->prepare($sql);
 		$sth->execute();
