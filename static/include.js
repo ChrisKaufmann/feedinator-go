@@ -204,6 +204,7 @@ function add_category(form)
 	{
 		$('#menu_status').html(html);
 		form.add_category_text.value="";
+		if(current_view == 'category') { categoryList(); }
 	}})
 }
 function add_feed(form)
