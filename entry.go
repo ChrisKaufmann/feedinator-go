@@ -58,13 +58,13 @@ func getCategoryUnread(id string) []Entry {
 		var e Entry
 		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
 		e.Evenodd = evenodd(count)
-		e.Normalize()
+		e=e.Normalize()
 		el = append(el, e)
 		count = count + 1
 	}
 	return el
 }
-func (e Entry) Normalize() {
+func (e Entry) Normalize() Entry{
 	e.Link = unescape(e.Link)
 	e.Title = unescape(e.Title)
 	e.FeedName = unescape(e.FeedName)
@@ -78,6 +78,7 @@ func (e Entry) Normalize() {
 	} else {
 		e.ReadUnread = ""
 	}
+	return e
 }
 func entriesFromSql(s *sql.Stmt, id string, ur int, mkd string) []Entry {
 	rows, err := s.Query(id, strconv.Itoa(ur), mkd)
@@ -90,7 +91,7 @@ func entriesFromSql(s *sql.Stmt, id string, ur int, mkd string) []Entry {
 		var e Entry
 		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
 		e.Evenodd = evenodd(count)
-		e.Normalize()
+		e=e.Normalize()
 		el = append(el, e)
 		count = count + 1
 	}
