@@ -337,7 +337,10 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	case "feed":
 		el = entriesFromSql(stmtFeedEntries, id, ur, mkd)
 	case "category":
-		el = entriesFromSql(stmtCatEntries, id, ur, mkd)
+		//el = entriesFromSql(stmtCatEntries, id, ur, mkd)
+		if ur == 1 {
+			el=getCategoryUnread(id)
+		}
 	case "marked":
 		el = allMarkedEntries()
 	}

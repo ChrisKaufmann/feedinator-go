@@ -1,11 +1,11 @@
 [DB]
-db=<mydb>
-host=<myhost or empty>
-user=<myuser>
-pass=<mypass>
+db=feedinator_dev
+host=
+user=feed_dev
+pass=MMXa9vJUPDGXsopO481viQV05gBpcn8O
 [Google]
-ClientId=<my client id>
-ClientSecret=<my client secret>
+ClientId=18150254528.apps.googleusercontent.com
+ClientSecret=WG0dpkjHnreoG85OvwXk16O7
 [Web]
 port=9001
-url=http://my.url.here/
+url=http://dev.feedinator.com/

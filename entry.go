@@ -10,42 +10,76 @@ var (
 	stmtGetEntry        *sql.Stmt
 	stmtUpdateMarkEntry *sql.Stmt
 	stmtUpdateReadEntry *sql.Stmt
-	stmtSaveEntry		*sql.Stmt
-	stmtGetMarked		*sql.Stmt
-	stmtCatEntries		*sql.Stmt
-	stmtFeedEntries		*sql.Stmt
+	stmtSaveEntry       *sql.Stmt
+	stmtGetMarked       *sql.Stmt
+	stmtCatEntries      *sql.Stmt
+	stmtFeedEntries     *sql.Stmt
+	stmtCatUnreadEntries *sql.Stmt
 )
 
-func (e Entry)Save () {
-	stmtSaveEntry.Exec(e.Title,e.Link,e.Date,e.FeedID,e.Marked,e.Unread,e.ID)
+func (e Entry) Save() {
+	stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, e.Unread, e.ID)
 }
 
 func init() {
-	stmtGetEntry=sth(db,"select id,title,link,updated,feed_id,marked,content,unread from ttrss_entries where id= ?")
-	stmtGetMarked=sth(db,"select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
-	stmtUpdateMarkEntry=sth(db,"update ttrss_entries set marked=? where id=?")
-	stmtUpdateReadEntry=sth(db,"update ttrss_entries set unread=? where id=?")
-	stmtSaveEntry=sth(db,"update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
-	stmtFeedEntries=sth(db,"select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ? and marked = ?")
-	stmtCatEntries=sth(db,"select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? and marked = ? order by e.id ASC")
+	stmtGetEntry = sth(db, "select id,title,link,updated,feed_id,marked,content,unread from ttrss_entries where id= ?")
+	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
+	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
+	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
+	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
+	stmtFeedEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ? and marked = ?")
+	stmtCatEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? and marked = ? order by e.id ASC")
+	stmtCatUnreadEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? order by e.id ASC")
 }
 
 type Entry struct {
-	ID       int
-	Evenodd  string
-	Title    string
-	Link     string
-	Date     string
-	FeedName string
-	Marked   string
-	MarkSet  string
-	FeedID   int
-	Content  template.HTML
-	Unread   bool
+	ID         int
+	Evenodd    string
+	Title      string
+	Link       string
+	Date       string
+	FeedName   string
+	Marked     string
+	MarkSet    string
+	FeedID     int
+	Content    template.HTML
+	Unread     bool
 	ReadUnread string
 }
 
-func entriesFromSql(s *sql.Stmt, id string, ur int,mkd string) []Entry {
+func getCategoryUnread(id string) []Entry {
+	rows, err := stmtCatUnreadEntries.Query(id)
+	var el []Entry
+	if err != nil {
+		err.Error()
+	}
+	var count int
+	for rows.Next() {
+		var e Entry
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
+		e.Evenodd = evenodd(count)
+		e.Normalize()
+		el = append(el, e)
+		count = count + 1
+	}
+	return el
+}
+func (e Entry) Normalize() {
+	e.Link = unescape(e.Link)
+	e.Title = unescape(e.Title)
+	e.FeedName = unescape(e.FeedName)
+	if e.Marked == "1" {
+		e.MarkSet = "set"
+	} else {
+		e.MarkSet = "unset"
+	}
+	if e.Unread == true {
+		e.ReadUnread = "unread"
+	} else {
+		e.ReadUnread = ""
+	}
+}
+func entriesFromSql(s *sql.Stmt, id string, ur int, mkd string) []Entry {
 	rows, err := s.Query(id, strconv.Itoa(ur), mkd)
 	var el []Entry
 	if err != nil {
@@ -56,26 +90,14 @@ func entriesFromSql(s *sql.Stmt, id string, ur int,mkd string) []Entry {
 		var e Entry
 		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
 		e.Evenodd = evenodd(count)
-		e.Link = unescape(e.Link)
-		e.Title = unescape(e.Title)
-		e.FeedName = unescape(e.FeedName)
-		if e.Marked == "1" {
-			e.MarkSet = "set"
-		} else {
-			e.MarkSet = "unset"
-		}
-		if e.Unread == true {
-			e.ReadUnread = "unread"
-		} else {
-			e.ReadUnread = ""
-		}
+		e.Normalize()
 		el = append(el, e)
 		count = count + 1
 	}
 	return el
 }
 func allMarkedEntries() []Entry {
-	rows,err := stmtGetMarked.Query(userName)
+	rows, err := stmtGetMarked.Query(userName)
 	var el []Entry
 	if err != nil {
 		err.Error()
