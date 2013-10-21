@@ -40,6 +40,7 @@ func unescape(s string) string {
 	s = strings.Replace(s, "&#39;", "'", -1)
 	s = strings.Replace(s, "&#42;", "*", -1)
 	s = strings.Replace(s, "&#63;", "?", -1)
+	s = strings.Replace(s, "&#8216;", "'", -1)
 	s = strings.Replace(s, "&#8217;", "'", -1)
 	s = strings.Replace(s, "&#8220;", "'", -1)
 	s = strings.Replace(s, "&#8221;", "'", -1)
