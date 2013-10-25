@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html"
 	"database/sql"
 	"html/template"
 	"strconv"
@@ -65,9 +66,9 @@ func getCategoryUnread(id string) []Entry {
 	return el
 }
 func (e Entry) Normalize() Entry{
-	e.Link = unescape(e.Link)
-	e.Title = unescape(e.Title)
-	e.FeedName = unescape(e.FeedName)
+	e.Link = html.UnescapeString(e.Link)
+	e.Title = html.UnescapeString(e.Title)
+	e.FeedName = html.UnescapeString(e.FeedName)
 	if e.Marked == "1" {
 		e.MarkSet = "set"
 	} else {
@@ -130,9 +131,9 @@ func getEntry(id string) Entry {
 	if err != nil {
 		err.Error()
 	}
-	e.Content = template.HTML(unescape(c))
-	e.Link = unescape(e.Link)
-	e.Title = unescape(e.Title)
+	e.Content = template.HTML(html.UnescapeString(c))
+	e.Link = html.UnescapeString(e.Link)
+	e.Title = html.UnescapeString(e.Title)
 	if e.Marked == "1" {
 		e.MarkSet = "set"
 	} else {

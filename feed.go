@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html"
 	"database/sql"
 	"html/template"
 	"strconv"
@@ -127,6 +128,6 @@ func getFeed(id string) Feed {
 	if feed.Title == "" {
 		feed.Title = "--untitled--"
 	}
-	feed.Title=unescape(feed.Title)
+	feed.Title=html.UnescapeString(feed.Title)
 	return feed
 }

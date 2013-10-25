@@ -187,7 +187,7 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	f := getFeed(tostr(e.FeedID))
 	e.FeedName = f.Title
 	if e.ViewMode() == "link" {
-		e.Link = unescape(e.Link)
+		e.Link = html.UnescapeString(e.Link)
 		entryLinkHtml.Execute(w, e)
 	} else {
 		entryHtml.Execute(w, e)
