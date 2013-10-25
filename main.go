@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/msbranco/goconfig"
+	"html"
 	"fmt"
 	"html/template"
 	"net/http"
