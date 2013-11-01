@@ -28,9 +28,9 @@ func init() {
 	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
-	stmtFeedEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where e.feed_id=f.id and f.id = ? and unread= ? and marked = ?")
-	stmtCatEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and unread= ? and marked = ? order by e.id ASC")
-	stmtCatUnreadEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and e.feed_id=f.id and c.id = ? and e.unread=1 order by e.id ASC")
+	stmtFeedEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where f.id = e.feed_id and f.id= ? and unread= ? and marked = ?")
+	stmtCatEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and unread= ? and marked = ? order by e.id ASC")
+	stmtCatUnreadEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and e.unread=1 order by e.id ASC")
 }
 
 type Entry struct {
