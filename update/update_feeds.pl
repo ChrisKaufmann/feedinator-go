@@ -35,6 +35,7 @@ foreach my $id(@feed_ids)
 {
 		$count++;
 		&update_feed($id,$feed_list{$id},$namehash{$id});
+		sleep(2);
 }
 $dbh->do("analyze table ttrss_entries;");
 print "$count feeds updated\n" unless $cgi->param('feed_id');
