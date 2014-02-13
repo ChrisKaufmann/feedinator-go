@@ -8,4 +8,4 @@ ClientId=18150254528.apps.googleusercontent.com
 ClientSecret=WG0dpkjHnreoG85OvwXk16O7
 [Web]
 port=9001
-url=http://dev.feedinator.com/
+url=https://dev.feedinator.com/

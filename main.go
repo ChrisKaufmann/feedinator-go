@@ -58,6 +58,7 @@ func main() {
 	http.HandleFunc("/entries/", handleEntries)
 	http.HandleFunc("/menu/select/", handleSelectMenu)
 	http.HandleFunc("/menu/", handleMenu)
+	http.HandleFunc("/stats/", handleStats)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
 	http.HandleFunc("/", handleRoot)
@@ -95,6 +96,16 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		c.Delete()
 		fmt.Fprintf(w, "Deleted")
 	}
+}
+func handleStats(w  http.ResponseWriter, r *http.Request) {
+	var todo string
+	pathVars(r, "/stats/", &todo)
+	var c string
+	switch todo {
+		case "entries":
+			c,_ = getEntriesCount()
+	}
+	fmt.Fprintf(w,c)
 }
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {

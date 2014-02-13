@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"code.google.com/p/goauth2/oauth"
 	"crypto/sha512"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/msbranco/goconfig"
@@ -57,29 +57,28 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	//Get the code from the response
 	code := r.FormValue("code")
 
+	print("code="+code)
 	t := &oauth.Transport{oauth.Config: oauthCfg}
 
 	// Exchange the received code for a token
-	tok, _ := t.Exchange(code)
-	{
-		tokenCache := oauth.CacheFile(cachefile)
-
-		err := tokenCache.PutToken(tok)
+	tok, err := oauthCfg.TokenCache.Token()
+	if err != nil {
+		print(err)
+		tok, err = t.Exchange(code)
 		if err != nil {
+			print(err)
 			panic(err.Error())
-			return
 		}
-		log.Printf("Token is cached in %v\n", tokenCache)
+		fmt.Printf("token cached in %v\n",oauthCfg.TokenCache)
 	}
+	print(tok)
 
-	// Skip TLS Verify
-	t.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
 
 	// Make the request.
 	req, err := t.Client().Get(profileInfoURL)
 	if err != nil {
+		print(err)
+		print("\n")
 		panic(err.Error())
 		return
 	}
