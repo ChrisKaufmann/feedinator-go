@@ -31,7 +31,7 @@ func init() {
 	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
 	stmtFeedEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where f.id = e.feed_id and f.id= ? and unread= ? and marked = ?")
 	stmtCatEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and unread= ? and marked = ?")
-	stmtCatUnreadEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and e.unread=1")
+	stmtCatUnreadEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and e.unread=1 order by e.id ASC")
 	stmtGetEntryCount = sth(db, "select count(id) from ttrss_entries")
 }
 
