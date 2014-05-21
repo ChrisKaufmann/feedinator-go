@@ -2,6 +2,7 @@ package main
 
 import (
 	"html"
+	"strings"
 	"database/sql"
 	"html/template"
 	"strconv"
@@ -51,16 +52,31 @@ type Entry struct {
 }
 
 func getCategoryUnread(id string) []Entry {
-	rows, err := stmtCatUnreadEntries.Query(id)
+	feeds := getCategoryFeeds(id)
+	var feedstr []string
 	var el []Entry
+	fl := make(map[string]Feed)
+
+	for i := range feeds {
+		f := feeds[i]
+		fl[strconv.Itoa(f.ID)]=f
+		feedstr = append(feedstr, strconv.Itoa(f.ID))
+	}
+	var query="select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id from ttrss_entries e where e.feed_id in (" +strings.Join(feedstr,", ") + ") and e.unread=1 order by e.id ASC;"
+	var stmtCatUnreadByFeed=sth(db,query)
+
+//	rows, err := stmtCatUnreadEntries.Query(id)
+	rows, err := stmtCatUnreadByFeed.Query()
 	if err != nil {
 		err.Error()
 	}
 	var count int
 	for rows.Next() {
 		var e Entry
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID)
 		e.Evenodd = evenodd(count)
+		f := fl[strconv.Itoa(e.FeedID)]
+		e.FeedName=f.Title
 		e=e.Normalize()
 		el = append(el, e)
 		count = count + 1
@@ -163,6 +179,8 @@ func markEntry(id string, m string) string {
 			mc.Decrement("FeedUnreadCount"+strconv.Itoa(e.FeedID),1)
 		case "unread":
 			stmtUpdateReadEntry.Exec("1", id)
+			e := getEntry(id)
+			f := getFeed(strconv.Itoa(e.FeedID))
 			mc.Increment("CategoryUnreadCount"+strconv.Itoa(f.CategoryID),1)
 			mc.Increment("FeedUnreadCount"+strconv.Itoa(f.CategoryID),1)
 		case "marked":

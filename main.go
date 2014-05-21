@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 	"github.com/msbranco/goconfig"
 	"html"
 	"html/template"
@@ -260,6 +261,7 @@ func setSelects(f *Feed) {
 
 //print the list of all feeds
 func handleFeedList(w http.ResponseWriter, r *http.Request) {
+	t0 := time.Now()
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -270,10 +272,13 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 		f := allthefeeds[i]
 		feedHtml.Execute(w, f)
 	}
+	t1 := time.Now()
+	fmt.Printf("handleFeedList %v\n", t1.Sub(t0))
 }
 
 //print the list of categories (possibly with feeds in that cat), then the uncategorized feeds
 func handleCategoryList(w http.ResponseWriter, r *http.Request) {
+	t0 := time.Now()
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -300,10 +305,13 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	for i := range allFeeds {
 		feedHtml.Execute(w, allFeeds[i])
 	}
+	t1 := time.Now()
+	fmt.Printf("handleCategoryList %v\n", t1.Sub(t0))
 }
 
 //print the list of entries for the selected category, feed, or marked
 func handleEntries(w http.ResponseWriter, r *http.Request) {
+	t0 := time.Now()
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -364,6 +372,8 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	}
 	//print footer for entries list
 	fmt.Fprintf(w, "</form>\n</table>\n")
+	t1 := time.Now()
+	fmt.Printf("handleEntries %v\n", t1.Sub(t0))
 }
 
 func handleMain(w http.ResponseWriter, r *http.Request) {
