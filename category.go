@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
+	"strconv"
 )
 
 type Category struct {
@@ -42,8 +44,8 @@ func init() {
 	stmtDeleteCategory = sth(db, "delete from ttrss_categories where id=? limit 1")
 }
 func (c Category) Save() {
-	if c.Description == ""{
-		c.Description=" "
+	if c.Description == "" {
+		c.Description = " "
 	}
 	stmtSaveCat.Exec(c.Name, c.Description, c.ID)
 }
@@ -56,9 +58,17 @@ func (c Category) Delete() {
 }
 func (c Category) Unread() int {
 	var count int
-	err := stmtCatUnread.QueryRow(c.ID).Scan(&count)
+	var cct = "CategoryUnreadCount"+strconv.Itoa(c.ID)
+	unreadc, err := mc.Get(cct)
 	if err != nil {
-		err.Error()
+		err := stmtCatUnread.QueryRow(c.ID).Scan(&count)
+		if err != nil {
+			err.Error()
+		}
+		mcsettime(cct,count,60)
+	} else {
+		err = json.Unmarshal(unreadc.Value, &count)
+		print("+cuc"+strconv.Itoa(c.ID))
 	}
 	return count
 }
@@ -71,37 +81,80 @@ func (c Category) Class() string {
 
 func getCat(id string) Category {
 	var cat Category
-	err := stmtGetCat.QueryRow(id).Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
-	if err != nil {
-		err.Error()
+	nucat, err := mc.Get("Category" + id)
+	if err != nil { //cache miss
+		err := stmtGetCat.QueryRow(id).Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
+		if err != nil {
+			err.Error()
+		}
+		print("-cat" + strconv.Itoa(cat.ID))
+		mcset("Category"+id, cat)
+	} else {
+		err = json.Unmarshal(nucat.Value, &cat)
+		print("+cat" + strconv.Itoa(cat.ID))
 	}
 	return cat
 }
 func getCategoryFeeds(id string) []Feed {
 	var allFeeds []Feed
-	rows, err := stmtGetCatFeeds.Query(id)
+	var feedids []int
+
+	//Try getting from cache first
+	catfeeds, err := mc.Get("CategoryFeeds_" + id)
 	if err != nil {
-		err.Error()
-		return allFeeds
-	}
-	for rows.Next() {
-		var id string
-		rows.Scan(&id)
-		allFeeds = append(allFeeds, getFeed(id))
+		rows, err := stmtGetCatFeeds.Query(id)
+		if err != nil {
+			err.Error()
+			return allFeeds
+		}
+		for rows.Next() {
+			var id string
+			rows.Scan(&id)
+			feed := getFeed(id)
+			allFeeds = append(allFeeds, feed)
+			feedids = append(feedids, feed.ID)
+		}
+		mcset("CategoryFeeds_"+id, feedids)
+	} else {
+		print("+CFL_" + id)
+		err = json.Unmarshal(catfeeds.Value, &feedids)
+		for i := range feedids {
+			feed := getFeed(strconv.Itoa(feedids[i]))
+			allFeeds = append(allFeeds, feed)
+		}
 	}
 	return allFeeds
 }
+
 func getCategories() []Category {
 	var allCats []Category
-	rows, err := stmtGetCats.Query(userName)
+	var catids []int
+
+	//Try getting a category list from cache
+	catlist, err := mc.Get("CategoryList_" + userName)
 	if err != nil {
-		err.Error()
-		return allCats
-	}
-	for rows.Next() {
-		var cat Category
-		rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
-		allCats = append(allCats, cat)
+		print("-CL" + userName)
+		rows, err := stmtGetCats.Query(userName)
+		if err != nil {
+			err.Error()
+			return allCats
+		}
+		for rows.Next() {
+			var cat Category
+			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
+			allCats = append(allCats, cat)
+			catids = append(catids, cat.ID)
+			mcset("Category"+strconv.Itoa(cat.ID), cat)
+		}
+		mcset("CategoryList_"+userName, catids)
+	} else {
+		print("+CL" + userName)
+		err = json.Unmarshal(catlist.Value, &catids)
+		for i := range catids {
+			cat := getCat(strconv.Itoa(catids[i]))
+			allCats = append(allCats, cat)
+		}
+
 	}
 	return allCats
 }

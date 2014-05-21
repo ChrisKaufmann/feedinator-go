@@ -1,10 +1,16 @@
 package main
 
 import (
-	"net/http"
 	"database/sql"
-	"strings"
+	"encoding/json"
+	"github.com/bradfitz/gomemcache/memcache"
+	"net/http"
 	"strconv"
+	"strings"
+)
+
+var (
+	mc = memcache.New("127.0.0.1:11211")
 )
 
 //puts path vars right into variables passed as params, until it runs out
@@ -19,10 +25,10 @@ func pathVars(r *http.Request, root string, vals ...*string) {
 		}
 	}
 }
-func sth(db *sql.DB,s string) *sql.Stmt {
+func sth(db *sql.DB, s string) *sql.Stmt {
 	a, err := db.Prepare(s)
 	if err != nil {
-		print (s)
+		print(s)
 		panic(err)
 	}
 	return a
@@ -41,4 +47,17 @@ func tostr(i int) string {
 func toint(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
+}
+func mcset(key string, i interface{}) (err error) {
+	var timeout int32 = 86400
+	err = mcsettime(key, i, timeout)
+	return err
+}
+func mcsettime(key string, i interface{}, t int32) (err error) {
+	b, err := json.Marshal(i)
+	if err != nil {
+		return err
+	}
+	err = mc.Set(&memcache.Item{Key: key, Value: []byte(b), Expiration: t})
+	return err
 }

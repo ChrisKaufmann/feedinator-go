@@ -155,19 +155,25 @@ func getEntry(id string) Entry {
 func markEntry(id string, m string) string {
 	var ret string
 	switch m {
-	case "read":
-		stmtUpdateReadEntry.Exec("0", id)
-	case "unread":
-		stmtUpdateReadEntry.Exec("1", id)
-	case "marked":
-		stmtUpdateMarkEntry.Exec("1", id)
-	case "unmarked":
-		stmtUpdateMarkEntry.Exec("0", id)
-	case "togglemarked":
-		e := getEntry(id)
-		stmtUpdateMarkEntry.Exec(toint(e.Marked)^1, id)
-		en := getEntry(id)
-		ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
+		case "read":
+			stmtUpdateReadEntry.Exec("0", id)
+			e := getEntry(id)
+			f := getFeed(strconv.Itoa(e.FeedID))
+			mc.Decrement("CategoryUnreadCount"+strconv.Itoa(f.CategoryID),1)
+			mc.Decrement("FeedUnreadCount"+strconv.Itoa(e.FeedID),1)
+		case "unread":
+			stmtUpdateReadEntry.Exec("1", id)
+			mc.Increment("CategoryUnreadCount"+strconv.Itoa(f.CategoryID),1)
+			mc.Increment("FeedUnreadCount"+strconv.Itoa(f.CategoryID),1)
+		case "marked":
+			stmtUpdateMarkEntry.Exec("1", id)
+		case "unmarked":
+			stmtUpdateMarkEntry.Exec("0", id)
+		case "togglemarked":
+			e := getEntry(id)
+			stmtUpdateMarkEntry.Exec(toint(e.Marked)^1, id)
+			en := getEntry(id)
+			ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
 	}
 	return ret
 }

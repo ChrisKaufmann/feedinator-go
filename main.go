@@ -1,14 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/msbranco/goconfig"
 	"html"
-	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
-	"net/url"
 )
 
 var (
@@ -63,7 +63,7 @@ func main() {
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
 	http.HandleFunc("/", handleRoot)
 
-	print("Listening on 127.0.0.1:"+port+"\n")
+	print("Listening on 127.0.0.1:" + port + "\n")
 	http.ListenAndServe("127.0.0.1:"+port, nil)
 }
 func handleCategory(w http.ResponseWriter, r *http.Request) {
@@ -97,15 +97,15 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Deleted")
 	}
 }
-func handleStats(w  http.ResponseWriter, r *http.Request) {
+func handleStats(w http.ResponseWriter, r *http.Request) {
 	var todo string
 	pathVars(r, "/stats/", &todo)
 	var c string
 	switch todo {
-		case "entries":
-			c,_ = getEntriesCount()
+	case "entries":
+		c, _ = getEntriesCount()
 	}
-	fmt.Fprintf(w,c)
+	fmt.Fprintf(w, c)
 }
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {
@@ -116,8 +116,8 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	var f Feed
 	f.Url = formurl
 	f.UserName = userName
-	purl,_ := url.Parse(formurl)
-	f.Title=purl.Host
+	purl, _ := url.Parse(formurl)
+	f.Title = purl.Host
 	f.Insert()
 	fmt.Fprintf(w, "Added")
 }
@@ -160,7 +160,7 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	case "category":
 		f.CategoryID = toint(val)
 		f.Save()
-		c:=getCat(val)
+		c := getCat(val)
 		fmt.Fprintf(w, "Category: "+c.Name)
 	case "view_mode":
 		f.ViewMode = val
@@ -346,16 +346,16 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>\n")
 	var el []Entry
 	switch feedOrCat {
-	case "feed":
-		el = entriesFromSql(stmtFeedEntries, id, ur, mkd)
-	case "category":
-		//el = entriesFromSql(stmtCatEntries, id, ur, mkd)
-		if ur == 1 {
-			el=getCategoryUnread(id)
+		case "feed":
+			el = entriesFromSql(stmtFeedEntries, id, ur, mkd)
+		case "category":
+			//el = entriesFromSql(stmtCatEntries, id, ur, mkd)
+			if ur == 1 {
+				el = getCategoryUnread(id)
+			}
+		case "marked":
+			el = allMarkedEntries()
 		}
-	case "marked":
-		el = allMarkedEntries()
-	}
 	if len(el) == 0 {
 		fmt.Fprintf(w, "No entries found")
 	}
