@@ -6,7 +6,7 @@ use DBI;
 use CGI;
 use Config::Std;
 use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
-
+print "Updating\n";
 my $cgi=new CGI;
 my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
@@ -150,6 +150,7 @@ sub escape
 		$in=~s/\*/&#42;/g;
 		$in=~s/\//&#47;/g;
 		$in=~s/\\/&#92;/g;
+		$in=~s/“/&#34;/g;
 		return $in;
 }
 sub shuffle
