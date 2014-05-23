@@ -101,6 +101,10 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		c := getCat(id)
 		c.Update()
 		fmt.Fprintf(w, "Updated")
+	case "unread":
+		c := getCat(id)
+		print("in unread\n")
+		fmt.Fprintf(w, strconv.Itoa(c.Unread()))
 	}
 }
 func handleStats(w http.ResponseWriter, r *http.Request) {
@@ -178,6 +182,8 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	case "update":
 		f.Update()
 		fmt.Fprintf(w, "Updated")
+	case "unread":
+		fmt.Fprintf(w, strconv.Itoa(f.Unread()))
 	}
 	return
 }

@@ -34,10 +34,13 @@ function showNextEntry(id)
 	}});
 }
 // Update/refresh entries in a given feed/category
-function update(thing)
+function update(fc,id)
 {
 	document.getElementById('menu_status').innerHTML='Updating...';
-	$.ajax({type: "GET",url: thing+"/update", success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: fc+"/"+id+"/update", success:function(html){
+		$('#menu_status').html(html);
+		update_count(fc,id);
+	}})
 }
 // Update the link for a given feed
 function update_link(form)
@@ -100,6 +103,20 @@ function empty_count()
 	// expected because the div could have been hidden.
 	try{document.getElementById(unread_div).innerHTML='0';}catch (err){} 
 	try{document.getElementById(name_div).className='odd';}catch (err){}
+}
+function update_count(fc,id)
+{
+	if(fc == 'feed')
+		{name_div='FEEDROW-'+current_view_id;}
+	else
+		{name_div='CATROW-'+current_view_id;}
+	var unread_div='FEEDU-'+id;
+	url="/"+fc+"/"+id+"/unread";
+	$.ajax({type: "GET", url: url, success:function(ct){
+		eo = ct < 1? 'odd' : 'evenUnread';
+		try{document.getElementById(unread_div).innerHTML=ct;}catch (err){}
+		try{document.getElementById(name_div).className=eo;}catch (err){}
+	}})
 }
 // Lowers the unread count for the current_view_id by one - if that zeroes, calls empty_count.
 function decrement_count()

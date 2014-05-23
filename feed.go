@@ -60,6 +60,8 @@ func (f Feed) Update() {
 		err.Error()
 	}
 	f.ClearCache()
+	c := getCat(strconv.Itoa(f.CategoryID))
+	c.ClearCache()
 }
 func (f Feed) ClearCache() {
 	err := mc.Delete("Feed"+strconv.Itoa(f.ID))
