@@ -58,7 +58,7 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	code := r.FormValue("code")
 
 	print("code="+code)
-	t := &oauth.Transport{oauth.Config: oauthCfg}
+	t := &oauth.Transport{Config: oauthCfg}
 
 	// Exchange the received code for a token
 	tok, err := oauthCfg.TokenCache.Token()

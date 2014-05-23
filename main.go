@@ -96,6 +96,10 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		c := getCat(id)
 		c.Delete()
 		fmt.Fprintf(w, "Deleted")
+	case "update":
+		c := getCat(id)
+		c.Update()
+		fmt.Fprintf(w, "Updated")
 	}
 }
 func handleStats(w http.ResponseWriter, r *http.Request) {
@@ -170,6 +174,9 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	case "delete":
 		f.Delete()
 		fmt.Fprintf(w, "Deleted")
+	case "update":
+		f.Update()
+		fmt.Fprintf(w, "Updated")
 	}
 	return
 }

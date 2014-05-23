@@ -33,6 +33,12 @@ function showNextEntry(id)
 		show_entry(html);
 	}});
 }
+// Update/refresh entries in a given feed/category
+function update(thing)
+{
+	document.getElementById('menu_status').innerHTML='Updating...';
+	$.ajax({type: "GET",url: thing+"/update", success:function(html){$('#menu_status').html(html);}})
+}
 // Update the link for a given feed
 function update_link(form)
 {
@@ -183,12 +189,10 @@ function customize(form)
 	else if(selvalue=='default' || selvalue=='link' || selvalue=='extended'||selvalue=='proxy')
 		{
 		url='/feed/'+current_view_id+'/view_mode/'+selvalue
-		//url='op=update_viewmode&view_mode='+selvalue+'&id='+current_view_id+'&skip_div=1';
 		}
 	else
 		{
 		url='/feed/'+current_view_id+'/category/'+selvalue
-		//url='op=update_category&id='+current_view_id+'&category='+selvalue+'&skip_div=1';
 		}
 	$.ajax({type: "GET",url: url,success:function(html)
 	{

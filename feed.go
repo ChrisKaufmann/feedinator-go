@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"fmt"
+	"os/exec"
 	"database/sql"
 	"html"
 	"html/template"
@@ -47,7 +50,26 @@ func (f Feed) Class() string {
 	}
 	return "odd"
 }
-
+func (f Feed) Update() {
+	os.Chdir("update")
+	out,err := exec.Command("perl","update_feeds.pl","feed_id="+strconv.Itoa(f.ID)).Output()
+	os.Chdir("..")
+	fmt.Printf("FeedUpdate: %q\n", out)
+	if err != nil {
+		err.Error()
+	}
+	f.ClearCache()
+}
+func (f Feed) ClearCache() {
+	err := mc.Delete("Feed"+strconv.Itoa(f.ID))
+	if err != nil {
+		err.Error()
+	}
+	err = mc.Delete("FeedUnreadCount"+strconv.Itoa(f.ID))
+	if err != nil {
+		err.Error()
+	}
+}
 func (f Feed) Insert() {
 	if f.Url == "" {
 		panic("URL is blank for new feed")

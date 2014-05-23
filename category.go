@@ -55,6 +55,24 @@ func (c Category) Insert() {
 func (c Category) Delete() {
 	stmtResetCategories.Exec(c.ID)
 	stmtDeleteCategory.Exec(c.ID)
+	c.ClearCache()
+}
+func (c Category) Update() {
+	fl := getCategoryFeeds(strconv.Itoa(c.ID))
+	for i := range fl {
+		fl[i].Update()
+	}
+	c.ClearCache()
+}
+func (c Category) ClearCache() {
+	err := mc.Delete("Category"+strconv.Itoa(c.ID))
+	if err != nil {
+		err.Error()
+	}
+	err = mc.Delete("CategoryUnreadCount"+strconv.Itoa(c.ID))
+	if err != nil {
+		err.Error()
+	}
 }
 func (c Category) Unread() int {
 	var count int
