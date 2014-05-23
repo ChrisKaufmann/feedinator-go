@@ -18,6 +18,7 @@ var (
 	indexHtml      = template.Must(template.ParseFiles("templates/index-nologin.html"))
 	mainHtml       = template.Must(template.ParseFiles("templates/main.html"))
 	categoryHtml   = template.Must(template.ParseFiles("templates/category.html"))
+	categoryHtmlS  = template.Must(template.ParseFiles("templates/category_selected.html"))
 	feedHtml       = template.Must(template.ParseFiles("templates/feed.html"))
 	feedHtmlSpaced = template.Must(template.ParseFiles("templates/feed_spaced.html"))
 	listEntryHtml  = template.Must(template.ParseFiles("templates/listentry.html"))
@@ -296,18 +297,19 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	allthecats := getCategories()
 	for i := range allthecats {
 		cat := allthecats[i]
-		categoryHtml.Execute(w, cat)
-		fmt.Fprintf(w, "<br>\n")
 		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
-			catFeeds := getCategoryFeeds(currentCat)
+		categoryHtmlS.Execute(w, cat)
+			catFeeds := cat.Feeds()
 			for j := range catFeeds {
 				feedHtmlSpaced.Execute(w, catFeeds[j])
 			}
+		} else {
+			categoryHtml.Execute(w,cat)
 		}
+		fmt.Fprintf(w, "<br>\n")
 	}
-	fmt.Fprintf(w, "<br>")
-	//and the categories 
+	fmt.Fprintf(w, "<hr>")
 	allFeeds := getFeedsWithoutCats()
 	for i := range allFeeds {
 		feedHtml.Execute(w, allFeeds[i])

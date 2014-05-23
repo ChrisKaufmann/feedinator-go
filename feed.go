@@ -43,6 +43,7 @@ func (feed Feed) Print() {
 
 func (f Feed) Save() {
 	stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.Expirey, f.ID)
+	f.ClearCache()
 }
 func (f Feed) Class() string {
 	if f.Unread() > 0 {
@@ -80,6 +81,7 @@ func (f Feed) Insert() {
 	stmtInsertFeed.Exec(f.Url, f.UserName, f.Title)
 }
 func (f Feed) Delete() {
+	f.ClearCache()
 	//first, delete all of the entries that aren't starred
 	stmtDeleteFeedEntries.Exec(f.ID)
 

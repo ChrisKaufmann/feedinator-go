@@ -48,6 +48,7 @@ func (c Category) Save() {
 		c.Description = " "
 	}
 	stmtSaveCat.Exec(c.Name, c.Description, c.ID)
+	c.ClearCache()
 }
 func (c Category) Insert() {
 	stmtAddCat.Exec(userName, c.Name)
@@ -58,7 +59,7 @@ func (c Category) Delete() {
 	c.ClearCache()
 }
 func (c Category) Update() {
-	fl := getCategoryFeeds(strconv.Itoa(c.ID))
+	fl := c.Feeds()
 	for i := range fl {
 		fl[i].Update()
 	}
@@ -113,14 +114,14 @@ func getCat(id string) Category {
 	}
 	return cat
 }
-func getCategoryFeeds(id string) []Feed {
+func (c Category) Feeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
 
 	//Try getting from cache first
-	catfeeds, err := mc.Get("CategoryFeeds_" + id)
+	catfeeds, err := mc.Get("CategoryFeeds_" + strconv.Itoa(c.ID))
 	if err != nil {
-		rows, err := stmtGetCatFeeds.Query(id)
+		rows, err := stmtGetCatFeeds.Query(strconv.Itoa(c.ID))
 		if err != nil {
 			err.Error()
 			return allFeeds
@@ -132,9 +133,9 @@ func getCategoryFeeds(id string) []Feed {
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
 		}
-		mcset("CategoryFeeds_"+id, feedids)
+		mcset("CategoryFeeds_"+strconv.Itoa(c.ID), feedids)
 	} else {
-		print("+CFL_" + id)
+		print("+CFL_" + strconv.Itoa(c.ID))
 		err = json.Unmarshal(catfeeds.Value, &feedids)
 		for i := range feedids {
 			feed := getFeed(strconv.Itoa(feedids[i]))

@@ -52,7 +52,8 @@ type Entry struct {
 }
 
 func getCategoryUnread(id string) []Entry {
-	feeds := getCategoryFeeds(id)
+	c := getCat(id)
+	feeds := c.Feeds()
 	var feedstr []string
 	var el []Entry
 	fl := make(map[string]Feed)
