@@ -64,13 +64,12 @@ func (f Feed) Update() {
 	c.ClearCache()
 }
 func (f Feed) ClearCache() {
-	err := mc.Delete("Feed"+strconv.Itoa(f.ID))
-	if err != nil {
-		err.Error()
-	}
-	err = mc.Delete("FeedUnreadCount"+strconv.Itoa(f.ID))
-	if err != nil {
-		err.Error()
+	cl := []string{ "Feed"+strconv.Itoa(f.ID), "FeedUnreadCount"+strconv.Itoa(f.ID),"FeedsWithoutCats" + userName,"FeedList" }
+	for i := range cl {
+		err := mc.Delete(cl[i])
+		if err != nil {
+			err.Error()
+		}
 	}
 }
 func (f Feed) Insert() {
@@ -81,6 +80,7 @@ func (f Feed) Insert() {
 		panic("username is blank fornew feed")
 	}
 	stmtInsertFeed.Exec(f.Url, f.UserName, f.Title)
+	f.ClearCache()
 }
 func (f Feed) Delete() {
 	f.ClearCache()
