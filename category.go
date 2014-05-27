@@ -20,6 +20,7 @@ var (
 	stmtCatUnread             *sql.Stmt
 	stmtGetCat                *sql.Stmt
 	stmtGetCats               *sql.Stmt
+	stmtGetAllCats			  *sql.Stmt
 	stmtNextCategoryEntry     *sql.Stmt
 	stmtPreviousCategoryEntry *sql.Stmt
 	stmtGetCatFeeds           *sql.Stmt
@@ -36,6 +37,7 @@ func init() {
 	stmtGetCatFeeds = sth(db, "select f.id from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and c.id= ?")
 	stmtGetCat = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where id = ?")
 	stmtGetCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where user_name= ?")
+	stmtGetAllCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories")
 	stmtNextCategoryEntry = sth(db, "select e.id from ttrss_entries as e,ttrss_feeds as f  where f.category_id=? and e.feed_id=f.id and e.id > ? order by e.id ASC limit 1")
 	stmtPreviousCategoryEntry = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f where f.category_id=? and e.feed_id=f.id and e.id<? order by e.id DESC limit 1")
 	stmtSaveCat = sth(db, "update ttrss_categories set name=?,description=? where id=? limit 1")
@@ -176,4 +178,36 @@ func getCategories() []Category {
 
 	}
 	return allCats
+}
+func GetAllCategories() []Category {
+	var allCats []Category
+	var catids []int
+	catlist, err := mc.Get("CategoryList")
+	if err != nil {
+		print("-CL<ALL>")
+		rows,err := stmtGetAllCats.Query()
+		if err != nil {
+			err.Error()
+			return allCats
+		}
+		for rows.Next() {
+			var cat Category
+			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
+			allCats = append(allCats, cat)
+			catids = append(catids, cat.ID)
+			mcset("Category"+strconv.Itoa(cat.ID), cat)
+		}
+		mcset("CategoryList", allCats)
+	} else {
+		print("+CL<ALL>")
+		err = json.Unmarshal(catlist.Value, allCats)
+		for i := range catids {
+			cat := getCat(strconv.Itoa(catids[i]))
+			allCats = append(allCats, cat)
+		}
+	}
+	return allCats
+}
+func cacheAllCats() {
+	_ = GetAllCategories()
 }

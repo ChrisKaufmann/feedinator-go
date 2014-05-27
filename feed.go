@@ -96,6 +96,7 @@ var (
 	stmtGetFeedsWithoutCats *sql.Stmt
 	stmtGetFeed             *sql.Stmt
 	stmtGetFeeds            *sql.Stmt
+	stmtGetAllFeeds         *sql.Stmt
 	stmtNextFeedEntry       *sql.Stmt
 	stmtPreviousFeedEntry   *sql.Stmt
 	stmtSaveFeed            *sql.Stmt
@@ -107,6 +108,7 @@ var (
 func init() {
 	stmtInsertFeed = sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
 	stmtGetFeeds = sth(db, "select id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,'') from ttrss_feeds where user_name = ?")
+	stmtGetAllFeeds = sth(db, "select id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,'') from ttrss_feeds")
 	stmtGetFeed = sth(db, "select id,IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,''),IFNULL(expirey,'') from ttrss_feeds where id = ?")
 	stmtFeedUnread = sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
 	stmtGetFeedsWithoutCats = sth(db, "select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
@@ -131,18 +133,65 @@ func getFeeds() []Feed {
 	}
 	return allFeeds
 }
+func getAllFeeds() []Feed {
+	var allFeeds []Feed
+	var feedids []int
+	fl, err := mc.Get("FeedList")
+	if err != nil {
+		print("-FL<ALL>")
+		rows,err := stmtGetAllFeeds.Query()
+		if err != nil {
+			err.Error()
+			return allFeeds
+		}
+		for rows.Next(){
+			var feed Feed
+			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString)
+			allFeeds = append(allFeeds,feed)
+			feedids = append(feedids, feed.ID)
+			mcset("Feed"+strconv.Itoa(feed.ID), feed)
+		}
+		mcset("FeedList", feedids)
+	} else {
+		print("+FL<ALL>")
+		err = json.Unmarshal(fl.Value, &feedids)
+		for i := range feedids {
+			f := getFeed(strconv.Itoa(feedids[i]))
+			allFeeds = append(allFeeds,f)
+		}
+	}
+	return allFeeds
+}
+func cacheAllFeeds() {
+	_ = getAllFeeds()
+}
 
 func getFeedsWithoutCats() []Feed {
 	var allFeeds []Feed
-	rows, err := stmtGetFeedsWithoutCats.Query(userName)
+	var feedids  []int
+	var fcn = "FeedsWithoutCats" + userName
+	fwc, err := mc.Get(fcn)
 	if err != nil {
-		err.Error()
-	}
-	for rows.Next() {
-		var id string
-		rows.Scan(&id)
-		f := getFeed(id)
-		allFeeds = append(allFeeds, f)
+		print("-"+fcn)
+		rows, err := stmtGetFeedsWithoutCats.Query(userName)
+		if err != nil {
+			err.Error()
+		}
+		for rows.Next() {
+			var id string
+			rows.Scan(&id)
+			f := getFeed(id)
+			allFeeds = append(allFeeds, f)
+			feedids = append(feedids, f.ID)
+		}
+		mcset(fcn, feedids)
+	} else {
+		print("+"+fcn)
+		err = json.Unmarshal(fwc.Value, &feedids)
+		for i := range feedids {
+			f := getFeed(strconv.Itoa(feedids[i]))
+			allFeeds = append(allFeeds,f)
+		}
 	}
 	return allFeeds
 }

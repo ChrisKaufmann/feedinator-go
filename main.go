@@ -65,6 +65,8 @@ func main() {
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
 	http.HandleFunc("/", handleRoot)
 
+	go cacheAllCats()  //create cache for categories at startup
+	go cacheAllFeeds() //create cache for feeds at startup
 	print("Listening on 127.0.0.1:" + port + "\n")
 	http.ListenAndServe("127.0.0.1:"+port, nil)
 }
