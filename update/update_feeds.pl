@@ -153,6 +153,7 @@ sub escape
 		$in=~s/\\/&#92;/g;
 		$in=~s/“/&#34;/g;
 		$in=~s/”/&#34;/g;
+		$in=~s/–/-/g;
 		return $in;
 }
 sub shuffle
