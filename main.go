@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"github.com/msbranco/goconfig"
 	"html"
 	"html/template"
@@ -10,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -307,13 +307,13 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		cat := allthecats[i]
 		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
-		categoryHtmlS.Execute(w, cat)
+			categoryHtmlS.Execute(w, cat)
 			catFeeds := cat.Feeds()
 			for j := range catFeeds {
 				feedHtmlSpaced.Execute(w, catFeeds[j])
 			}
 		} else {
-			categoryHtml.Execute(w,cat)
+			categoryHtml.Execute(w, cat)
 		}
 		fmt.Fprintf(w, "<br>\n")
 	}
@@ -339,48 +339,57 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var mode string
 	var curID string //only really needed for getting the next one in a feed/cat
 	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID)
-	ur := 1    //unread/read to unread by default
-	mkd := "0" //marked to unmarked by default
-	switch mode {
-	case "read":
-		ur = 0
-		mkd = "%"
+	var el []Entry
+	switch feedOrCat {
+	case "feed":
+		f := getFeed(id)
+		switch mode {
+		case "read":
+			el = f.ReadEntries()
+		case "marked":
+			el = f.MarkedEntries()
+		case "all":
+			el = f.AllEntries()
+		case "next":
+			nid := strconv.Itoa(f.Next(curID).ID)
+			fmt.Fprintf(w, nid)
+			go f.Next(nid)
+			return
+		case "previous":
+			nid := strconv.Itoa(f.Previous(curID).ID)
+			fmt.Fprintf(w, nid)
+			go f.Previous(nid)
+			return
+		default:
+			el = f.UnreadEntries()
+		}
+	case "category":
+		c := getCat(id)
+		switch mode {
+		case "read":
+			el = c.ReadEntries()
+		case "marked":
+			el = c.MarkedEntries()
+		case "all":
+			el = c.AllEntries()
+		case "previous":
+			nid := strconv.Itoa(c.Previous(curID).ID)
+			fmt.Fprintf(w, nid)
+			go c.Previous(nid)
+			return
+		case "next":
+			nid := strconv.Itoa(c.Next(curID).ID)
+			fmt.Fprintf(w, nid)
+			go  c.Next(nid)
+			return
+		default:
+			el = c.UnreadEntries()
+		}
 	case "marked":
-		mkd = "1"
-		ur = 0
-	case "next":
-		var retval string
-		if feedOrCat == "feed" {
-			stmtNextFeedEntry.QueryRow(curID, id).Scan(&retval)
-		} else {
-			stmtNextCategoryEntry.QueryRow(curID, id).Scan(&retval)
-		}
-		fmt.Fprintf(w, retval)
-		return
-	case "previous":
-		var retval string
-		if feedOrCat == "feed" {
-			stmtPreviousFeedEntry.QueryRow(curID, id).Scan(&retval)
-		} else {
-			stmtPreviousCategoryEntry.QueryRow(curID, id).Scan(&retval)
-		}
-		fmt.Fprintf(w, retval)
-		return
+		el = allMarkedEntries()
 	}
 	//print header for list
 	fmt.Fprintf(w, "<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>\n")
-	var el []Entry
-	switch feedOrCat {
-		case "feed":
-			el = entriesFromSql(stmtFeedEntries, id, ur, mkd)
-		case "category":
-			//el = entriesFromSql(stmtCatEntries, id, ur, mkd)
-			if ur == 1 {
-				el = getCategoryUnread(id)
-			}
-		case "marked":
-			el = allMarkedEntries()
-		}
 	if len(el) == 0 {
 		fmt.Fprintf(w, "No entries found")
 	}

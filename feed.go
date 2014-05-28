@@ -1,14 +1,14 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"os/exec"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"html"
 	"html/template"
+	"os"
+	"os/exec"
 	"strconv"
-	"encoding/json"
 )
 
 type Feed struct {
@@ -37,6 +37,74 @@ func (f Feed) Unread() int {
 	}
 	return count
 }
+func (f Feed) UnreadEntries() []Entry {
+	print("f.unreadentries")
+	el := f.GetEntriesByParam("unread = 1")
+	return el
+}
+func (f Feed) MarkedEntries() []Entry {
+	print("f.markedentries")
+	el := f.GetEntriesByParam("marked = 1")
+	return el
+}
+func (f Feed) ReadEntries() []Entry {
+	print("f.ReadEntries")
+	el := f.GetEntriesByParam("unread = '0'")
+	return el
+}
+func (f Feed) AllEntries() []Entry {
+	print("f.allEntries")
+	el := f.GetEntriesByParam("1=1")
+	return el
+}
+func (f Feed) Next(id string) Entry {
+	var e Entry
+	nes := "FeedEntry"+id+"Next"
+	pes := "FeedEntry"+id+"Previous"
+	ce := getEntry(id)
+	mcsettime(pes, ce, 300)
+	ne, err := mc.Get(nes)
+	if err != nil {
+		var retval string
+		stmtNextFeedEntry.QueryRow(strconv.Itoa(f.ID), id).Scan(&retval)
+		e := getEntry(retval)
+		mcsettime(nes, e, 300)
+		return e
+	} else {
+		print("+"+nes)
+		err = json.Unmarshal(ne.Value, &e)
+	}
+	return e
+}
+func (f Feed) Previous(id string) Entry {
+	var retval string
+	stmtPreviousFeedEntry.QueryRow(strconv.Itoa(f.ID), id).Scan(&retval)
+	e := getEntry(retval)
+	return e
+}
+func (f Feed) GetEntriesByParam(p string) []Entry {
+	var el []Entry
+	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content from ttrss_entries e where e.feed_id = " + strconv.Itoa(f.ID) + " and " + p + " order by e.id ASC;"
+	var stmt = sth(db, query)
+	rows, err := stmt.Query()
+	if err != nil {
+		err.Error()
+	}
+	var count int
+	for rows.Next() {
+		var e Entry
+		var c string
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID,&c)
+		e.Content = template.HTML(html.UnescapeString(c))
+		e.FeedName = f.Title
+		e.Evenodd = evenodd(count)
+		e = e.Normalize()
+		el = append(el, e)
+		count = count + 1
+		mcsettime("Entry"+strconv.Itoa(e.ID), e, 300)
+	}
+	return el
+}
 func (feed Feed) Print() {
 	print("Getting feed:\n" + "\tID: " + strconv.Itoa(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + strconv.Itoa(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + strconv.Itoa(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString)
 }
@@ -53,7 +121,7 @@ func (f Feed) Class() string {
 }
 func (f Feed) Update() {
 	os.Chdir("update")
-	out,err := exec.Command("perl","update_feeds.pl","feed_id="+strconv.Itoa(f.ID)).Output()
+	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+strconv.Itoa(f.ID)).Output()
 	os.Chdir("..")
 	fmt.Printf("FeedUpdate: %q\n", out)
 	if err != nil {
@@ -64,7 +132,7 @@ func (f Feed) Update() {
 	c.ClearCache()
 }
 func (f Feed) ClearCache() {
-	cl := []string{ "Feed"+strconv.Itoa(f.ID), "FeedUnreadCount"+strconv.Itoa(f.ID),"FeedsWithoutCats" + userName,"FeedList" }
+	cl := []string{"Feed" + strconv.Itoa(f.ID), "FeedUnreadCount" + strconv.Itoa(f.ID), "FeedsWithoutCats" + userName, "FeedList"}
 	for i := range cl {
 		err := mc.Delete(cl[i])
 		if err != nil {
@@ -83,12 +151,11 @@ func (f Feed) Insert() {
 	f.ClearCache()
 }
 func (f Feed) Delete() {
-	f.ClearCache()
 	//first, delete all of the entries that aren't starred
 	stmtDeleteFeedEntries.Exec(f.ID)
-
 	//then delete the feed from the feeds table
 	stmtDeleteFeed.Exec(f.ID)
+	f.ClearCache()
 }
 
 var (
@@ -139,15 +206,15 @@ func getAllFeeds() []Feed {
 	fl, err := mc.Get("FeedList")
 	if err != nil {
 		print("-FL<ALL>")
-		rows,err := stmtGetAllFeeds.Query()
+		rows, err := stmtGetAllFeeds.Query()
 		if err != nil {
 			err.Error()
 			return allFeeds
 		}
-		for rows.Next(){
+		for rows.Next() {
 			var feed Feed
 			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString)
-			allFeeds = append(allFeeds,feed)
+			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
 			mcset("Feed"+strconv.Itoa(feed.ID), feed)
 		}
@@ -157,7 +224,7 @@ func getAllFeeds() []Feed {
 		err = json.Unmarshal(fl.Value, &feedids)
 		for i := range feedids {
 			f := getFeed(strconv.Itoa(feedids[i]))
-			allFeeds = append(allFeeds,f)
+			allFeeds = append(allFeeds, f)
 		}
 	}
 	return allFeeds
@@ -168,11 +235,11 @@ func cacheAllFeeds() {
 
 func getFeedsWithoutCats() []Feed {
 	var allFeeds []Feed
-	var feedids  []int
+	var feedids []int
 	var fcn = "FeedsWithoutCats" + userName
 	fwc, err := mc.Get(fcn)
 	if err != nil {
-		print("-"+fcn)
+		print("-" + fcn)
 		rows, err := stmtGetFeedsWithoutCats.Query(userName)
 		if err != nil {
 			err.Error()
@@ -186,11 +253,11 @@ func getFeedsWithoutCats() []Feed {
 		}
 		mcset(fcn, feedids)
 	} else {
-		print("+"+fcn)
+		print("+" + fcn)
 		err = json.Unmarshal(fwc.Value, &feedids)
 		for i := range feedids {
 			f := getFeed(strconv.Itoa(feedids[i]))
-			allFeeds = append(allFeeds,f)
+			allFeeds = append(allFeeds, f)
 		}
 	}
 	return allFeeds

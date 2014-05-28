@@ -2,7 +2,7 @@ package main
 
 import (
 	"html"
-	"strings"
+	"encoding/json"
 	"database/sql"
 	"html/template"
 	"strconv"
@@ -51,39 +51,6 @@ type Entry struct {
 	ReadUnread string
 }
 
-func getCategoryUnread(id string) []Entry {
-	c := getCat(id)
-	feeds := c.Feeds()
-	var feedstr []string
-	var el []Entry
-	fl := make(map[string]Feed)
-
-	for i := range feeds {
-		f := feeds[i]
-		fl[strconv.Itoa(f.ID)]=f
-		feedstr = append(feedstr, strconv.Itoa(f.ID))
-	}
-	var query="select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id from ttrss_entries e where e.feed_id in (" +strings.Join(feedstr,", ") + ") and e.unread=1 order by e.id ASC;"
-	var stmtCatUnreadByFeed=sth(db,query)
-
-//	rows, err := stmtCatUnreadEntries.Query(id)
-	rows, err := stmtCatUnreadByFeed.Query()
-	if err != nil {
-		err.Error()
-	}
-	var count int
-	for rows.Next() {
-		var e Entry
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID)
-		e.Evenodd = evenodd(count)
-		f := fl[strconv.Itoa(e.FeedID)]
-		e.FeedName=f.Title
-		e=e.Normalize()
-		el = append(el, e)
-		count = count + 1
-	}
-	return el
-}
 func (e Entry) Normalize() Entry{
 	e.Link = html.UnescapeString(e.Link)
 	e.Title = html.UnescapeString(e.Title)
@@ -99,23 +66,6 @@ func (e Entry) Normalize() Entry{
 		e.ReadUnread = ""
 	}
 	return e
-}
-func entriesFromSql(s *sql.Stmt, id string, ur int, mkd string) []Entry {
-	rows, err := s.Query(id, strconv.Itoa(ur), mkd)
-	var el []Entry
-	if err != nil {
-		err.Error()
-	}
-	var count int
-	for rows.Next() {
-		var e Entry
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedName)
-		e.Evenodd = evenodd(count)
-		e=e.Normalize()
-		el = append(el, e)
-		count = count + 1
-	}
-	return el
 }
 func allMarkedEntries() []Entry {
 	rows, err := stmtGetMarked.Query(userName)
@@ -147,25 +97,33 @@ func getEntriesCount() (c string,err error) {
 	return c,err
 }
 func getEntry(id string) Entry {
-	//id,title,link,updated,feed_id,marked,content,unread
 	var e Entry
-	var c string
-	err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread)
-	if err != nil {
-		err.Error()
-	}
-	e.Content = template.HTML(html.UnescapeString(c))
-	e.Link = html.UnescapeString(e.Link)
-	e.Title = html.UnescapeString(e.Title)
-	if e.Marked == "1" {
-		e.MarkSet = "set"
+	es := "Entry"+id
+	ce, err := mc.Get(es)
+	if err != nil { //not cached
+		print("-")
+		var c string
+		err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread)
+		if err != nil {
+			err.Error()
+		}
+		e.Content = template.HTML(html.UnescapeString(c))
+		e.Link = html.UnescapeString(e.Link)
+		e.Title = html.UnescapeString(e.Title)
+		if e.Marked == "1" {
+			e.MarkSet = "set"
+		} else {
+			e.MarkSet = "unset"
+		}
+		if e.Unread == true {
+			e.ReadUnread = "unread"
+		} else {
+			e.ReadUnread = ""
+		}
+		mcsettime(es, e, 300)
 	} else {
-		e.MarkSet = "unset"
-	}
-	if e.Unread == true {
-		e.ReadUnread = "unread"
-	} else {
-		e.ReadUnread = ""
+		print("+")
+		err = json.Unmarshal(ce.Value, &e)
 	}
 	return e
 }

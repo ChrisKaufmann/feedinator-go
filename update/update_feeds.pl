@@ -147,6 +147,7 @@ sub escape
 		my $in=shift;
 		$in=~s/'/&#39;/g;
 		$in=~s/’/&#39;/g;
+		$in=~s/’/&#39;/g;
 		$in=~s/"/&#34;/g;
 		$in=~s/\*/&#42;/g;
 		$in=~s/\//&#47;/g;
@@ -154,6 +155,7 @@ sub escape
 		$in=~s/“/&#34;/g;
 		$in=~s/”/&#34;/g;
 		$in=~s/–/-/g;
+		$in=~s/—/-/g;
 		$in=~s/—/-/g;
 		return $in;
 }
