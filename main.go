@@ -353,12 +353,10 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 		case "next":
 			nid := strconv.Itoa(f.Next(curID).ID)
 			fmt.Fprintf(w, nid)
-			go f.Next(nid)
 			return
 		case "previous":
 			nid := strconv.Itoa(f.Previous(curID).ID)
 			fmt.Fprintf(w, nid)
-			go f.Previous(nid)
 			return
 		default:
 			el = f.UnreadEntries()
@@ -375,12 +373,10 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 		case "previous":
 			nid := strconv.Itoa(c.Previous(curID).ID)
 			fmt.Fprintf(w, nid)
-			go c.Previous(nid)
 			return
 		case "next":
 			nid := strconv.Itoa(c.Next(curID).ID)
 			fmt.Fprintf(w, nid)
-			go  c.Next(nid)
 			return
 		default:
 			el = c.UnreadEntries()
