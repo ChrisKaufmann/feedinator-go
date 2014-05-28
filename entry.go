@@ -2,7 +2,6 @@ package main
 
 import (
 	"html"
-	"encoding/json"
 	"database/sql"
 	"html/template"
 	"strconv"
@@ -98,32 +97,23 @@ func getEntriesCount() (c string,err error) {
 }
 func getEntry(id string) Entry {
 	var e Entry
-	es := "Entry"+id
-	ce, err := mc.Get(es)
-	if err != nil { //not cached
-		print("-")
-		var c string
-		err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread)
-		if err != nil {
-			err.Error()
-		}
-		e.Content = template.HTML(html.UnescapeString(c))
-		e.Link = html.UnescapeString(e.Link)
-		e.Title = html.UnescapeString(e.Title)
-		if e.Marked == "1" {
-			e.MarkSet = "set"
-		} else {
-			e.MarkSet = "unset"
-		}
-		if e.Unread == true {
-			e.ReadUnread = "unread"
-		} else {
-			e.ReadUnread = ""
-		}
-		mcsettime(es, e, 300)
+	var c string
+	err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread)
+	if err != nil {
+		err.Error()
+	}
+	e.Content = template.HTML(html.UnescapeString(c))
+	e.Link = html.UnescapeString(e.Link)
+	e.Title = html.UnescapeString(e.Title)
+	if e.Marked == "1" {
+		e.MarkSet = "set"
 	} else {
-		print("+")
-		err = json.Unmarshal(ce.Value, &e)
+		e.MarkSet = "unset"
+	}
+	if e.Unread == true {
+		e.ReadUnread = "unread"
+	} else {
+		e.ReadUnread = ""
 	}
 	return e
 }
