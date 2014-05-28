@@ -6,6 +6,7 @@ use DBI;
 use CGI;
 use Config::Std;
 use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
+use HTML::Entities;
 print "Updating\n";
 my $cgi=new CGI;
 my %config={};
@@ -144,20 +145,22 @@ sub get_feedlist
 
 sub escape
 {
-		my $in=shift;
-		$in=~s/'/&#39;/g;
-		$in=~s/’/&#39;/g;
-		$in=~s/’/&#39;/g;
-		$in=~s/"/&#34;/g;
-		$in=~s/\*/&#42;/g;
-		$in=~s/\//&#47;/g;
-		$in=~s/\\/&#92;/g;
-		$in=~s/“/&#34;/g;
-		$in=~s/”/&#34;/g;
-		$in=~s/–/-/g;
-		$in=~s/—/-/g;
-		$in=~s/—/-/g;
-		return $in;
+	my $in=shift;
+	return encode_entities($in);
+	$in=~s/'/&#39;/g;
+	$in=~s/’/&#39;/g;
+	$in=~s/’/&#39;/g;
+	$in=~s/’/&#39;/g;
+	$in=~s/"/&#34;/g;
+	$in=~s/\*/&#42;/g;
+	$in=~s/\//&#47;/g;
+	$in=~s/\\/&#92;/g;
+	$in=~s/“/&#34;/g;
+	$in=~s/”/&#34;/g;
+	$in=~s/–/-/g;
+	$in=~s/—/-/g;
+	$in=~s/—/-/g;
+	return $in;
 }
 sub shuffle
 {
