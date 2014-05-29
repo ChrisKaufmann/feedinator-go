@@ -17,15 +17,12 @@ type Category struct {
 }
 
 var (
-	stmtCatList               *sql.Stmt
-	stmtCatUnread             *sql.Stmt
 	stmtGetCat                *sql.Stmt
 	stmtGetCats               *sql.Stmt
 	stmtGetAllCats            *sql.Stmt
 	stmtNextCategoryEntry     *sql.Stmt
 	stmtPreviousCategoryEntry *sql.Stmt
 	stmtGetCatFeeds           *sql.Stmt
-	stmtGetFeedsInCat         *sql.Stmt
 	stmtSaveCat               *sql.Stmt
 	stmtAddCat                *sql.Stmt
 	stmtResetCategories       *sql.Stmt
@@ -33,9 +30,7 @@ var (
 )
 
 func init() {
-	stmtCatList = sth(db, "select name,id from ttrss_categories where user_name=?")
-	stmtCatUnread = sth(db, "select count(e.id) as unread from ttrss_entries as e,ttrss_feeds as f where f.category_id= ? and e.feed_id=f.id and e.unread='1'")
-	stmtGetCatFeeds = sth(db, "select f.id from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and c.id= ?")
+	stmtGetCatFeeds = sth(db, "select id from ttrss_feeds where category_id = ?")
 	stmtGetCat = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where id = ?")
 	stmtGetCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where user_name= ?")
 	stmtGetAllCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories")
@@ -83,7 +78,9 @@ func (c Category) Unread() int {
 	var cct = "CategoryUnreadCount" + strconv.Itoa(c.ID)
 	unreadc, err := mc.Get(cct)
 	if err != nil {
-		err := stmtCatUnread.QueryRow(c.ID).Scan(&count)
+		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
+		var stmt = sth(db,query)
+		err := stmt.QueryRow().Scan(&count)
 		if err != nil {
 			err.Error()
 		}
