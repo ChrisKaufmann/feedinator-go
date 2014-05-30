@@ -251,7 +251,7 @@ func getFeedsWithoutCats() []Feed {
 			allFeeds = append(allFeeds, f)
 			feedids = append(feedids, f.ID)
 		}
-		mcset(fcn, feedids)
+		mcsettime(fcn, feedids,120)
 	} else {
 		print("+" + fcn)
 		err = json.Unmarshal(fwc.Value, &feedids)
@@ -265,7 +265,7 @@ func getFeedsWithoutCats() []Feed {
 
 func getFeed(id string) Feed {
 	var feed Feed
-	var fcn = "Feed_" + id
+	var fcn = "Feed" + id
 
 	nufeed, err := mc.Get(fcn)
 	if err != nil { //cache miss
@@ -278,7 +278,7 @@ func getFeed(id string) Feed {
 		}
 		feed.Title = html.UnescapeString(feed.Title)
 		print("-feed" + id)
-		mcset(fcn, feed)
+		mcsettime(fcn, feed, 120)
 	} else {
 		err = json.Unmarshal(nufeed.Value, &feed)
 		print("+feed" + id)
