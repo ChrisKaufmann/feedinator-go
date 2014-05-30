@@ -20,8 +20,6 @@ var (
 	stmtGetCat                *sql.Stmt
 	stmtGetCats               *sql.Stmt
 	stmtGetAllCats            *sql.Stmt
-	stmtNextCategoryEntry     *sql.Stmt
-	stmtPreviousCategoryEntry *sql.Stmt
 	stmtGetCatFeeds           *sql.Stmt
 	stmtSaveCat               *sql.Stmt
 	stmtAddCat                *sql.Stmt
@@ -34,8 +32,6 @@ func init() {
 	stmtGetCat = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where id = ?")
 	stmtGetCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories where user_name= ?")
 	stmtGetAllCats = sth(db, "select name,user_name,IFNULL(description,''),id from ttrss_categories")
-	stmtNextCategoryEntry = sth(db, "select e.id from ttrss_entries as e,ttrss_feeds as f  where f.category_id=? and e.feed_id=f.id and e.id > ? order by e.id ASC limit 1")
-	stmtPreviousCategoryEntry = sth(db, "select e.id from ttrss_entries as e, ttrss_feeds as f where f.category_id=? and e.feed_id=f.id and e.id<? order by e.id DESC limit 1")
 	stmtSaveCat = sth(db, "update ttrss_categories set name=?,description=? where id=? limit 1")
 	stmtAddCat = sth(db, "insert into ttrss_categories (user_name,name) values (?,?)")
 	stmtResetCategories = sth(db, "update ttrss_feeds set category_id=NULL where category_id= ?")
@@ -58,16 +54,16 @@ func (c Category) Delete() {
 }
 func (c Category) Update() {
 	fl := c.Feeds()
-	for i := range fl {
-		fl[i].Update()
+	for _,i := range fl {
+		i.Update()
 	}
 	c.ClearCache()
 }
 func (c Category) ClearCache() {
 	sid := strconv.Itoa(c.ID)
 	cl := []string{"Category"+sid,"CategoryUnreadCount"+sid,"CategoryFeeds_" + sid,"CategoryList_" + userName,"CategoryList"  }
-	for i := range cl {
-		err := mc.Delete(cl[i])
+	for _,i := range cl {
+		err := mc.Delete(i)
 		if err != nil {
 			err.Error()
 		}
@@ -118,8 +114,7 @@ func (c Category) GetEntriesByParam(p string) []Entry {
 	var feedstr []string
 	var el []Entry
 	fl := make(map[string]Feed)
-    for i := range feeds {
-        f := feeds[i]
+    for _,f := range feeds {
         feedstr = append(feedstr, strconv.Itoa(f.ID))
 		fl[strconv.Itoa(f.ID)]=f
     }
@@ -149,7 +144,9 @@ func (c Category) Next (id string) Entry {
 	var e Entry
 	if err != nil {
 		print("-"+nes)
-		stmtNextCategoryEntry.QueryRow(strconv.Itoa(c.ID), id).Scan(&retval)
+		var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id > "+id+" order by id ASC limit 1"
+		var stmt = sth(db,query)
+		stmt.QueryRow().Scan(&retval)
 		e = getEntry(retval)
 		mcsettime(nes, e, 300)
 	} else {
@@ -165,7 +162,9 @@ func (c Category) Previous(id string) Entry {
 	if err != nil {
 		print("-"+pes)
 		var retval string
-		stmtPreviousCategoryEntry.QueryRow(strconv.Itoa(c.ID), id).Scan(&retval)
+		var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id < "+id+" order by id DESC limit 1"
+		var stmt = sth(db,query)
+		stmt.QueryRow().Scan(&retval)
 		e := getEntry(retval)
 		mcsettime(pes, e, 300)
 		return e
@@ -215,8 +214,8 @@ func (c Category) Feeds() []Feed {
 	} else {
 		print("+CFL_" + strconv.Itoa(c.ID))
 		err = json.Unmarshal(catfeeds.Value, &feedids)
-		for i := range feedids {
-			feed := getFeed(strconv.Itoa(feedids[i]))
+		for _,i := range feedids {
+			feed := getFeed(strconv.Itoa(i))
 			allFeeds = append(allFeeds, feed)
 		}
 	}
@@ -225,9 +224,8 @@ func (c Category) Feeds() []Feed {
 func (c Category) FeedsStr() []string {
 	f := c.Feeds()
 	var feedstr []string
-	for i := range f {
-		f := f[i]
-		feedstr = append(feedstr, strconv.Itoa(f.ID))
+	for _,i := range f {
+		feedstr = append(feedstr, strconv.Itoa(i.ID))
 	}
 	return feedstr
 }
@@ -256,8 +254,8 @@ func getCategories() []Category {
 	} else {
 		print("+CL" + userName)
 		err = json.Unmarshal(catlist.Value, &catids)
-		for i := range catids {
-			cat := getCat(strconv.Itoa(catids[i]))
+		for _,i := range catids {
+			cat := getCat(strconv.Itoa(i))
 			allCats = append(allCats, cat)
 		}
 
@@ -286,8 +284,8 @@ func GetAllCategories() []Category {
 	} else {
 		print("+CL<ALL>")
 		err = json.Unmarshal(catlist.Value, allCats)
-		for i := range catids {
-			cat := getCat(strconv.Itoa(catids[i]))
+		for _,i := range catids {
+			cat := getCat(strconv.Itoa(i))
 			allCats = append(allCats, cat)
 		}
 	}
