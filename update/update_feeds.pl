@@ -59,7 +59,14 @@ sub update_feed
 	};  return if $@;
 	return unless $feed;
 	my @excludes=split(',',$excludehash{$id});
-	my %existing_entries=&get_existing_entries($id);
+	my @guids=();
+	foreach my $item( $feed->entries )
+	{
+		my $url			=&escape_guid($item->link()) || next;
+		my $guid		=$url;
+		push (@guids,$guid);
+	}
+	my %existing_entries=&get_existing_entries($id,"'".join("','",@guids)."'");
 
 	print "Title: ".encode_utf8($feed->title())."\n"; 
 	print "Date: ". $feed->modified(). "\n";
@@ -70,10 +77,12 @@ sub update_feed
 			values(?,?,?,?,?,?,?,?,?,NOW(),?)};
 	my $sth=$dbh->prepare($sql);
 
+	print "Num of entries in rss feed: ".scalar($feed->entries)." \n";
 	foreach my $item( $feed->entries )
 	{
 		my $url			=&escape_guid($item->link()) || next;
 		my $guid		=$url;
+
 		if($existing_entries{$guid})
 		{
 			print ".";
@@ -114,7 +123,9 @@ sub set_title
 sub get_existing_entries
 {
 		my $id=shift || return;
-		my $sql="select guid from ttrss_entries where feed_id='$id'";
+		my $new_guids=shift;
+		my $and=$new_guids?"AND guid in ($new_guids)":"";
+		my $sql="select guid from ttrss_entries where feed_id='$id' $and";
 		my $sth=$dbh->prepare($sql);
 		$sth->execute();
 		my %existing=();
