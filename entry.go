@@ -9,29 +9,32 @@ import (
 
 var (
 	stmtGetEntry        *sql.Stmt
+	stmtAddEntry        *sql.Stmt
 	stmtUpdateMarkEntry *sql.Stmt
 	stmtUpdateReadEntry *sql.Stmt
 	stmtSaveEntry       *sql.Stmt
 	stmtGetMarked       *sql.Stmt
-	stmtCatEntries      *sql.Stmt
-	stmtFeedEntries     *sql.Stmt
-	stmtCatUnreadEntries *sql.Stmt
 	stmtGetEntryCount	*sql.Stmt
 )
 
 func (e Entry) Save() {
-	stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, e.Unread, e.ID)
+	if e.ID > 0 {
+		stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, e.Unread, e.ID)
+	} else {
+		_,err := stmtAddEntry.Exec(e.Title, e.Link, e.FeedID, e.Marked, tostr(e.Content), tostr(e.ContentHash),e.GUID,userName)
+		if err != nil {
+			err.Error()
+		}
+	}
 }
 
 func init() {
-	stmtGetEntry = sth(db, "select id,title,link,updated,feed_id,marked,content,unread from ttrss_entries where id= ?")
+	stmtGetEntry = sth(db, "select id,title,link,updated,feed_id,marked,content,unread,guid from ttrss_entries where id= ?")
+	stmtAddEntry = sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
 	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
 	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
-	stmtFeedEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e, ttrss_feeds as f where f.id = e.feed_id and f.id= ? and unread= ? and marked = ?")
-	stmtCatEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and unread= ? and marked = ?")
-	stmtCatUnreadEntries = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries e, ttrss_feeds as f where e.feed_id=f.id and f.category_id = ? and e.unread=1 order by e.id ASC")
 	stmtGetEntryCount = sth(db, "select count(id) from ttrss_entries")
 }
 
@@ -46,8 +49,10 @@ type Entry struct {
 	MarkSet    string
 	FeedID     int
 	Content    template.HTML
+	ContentHash string
 	Unread     bool
 	ReadUnread string
+	GUID	   string
 }
 
 func (e Entry) Normalize() Entry{
@@ -83,6 +88,9 @@ func allMarkedEntries() []Entry {
 	}
 	return el
 }
+func (e Entry) Print() {
+	print("ID:\t"+tostr(e.ID)+"\nTitle:\t"+e.Title+"\nLink:\t"+e.Link+"\nDate\t"+e.Date+"\nFeed_id:\t"+tostr(e.FeedID)+"\nMarked:\t"+e.Marked+"\nUnread:\t"+strconv.FormatBool(e.Unread)+"\nGuid:\t"+e.GUID+"\n")
+}
 func (e Entry) ViewMode() string {
 	f := getFeed(strconv.Itoa(e.FeedID))
 	return f.ViewMode
@@ -98,7 +106,7 @@ func getEntriesCount() (c string,err error) {
 func getEntry(id string) Entry {
 	var e Entry
 	var c string
-	err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread)
+	err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread, &e.GUID)
 	if err != nil {
 		err.Error()
 	}

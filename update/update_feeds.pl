@@ -36,7 +36,6 @@ foreach my $id(@feed_ids)
 {
 		$count++;
 		&update_feed($id,$feed_list{$id},$namehash{$id});
-		sleep(2);
 }
 $dbh->do("analyze table ttrss_entries;");
 print "$count feeds updated\n" unless $cgi->param('feed_id');
@@ -71,13 +70,13 @@ sub update_feed
 	print "Title: ".encode_utf8($feed->title())."\n"; 
 	print "Date: ". $feed->modified(). "\n";
 	print scalar(keys %existing_entries)." existing entries\n";
+	print "Num of entries in rss feed: ".scalar($feed->entries)." \n";
 	my $sql=qq{insert into ttrss_entries 
 			(title,guid,link,updated,content,content_hash,
 			feed_id,comments,no_orig_date,date_entered,user_name)
 			values(?,?,?,?,?,?,?,?,?,NOW(),?)};
 	my $sth=$dbh->prepare($sql);
 
-	print "Num of entries in rss feed: ".scalar($feed->entries)." \n";
 	foreach my $item( $feed->entries )
 	{
 		my $url			=&escape_guid($item->link()) || next;
@@ -176,20 +175,6 @@ sub escape
 {
 	my $in=shift;
 	return encode_entities($in);
-	$in=~s/'/&#39;/g;
-	$in=~s/’/&#39;/g;
-	$in=~s/’/&#39;/g;
-	$in=~s/’/&#39;/g;
-	$in=~s/"/&#34;/g;
-	$in=~s/\*/&#42;/g;
-	$in=~s/\//&#47;/g;
-	$in=~s/\\/&#92;/g;
-	$in=~s/“/&#34;/g;
-	$in=~s/”/&#34;/g;
-	$in=~s/–/-/g;
-	$in=~s/—/-/g;
-	$in=~s/—/-/g;
-	return $in;
 }
 sub shuffle
 {

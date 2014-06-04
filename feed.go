@@ -3,12 +3,13 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"html"
 	"html/template"
 	"os"
-	"os/exec"
+//	"os/exec"
 	"strconv"
+	rss "github.com/jteeuwen/go-pkg-rss"
+	"strings"
 )
 
 type Feed struct {
@@ -57,6 +58,9 @@ func (f Feed) AllEntries() []Entry {
 	el := f.GetEntriesByParam("1=1")
 	return el
 }
+func (f Feed) Excludes() []string {
+	return strings.Split(strings.ToLower(f.Exclude),",")
+}
 func (f Feed) Next(id string) Entry {
 	var e Entry
 	nes := "FeedEntry"+id+"Next"
@@ -84,7 +88,7 @@ func (f Feed) Previous(id string) Entry {
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
 	var el []Entry
-	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content from ttrss_entries e where e.feed_id = " + strconv.Itoa(f.ID) + " and " + p + " order by e.id ASC;"
+	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content,e.guid from ttrss_entries e where e.feed_id = " + strconv.Itoa(f.ID) + " and " + p + " order by e.id ASC;"
 	var stmt = sth(db, query)
 	rows, err := stmt.Query()
 	if err != nil {
@@ -94,7 +98,7 @@ func (f Feed) GetEntriesByParam(p string) []Entry {
 	for rows.Next() {
 		var e Entry
 		var c string
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID,&c)
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID,&c,&e.GUID)
 		e.Content = template.HTML(html.UnescapeString(c))
 		e.FeedName = f.Title
 		e.Evenodd = evenodd(count)
@@ -106,7 +110,7 @@ func (f Feed) GetEntriesByParam(p string) []Entry {
 	return el
 }
 func (feed Feed) Print() {
-	print("Getting feed:\n" + "\tID: " + strconv.Itoa(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + strconv.Itoa(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + strconv.Itoa(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString)
+	print("\nFeed:\n" + "\tID: " + strconv.Itoa(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + strconv.Itoa(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + strconv.Itoa(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString +"\n")
 }
 
 func (f Feed) Save() {
@@ -121,15 +125,75 @@ func (f Feed) Class() string {
 }
 func (f Feed) Update() {
 	os.Chdir("update")
-	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+strconv.Itoa(f.ID)).Output()
 	os.Chdir("..")
-	fmt.Printf("FeedUpdate: %q\n", out)
-	if err != nil {
+
+	// Note actual work is done in makeItemHandler function
+	feed := rss.New(5, true, chanHandler, makeItemHandler(f))
+	if err := feed.Fetch(f.Url, nil); err != nil {
 		err.Error()
 	}
+
 	f.ClearCache()
 	c := getCat(strconv.Itoa(f.CategoryID))
 	c.ClearCache()
+}
+func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
+	//println(len(newchannels), "new channel(s) in", feed.Url)
+	//We're currently ignoring channels
+}
+
+func makeItemHandler(f Feed) rss.ItemHandler {
+	return func(feed *rss.Feed, ch *rss.Channel, newitems []*rss.Item) {
+		println(len(newitems), "new item(s) in", ch.Title)
+		var guid_cache []string
+		excludes := f.Excludes()
+		for _, i := range newitems {
+			// access f as feed here
+			guid_cache = append(guid_cache, escape_guid(i.Links[0].Href))
+		}
+		existing_entries := make(map[string]Entry)
+		for _, e := range f.GetEntriesByParam(" guid in ('" + strings.Join(guid_cache, "', '") +"')") {
+			existing_entries[e.GUID]=e
+		}
+		for _,i := range newitems {
+			// Check for existing entries in the guid cache and if so, skip
+			guid := escape_guid(i.Links[0].Href)
+			if _, ok := existing_entries[guid]; ok {
+				print(".")
+				continue
+			}
+			var e Entry
+			e.Title = html.EscapeString(i.Title)
+			skip := false
+			for _,ex := range excludes {
+				if strings.Contains(strings.ToLower(e.Title),ex) {
+					skip = true
+					print("s")
+					break
+				}
+			}
+			if skip {
+				continue
+			}
+			e.Link = i.Links[0].Href
+			e.Date = i.PubDate
+			e.Marked="0"
+			e.FeedID=f.ID
+			if i.Content != nil {
+				e.Content = template.HTML(html.EscapeString(i.Content.Text))
+				e.ContentHash = getHash(i.Content.Text)
+			} else {
+				e.Content = template.HTML(html.EscapeString(i.Description))
+				e.ContentHash = getHash(i.Description)
+			}
+			e.GUID = guid
+			e.Unread=true
+			e.Normalize()
+			e.Save()
+			print("+")
+		}
+		f.ClearCache()
+	}
 }
 func (f Feed) ClearCache() {
 	cl := []string{"Feed" + strconv.Itoa(f.ID), "FeedUnreadCount" + strconv.Itoa(f.ID), "FeedsWithoutCats" + userName, "FeedList"}

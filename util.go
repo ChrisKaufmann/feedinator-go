@@ -1,6 +1,11 @@
 package main
 
 import (
+	"encoding/base64"
+	"html/template"
+	"io"
+	"fmt"
+	"crypto/sha1"
 	"database/sql"
 	"encoding/json"
 	"github.com/bradfitz/gomemcache/memcache"
@@ -40,9 +45,20 @@ func evenodd(i int) string {
 	}
 	return "odd"
 }
-func tostr(i int) string {
-	s := strconv.Itoa(i)
-	return s
+func tostr(i interface{}) string {
+	switch t := i.(type) {
+	case string:
+		return i.(string)
+	case int:
+		return strconv.Itoa(i.(int))
+	case bool:
+		return strconv.FormatBool(i.(bool))
+	case template.HTML:
+		return string(i.(template.HTML))
+	default:
+		t=t
+	}
+	return i.(string)
 }
 func toint(s string) int {
 	i, _ := strconv.Atoi(s)
@@ -61,3 +77,31 @@ func mcsettime(key string, i interface{}, t int32) (err error) {
 	err = mc.Set(&memcache.Item{Key: key, Value: []byte(b), Expiration: t})
 	return err
 }
+func getHash(s string) string {
+	h := sha1.New()
+	io.WriteString(h, s)
+	return fmt.Sprintf("%s", base64.URLEncoding.EncodeToString(h.Sum(nil)))
+}
+func escape_guid(s string) string {
+	var htmlCodes = map[string]string{
+	"&#34;": "\"",
+	"&#47;": "/",
+	"&#39;": "'",
+	"&#42;": "*",
+	"&#63;": "?",
+	"&#160;": " ",
+	"&#8216;": "'",
+	"&#8220;": "'",
+	"&#8221;": "'",
+	"&#8211;": "-", 
+	"&#8230;": "...",
+	"&#8594;": "->",
+	"&quot;": "'",
+	"&amp;": "&",
+	}
+	for k,v := range htmlCodes {
+		s = strings.Replace(s,k,v,-1)
+	}
+	return s
+}
+
