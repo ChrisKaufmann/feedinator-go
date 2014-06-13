@@ -30,5 +30,8 @@ func main() {
 	} else {
 		print("Updating all feeds")
 		//update all feeds
+		for _,f := range getAllFeeds() {
+			f.Update()
+		}
 	}
 }
