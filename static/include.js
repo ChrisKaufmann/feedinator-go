@@ -19,8 +19,12 @@ var status_div='left_notify'; //  id of the status div
 
 function showPreviousEntry(id)
 {
-	document.getElementById('menu_status').innerHTML='Getting next id';
+	document.getElementById('menu_status').innerHTML='Getting previous id';
 	$.ajax({type: "GET",url: '/entries/'+current_view+"/"+current_view_id+"/previous/"+id, success:function(html){
+		if(html == "0"){
+			$('#menu_status').html("No previous entries");
+			return;
+		}
 		$('#menu_status').html(html);
 		show_entry(html);
 	}});
@@ -29,6 +33,10 @@ function showNextEntry(id)
 {
 	document.getElementById('menu_status').innerHTML='Getting next id';
 	$.ajax({type: "GET",url: "/entries/"+current_view+"/"+current_view_id+"/next/"+id, success:function(html){
+		if(html == "0"){
+			$('#menu_status').html("No new entries");
+			return;
+		}
 		$('#menu_status').html(html);
 		show_entry(html);
 	}});
