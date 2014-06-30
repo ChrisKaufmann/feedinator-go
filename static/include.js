@@ -17,6 +17,13 @@ var status_div='left_notify'; //  id of the status div
 		}
 	});
 
+function DeleteExcludes(id)
+{
+	document.getElementById('menu_status').innerHTML='Deleting Excludes';
+	$.ajax({type: "GET",url: 'feed/'+id+'/deleteexcludes', success:function(html){
+		$('#menu_status').html(html);
+	}})
+}
 function showPreviousEntry(id)
 {
 	document.getElementById('menu_status').innerHTML='Getting previous id';

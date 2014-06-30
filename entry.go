@@ -4,7 +4,6 @@ import (
 	"html"
 	"database/sql"
 	"html/template"
-	"strconv"
 )
 
 var (
@@ -89,14 +88,14 @@ func allMarkedEntries() []Entry {
 	return el
 }
 func (e Entry) Print() {
-	print("ID:\t"+tostr(e.ID)+"\nTitle:\t"+e.Title+"\nLink:\t"+e.Link+"\nDate\t"+e.Date+"\nFeed_id:\t"+tostr(e.FeedID)+"\nMarked:\t"+e.Marked+"\nUnread:\t"+strconv.FormatBool(e.Unread)+"\nGuid:\t"+e.GUID+"\n")
+	print("ID:\t"+tostr(e.ID)+"\nTitle:\t"+e.Title+"\nLink:\t"+e.Link+"\nDate\t"+e.Date+"\nFeed_id:\t"+tostr(e.FeedID)+"\nMarked:\t"+e.Marked+"\nUnread:\t"+tostr(e.Unread)+"\nGuid:\t"+e.GUID+"\n")
 }
 func (e Entry) ViewMode() string {
-	f := getFeed(strconv.Itoa(e.FeedID))
+	f := getFeed(tostr(e.FeedID))
 	return f.ViewMode
 }
 func (e Entry) AutoscrollPX() int {
-	f := getFeed(strconv.Itoa(e.FeedID))
+	f := getFeed(tostr(e.FeedID))
 	return f.AutoscrollPX
 }
 func getEntriesCount() (c string,err error) {
@@ -131,15 +130,15 @@ func markEntry(id string, m string) string {
 		case "read":
 			stmtUpdateReadEntry.Exec("0", id)
 			e := getEntry(id)
-			f := getFeed(strconv.Itoa(e.FeedID))
-			mc.Decrement("CategoryUnreadCount"+strconv.Itoa(f.CategoryID),1)
-			mc.Decrement("FeedUnreadCount"+strconv.Itoa(e.FeedID),1)
+			f := getFeed(tostr(e.FeedID))
+			mc.Decrement("CategoryUnreadCount"+tostr(f.CategoryID),1)
+			mc.Decrement("FeedUnreadCount"+tostr(e.FeedID),1)
 		case "unread":
 			stmtUpdateReadEntry.Exec("1", id)
 			e := getEntry(id)
-			f := getFeed(strconv.Itoa(e.FeedID))
-			mc.Increment("CategoryUnreadCount"+strconv.Itoa(f.CategoryID),1)
-			mc.Increment("FeedUnreadCount"+strconv.Itoa(f.CategoryID),1)
+			f := getFeed(tostr(e.FeedID))
+			mc.Increment("CategoryUnreadCount"+tostr(f.CategoryID),1)
+			mc.Increment("FeedUnreadCount"+tostr(f.CategoryID),1)
 		case "marked":
 			stmtUpdateMarkEntry.Exec("1", id)
 		case "unmarked":

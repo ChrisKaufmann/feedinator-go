@@ -166,7 +166,7 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.Save()
 		fmt.Fprintf(w, "Autoscroll: "+val)
 	case "exclude":
-		f.Exclude = val
+		f.Exclude = html.EscapeString(val)
 		f.Save()
 		fmt.Fprintf(w, "Exclude saved")
 	case "category":
@@ -186,6 +186,9 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Updated")
 	case "unread":
 		fmt.Fprintf(w, strconv.Itoa(f.Unread()))
+	case "deleteexcludes":
+		f.DeleteExcludes()
+		fmt.Fprintf(w, "Deleted Excludes")
 	}
 	return
 }

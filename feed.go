@@ -2,13 +2,11 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"html"
 	"html/template"
 	"os"
 	"os/exec"
 	rss "github.com/jteeuwen/go-pkg-rss"
-	"strconv"
 	"strings"
 	"fmt"
 )
@@ -68,28 +66,25 @@ func (f Feed) Next(id string) Entry {
 	pes := "FeedEntry" + id + "Previous"
 	ce := getEntry(id)
 	mcsettime(pes, ce, 300)
-	ne, err := mc.Get(nes)
+	err := mcget(nes, &e)
 	if err != nil {
 		var retval string
-		stmtNextFeedEntry.QueryRow(strconv.Itoa(f.ID), id).Scan(&retval)
+		stmtNextFeedEntry.QueryRow(tostr(f.ID), id).Scan(&retval)
 		e := getEntry(retval)
 		mcsettime(nes, e, 300)
 		return e
-	} else {
-		print("+" + nes)
-		err = json.Unmarshal(ne.Value, &e)
 	}
 	return e
 }
 func (f Feed) Previous(id string) Entry {
 	var retval string
-	stmtPreviousFeedEntry.QueryRow(strconv.Itoa(f.ID), id).Scan(&retval)
+	stmtPreviousFeedEntry.QueryRow(tostr(f.ID), id).Scan(&retval)
 	e := getEntry(retval)
 	return e
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
 	var el []Entry
-	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content,e.guid from ttrss_entries e where e.feed_id = " + strconv.Itoa(f.ID) + " and " + p + " order by e.id ASC;"
+	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content,e.guid from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
 	var stmt = sth(db, query)
 	rows, err := stmt.Query()
 	if err != nil {
@@ -106,15 +101,16 @@ func (f Feed) GetEntriesByParam(p string) []Entry {
 		e = e.Normalize()
 		el = append(el, e)
 		count = count + 1
-		mcsettime("Entry"+strconv.Itoa(e.ID), e, 300)
+		mcsettime("Entry"+tostr(e.ID), e, 300)
 	}
 	return el
 }
 func (feed Feed) Print() {
-	print("\nFeed:\n" + "\tID: " + strconv.Itoa(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + strconv.Itoa(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + strconv.Itoa(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString + "\n")
+	print("\nFeed:\n" + "\tID: " + tostr(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + tostr(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + tostr(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString + "\n")
 }
 
 func (f Feed) Save() {
+	f.Exclude=html.EscapeString(f.Exclude)
 	stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.Expirey, f.ID)
 	f.ClearCache()
 }
@@ -127,7 +123,7 @@ func (f Feed) Class() string {
 func (f Feed) Update() {
 	os.Chdir("update")
 	os.Chdir("..")
-	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+strconv.Itoa(f.ID)).Output()
+	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+tostr(f.ID)).Output()
 	os.Chdir("..")
 	fmt.Printf("FeedUpdate: %q\n", out)
 	if err != nil {
@@ -135,7 +131,7 @@ func (f Feed) Update() {
 	}
 	f.ClearCache()
 
-	c := getCat(strconv.Itoa(f.CategoryID))
+	c := getCat(tostr(f.CategoryID))
 	c.ClearCache()
 
 	// Note actual work is done in makeItemHandler function
@@ -205,13 +201,26 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 	}
 }
 func (f Feed) ClearCache() {
-	cl := []string{"Feed" + strconv.Itoa(f.ID), "FeedUnreadCount" + strconv.Itoa(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList"}
+	cl := []string{"Feed" + tostr(f.ID), "FeedUnreadCount" + tostr(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList"}
 	for i := range cl {
-		err := mc.Delete(cl[i])
+		err := mcdel(cl[i])
 		if err != nil {
 			err.Error()
 		}
 	}
+}
+func (f Feed) DeleteExcludes() {
+	el := f.Excludes()
+	for _,e := range el {
+		e = escape_guid(e)
+		if len(e) < 1 {
+			continue
+		}
+		var query = "delete from ttrss_entries where feed_id=" + tostr(f.ID) + " and title like '%" + e + "%'"
+		var stmt = sth(db, query)
+		stmt.Exec()
+	}
+	f.ClearCache()
 }
 func (f Feed) Insert() {
 	if f.Url == "" {
@@ -276,7 +285,7 @@ func getFeeds() []Feed {
 func getAllFeeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
-	fl, err := mc.Get("FeedList")
+	err := mcget("FeedList", &feedids)
 	if err != nil {
 		print("-FL<ALL>")
 		rows, err := stmtGetAllFeeds.Query()
@@ -289,14 +298,13 @@ func getAllFeeds() []Feed {
 			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString)
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
-			mcset("Feed"+strconv.Itoa(feed.ID), feed)
+			mcset("Feed"+tostr(feed.ID), feed)
 		}
 		mcset("FeedList", feedids)
 	} else {
 		print("+FL<ALL>")
-		err = json.Unmarshal(fl.Value, &feedids)
 		for i := range feedids {
-			f := getFeed(strconv.Itoa(feedids[i]))
+			f := getFeed(tostr(feedids[i]))
 			allFeeds = append(allFeeds, f)
 		}
 	}
@@ -310,7 +318,7 @@ func getFeedsWithoutCats() []Feed {
 	var allFeeds []Feed
 	var feedids []int
 	var fcn = "FeedsWithoutCats" + userName
-	fwc, err := mc.Get(fcn)
+	err := mcget(fcn, &feedids)
 	if err != nil {
 		print("-" + fcn)
 		rows, err := stmtGetFeedsWithoutCats.Query(userName)
@@ -327,9 +335,8 @@ func getFeedsWithoutCats() []Feed {
 		mcsettime(fcn, feedids, 120)
 	} else {
 		print("+" + fcn)
-		err = json.Unmarshal(fwc.Value, &feedids)
 		for i := range feedids {
-			f := getFeed(strconv.Itoa(feedids[i]))
+			f := getFeed(tostr(feedids[i]))
 			allFeeds = append(allFeeds, f)
 		}
 	}
@@ -340,7 +347,7 @@ func getFeed(id string) Feed {
 	var feed Feed
 	var fcn = "Feed" + id
 
-	nufeed, err := mc.Get(fcn)
+	err := mcget(fcn,&feed)
 	if err != nil { //cache miss
 		err := stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString, &feed.Expirey)
 		if err != nil {
@@ -352,9 +359,6 @@ func getFeed(id string) Feed {
 		feed.Title = html.UnescapeString(feed.Title)
 		print("-feed" + id)
 		mcsettime(fcn, feed, 120)
-	} else {
-		err = json.Unmarshal(nufeed.Value, &feed)
-		print("+feed" + id)
 	}
 	return feed
 }

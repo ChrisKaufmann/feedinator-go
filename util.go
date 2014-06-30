@@ -74,7 +74,19 @@ func mcsettime(key string, i interface{}, t int32) (err error) {
 	if err != nil {
 		return err
 	}
-	err = mc.Set(&memcache.Item{Key: key, Value: []byte(b), Expiration: t})
+	err = mc.Set(&memcache.Item{Key: MyURL+key, Value: []byte(b), Expiration: t})
+	return err
+}
+func mcget(key string, i interface{}) error {
+	thing, err := mc.Get(MyURL+key)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(thing.Value, &i)
+	return err
+}
+func mcdel(key string) (err error) {
+	err = mc.Delete(MyURL+key)
 	return err
 }
 func getHash(s string) string {
@@ -98,6 +110,7 @@ func escape_guid(s string) string {
 	"&#8594;": "->",
 	"&quot;": "'",
 	"&amp;": "&",
+	"&#37;": "%",
 	}
 	for k,v := range htmlCodes {
 		s = strings.Replace(s,k,v,-1)

@@ -21,6 +21,8 @@ var oauthCfg = &oauth.Config{
 	TokenCache:  oauth.CacheFile(cachefile),
 }
 
+var MyURL string
+
 func init() {
 
 	c, err := goconfig.ReadConfigFile("config")
@@ -36,6 +38,7 @@ func init() {
 		panic(err)
 	}
 	url, err := c.GetString("Web","url")
+	MyURL = url
 	if err != nil {
 		panic(err)
 	}
