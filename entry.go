@@ -115,6 +115,7 @@ func getEntry(id string) Entry {
 	e.Content = template.HTML(html.UnescapeString(c))
 	e.Link = html.UnescapeString(e.Link)
 	e.Title = html.UnescapeString(e.Title)
+	e = e.Normalize()
 	if e.Marked == "1" {
 		e.MarkSet = "set"
 	} else {
