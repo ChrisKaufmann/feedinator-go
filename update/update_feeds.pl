@@ -157,6 +157,7 @@ sub escape_guid
 {
 	my $in=shift;
 	$in=~s/'/&#39;/g;
+	$in=~s/&#8217;/&#39;/g;
 	$in=~s/’/&#39;/g;
 	$in=~s/’/&#39;/g;
 	$in=~s/’/&#39;/g;

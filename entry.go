@@ -55,9 +55,12 @@ type Entry struct {
 }
 
 func (e Entry) Normalize() Entry{
+	e.Link = unescape(e.Link)
 	e.Link = html.UnescapeString(e.Link)
+	e.Title = unescape(e.Title)
 	e.Title = html.UnescapeString(e.Title)
 	e.FeedName = html.UnescapeString(e.FeedName)
+	//sometimes there are duplicate encodings, replace &amp;#<something> with &#<something>
 	if e.Marked == "1" {
 		e.MarkSet = "set"
 	} else {

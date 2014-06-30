@@ -122,7 +122,6 @@ func (f Feed) Class() string {
 }
 func (f Feed) Update() {
 	os.Chdir("update")
-	os.Chdir("..")
 	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+tostr(f.ID)).Output()
 	os.Chdir("..")
 	fmt.Printf("FeedUpdate: %q\n", out)
