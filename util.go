@@ -120,7 +120,7 @@ func escape_guid(s string) string {
 
 func unescape(s string) string {
 	var codes=map[string]string{
-		"&amp;#":	"&#",
+		"&amp;":	"&",
 		"&nbsp;":	" ",
 	}
 	for k, v := range codes {
