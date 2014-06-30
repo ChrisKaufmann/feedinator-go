@@ -5,6 +5,11 @@ var current_entry_id='';	//  id of current entry being viewed
 var status_div='left_notify'; //  id of the status div
 //Stuff for the arrow navigation, from http://api.jquery.com/keydown/
 	$(window).keydown(function (e) {
+		// test for in an input box so as not to forward when moving around
+		if( document.activeElement instanceof HTMLInputElement ) 
+		{
+			return;
+		}
 		if(e.which==39)
 		{
 	  		e.preventDefault();
@@ -16,6 +21,7 @@ var status_div='left_notify'; //  id of the status div
 			showPreviousEntry(current_entry_id);
 		}
 	});
+
 
 function DeleteExcludes(id)
 {
