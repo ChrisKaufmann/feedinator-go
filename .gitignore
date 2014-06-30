@@ -1,1 +1,5 @@
 config
+cache.json
+runme
+updater
+feedinator
