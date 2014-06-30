@@ -119,6 +119,12 @@ func escape_guid(s string) string {
 }
 
 func unescape(s string) string {
-	s = strings.Replace(s, "&amp;#", "&#", -1)
+	var codes=map[string]string{
+		"&amp;#":	"&#",
+		"&nbsp;":	" ",
+	}
+	for k, v := range codes {
+		s = strings.Replace(s, k, v, -1)
+	}
 	return s
 }
