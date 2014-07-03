@@ -122,6 +122,7 @@ func unescape(s string) string {
 	var codes=map[string]string{
 		"&amp;":	"&",
 		"&nbsp;":	" ",
+		"&acirc;&#128;&#153;": "'",
 	}
 	for k, v := range codes {
 		s = strings.Replace(s, k, v, -1)
