@@ -30,7 +30,7 @@ func (e Entry) Save() {
 func init() {
 	stmtGetEntry = sth(db, "select id,title,link,updated,feed_id,marked,content,unread,guid from ttrss_entries where id= ?")
 	stmtAddEntry = sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
-	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,IFNULL(f.title,'') from ttrss_entries as e,ttrss_feeds as f where f.user_name= ? and e.marked=1")
+	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content.e.guid from ttrss_entries e.user_name= ? and e.marked=1")
 	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
@@ -112,6 +112,7 @@ func getEntry(id string) Entry {
 	if err != nil {
 		err.Error()
 	}
+	c=unescape(c)
 	e.Content = template.HTML(html.UnescapeString(c))
 	e.Link = html.UnescapeString(e.Link)
 	e.Title = html.UnescapeString(e.Title)
