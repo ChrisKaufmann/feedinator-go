@@ -118,12 +118,19 @@ func getEntriesCount() (c string,err error) {
 	return c,err
 }
 func getEntry(id string) Entry {
+	var e Entry
+	if id == "" {
+		return e
+	}
 	sql := "select "+entrySelectString+"from ttrss_entries where id='"+id+"'"
 	el := getEntriesFromSql(sql)
-	e := el[0]
+	e = el[0]
 	return e
 }
 func markEntry(id string, m string) string {
+	if id == "" {
+		return "" 
+	}
 	var ret string
 	switch m {
 		case "read":
