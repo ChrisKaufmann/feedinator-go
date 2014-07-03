@@ -30,7 +30,7 @@ func (e Entry) Save() {
 func init() {
 	stmtGetEntry = sth(db, "select id,title,link,updated,feed_id,marked,content,unread,guid from ttrss_entries where id= ?")
 	stmtAddEntry = sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
-	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content.e.guid from ttrss_entries e.user_name= ? and e.marked=1")
+	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content,e.guid from ttrss_entries as e where e.user_name= ? and e.marked=1")
 	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
@@ -81,10 +81,25 @@ func allMarkedEntries() []Entry {
 	}
 	var count int
 	for rows.Next() {
-		var id string
-		rows.Scan(&id)
-		e := getEntry(id)
+		var e Entry
+		var c string
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread, &e.GUID)
 		e.Evenodd = evenodd(count)
+		c=unescape(c)
+		e.Content = template.HTML(html.UnescapeString(c))
+		e.Link = html.UnescapeString(e.Link)
+		e.Title = html.UnescapeString(e.Title)
+		e = e.Normalize()
+		if e.Marked == "1" {
+			e.MarkSet = "set"
+		} else {
+			e.MarkSet = "unset"
+		}
+		if e.Unread == true {
+			e.ReadUnread = "unread"
+		} else {
+			e.ReadUnread = ""
+		}
 		el = append(el, e)
 		count = count + 1
 	}
