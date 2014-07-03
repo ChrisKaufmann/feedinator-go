@@ -204,8 +204,8 @@ function entries(feedcat,id,mode)
 	path=feedcat+"/"+id+"/"+mode;
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
 	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
-	 $.ajax({
-	 	type: "GET",
+	$.ajax({
+		type: "GET",
 		url: '/entries/'+path, 
 		success: function(html){
 			$('#entries_list_div').html(html);

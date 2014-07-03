@@ -234,14 +234,16 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	var feedOrCat string
 	var id string
 	pathVars(r, "/menu/", &feedOrCat, &id)
-	if feedOrCat == "category" {
-		cat := getCat(id)
-		catMenuHtml.Execute(w, cat)
-	}
-	if feedOrCat == "feed" {
-		f := getFeed(id)
-		setSelects(&f)
-		feedMenuHtml.Execute(w, f)
+	switch feedOrCat {
+	    case "category":
+			cat := getCat(id)
+			catMenuHtml.Execute(w, cat)
+		case "feed":
+			f := getFeed(id)
+			setSelects(&f)
+			feedMenuHtml.Execute(w, f)
+		case "marked":
+			fmt.Fprintf(w,"&nbsp;")
 	}
 }
 func handleSelectMenu(w http.ResponseWriter, r *http.Request) {

@@ -106,31 +106,8 @@ func (c Category) AllEntries() []Entry {
 	return el
 }
 func (c Category) GetEntriesByParam(p string) []Entry {
-	feeds := c.Feeds()
-	var feedstr []string
-	var el []Entry
-	fl := make(map[string]Feed)
-    for _,f := range feeds {
-        feedstr = append(feedstr, tostr(f.ID))
-		fl[tostr(f.ID)]=f
-    }
-	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id from ttrss_entries e where e.feed_id in (" + strings.Join(feedstr, ", ") + ") and " + p + " order by e.id ASC;"
-	var stmt = sth(db, query)
-	rows, err := stmt.Query()
-	if err != nil {
-		err.Error()
-	}
-	var count int
-	for rows.Next() {
-		var e Entry
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID)
-		e.Evenodd = evenodd(count)
-		f := fl[tostr(e.FeedID)]
-		e.FeedName = f.Title
-		e = e.Normalize()
-		el = append(el, e)
-		count = count + 1
-	}
+	var query = "select "+entrySelectString +" from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
+	el := getEntriesFromSql(query)
 	return el
 }
 func (c Category) Next (id string) Entry {

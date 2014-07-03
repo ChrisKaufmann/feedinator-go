@@ -7,13 +7,12 @@ import (
 )
 
 var (
-	stmtGetEntry        *sql.Stmt
 	stmtAddEntry        *sql.Stmt
 	stmtUpdateMarkEntry *sql.Stmt
 	stmtUpdateReadEntry *sql.Stmt
 	stmtSaveEntry       *sql.Stmt
-	stmtGetMarked       *sql.Stmt
 	stmtGetEntryCount	*sql.Stmt
+	entrySelectString	string
 )
 
 func (e Entry) Save() {
@@ -28,9 +27,8 @@ func (e Entry) Save() {
 }
 
 func init() {
-	stmtGetEntry = sth(db, "select id,title,link,updated,feed_id,marked,content,unread,guid from ttrss_entries where id= ?")
+	entrySelectString= " id,IFNULL(title,''),IFNULL(link,''),IFNULL(updated,''),marked,unread,feed_id,content,guid "
 	stmtAddEntry = sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
-	stmtGetMarked = sth(db, "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content,e.guid from ttrss_entries as e where e.user_name= ? and e.marked=1")
 	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
 	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
 	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
@@ -73,36 +71,35 @@ func (e Entry) Normalize() Entry{
 	}
 	return e
 }
-func allMarkedEntries() []Entry {
-	rows, err := stmtGetMarked.Query(userName)
+func getEntriesFromSql(s string) []Entry {
 	var el []Entry
+	var stmt = sth(db,s)
+	rows, err := stmt.Query()
 	if err != nil {
 		err.Error()
+		return el
 	}
 	var count int
 	for rows.Next() {
 		var e Entry
 		var c string
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread, &e.GUID)
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID,&c, &e.GUID)
 		e.Evenodd = evenodd(count)
 		c=unescape(c)
 		e.Content = template.HTML(html.UnescapeString(c))
 		e.Link = html.UnescapeString(e.Link)
 		e.Title = html.UnescapeString(e.Title)
+		f := getFeed(tostr(e.FeedID))
+		e.FeedName = f.Title
 		e = e.Normalize()
-		if e.Marked == "1" {
-			e.MarkSet = "set"
-		} else {
-			e.MarkSet = "unset"
-		}
-		if e.Unread == true {
-			e.ReadUnread = "unread"
-		} else {
-			e.ReadUnread = ""
-		}
 		el = append(el, e)
 		count = count + 1
 	}
+	return el
+}
+func allMarkedEntries() []Entry {
+	sql := "select " + entrySelectString +" from ttrss_entries as e where e.user_name='" + userName + "' and e.marked=1"
+	el := getEntriesFromSql(sql)
 	return el
 }
 func (e Entry) Print() {
@@ -121,27 +118,9 @@ func getEntriesCount() (c string,err error) {
 	return c,err
 }
 func getEntry(id string) Entry {
-	var e Entry
-	var c string
-	err := stmtGetEntry.QueryRow(id).Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.FeedID, &e.Marked, &c, &e.Unread, &e.GUID)
-	if err != nil {
-		err.Error()
-	}
-	c=unescape(c)
-	e.Content = template.HTML(html.UnescapeString(c))
-	e.Link = html.UnescapeString(e.Link)
-	e.Title = html.UnescapeString(e.Title)
-	e = e.Normalize()
-	if e.Marked == "1" {
-		e.MarkSet = "set"
-	} else {
-		e.MarkSet = "unset"
-	}
-	if e.Unread == true {
-		e.ReadUnread = "unread"
-	} else {
-		e.ReadUnread = ""
-	}
+	sql := "select "+entrySelectString+"from ttrss_entries where id='"+id+"'"
+	el := getEntriesFromSql(sql)
+	e := el[0]
 	return e
 }
 func markEntry(id string, m string) string {

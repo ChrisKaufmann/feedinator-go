@@ -83,26 +83,8 @@ func (f Feed) Previous(id string) Entry {
 	return e
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
-	var el []Entry
-	var query = "select e.id,IFNULL(e.title,''),IFNULL(e.link,''),IFNULL(e.updated,''),e.marked,e.unread,e.feed_id,e.content,e.guid from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
-	var stmt = sth(db, query)
-	rows, err := stmt.Query()
-	if err != nil {
-		err.Error()
-	}
-	var count int
-	for rows.Next() {
-		var e Entry
-		var c string
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID, &c, &e.GUID)
-		e.Content = template.HTML(html.UnescapeString(c))
-		e.FeedName = f.Title
-		e.Evenodd = evenodd(count)
-		e = e.Normalize()
-		el = append(el, e)
-		count = count + 1
-		mcsettime("Entry"+tostr(e.ID), e, 300)
-	}
+	var query = "select "+entrySelectString +" from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
+	el := getEntriesFromSql(query)
 	return el
 }
 func (feed Feed) Print() {
