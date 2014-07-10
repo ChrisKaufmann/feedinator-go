@@ -4,9 +4,8 @@ import (
 	"crypto/sha1"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/ChrisKaufmann/easymemcache"
 	"html/template"
 	"io"
 	"net/http"
@@ -15,7 +14,7 @@ import (
 )
 
 var (
-	mc = memcache.New("127.0.0.1:11211")
+	mc = easymemcache.New("127.0.0.1:11211")
 )
 
 //puts path vars right into variables passed as params, until it runs out
@@ -63,31 +62,6 @@ func tostr(i interface{}) string {
 func toint(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
-}
-func mcset(key string, i interface{}) (err error) {
-	var timeout int32 = 86400
-	err = mcsettime(key, i, timeout)
-	return err
-}
-func mcsettime(key string, i interface{}, t int32) (err error) {
-	b, err := json.Marshal(i)
-	if err != nil {
-		return err
-	}
-	err = mc.Set(&memcache.Item{Key: MyURL + key, Value: []byte(b), Expiration: t})
-	return err
-}
-func mcget(key string, i interface{}) error {
-	thing, err := mc.Get(MyURL + key)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(thing.Value, &i)
-	return err
-}
-func mcdel(key string) (err error) {
-	err = mc.Delete(MyURL + key)
-	return err
 }
 func getHash(s string) string {
 	h := sha1.New()

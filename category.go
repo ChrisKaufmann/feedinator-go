@@ -62,7 +62,7 @@ func (c Category) ClearCache() {
 	cl := []string{"Category"+sid,"CategoryUnreadCount"+sid,"CategoryFeeds_" + sid,"CategoryList_" + userName,"CategoryList"  }
 	for _,i := range cl {
 //		err := mc.Delete(i)
-		err := mcdel(i)
+		err := mc.Delete(i)
 		if err != nil {
 			err.Error()
 		}
@@ -71,7 +71,7 @@ func (c Category) ClearCache() {
 func (c Category) Unread() int {
 	var count int
 	var cct = "CategoryUnreadCount" + tostr(c.ID)
-	err := mcget(cct, &count)
+	err := mc.Get(cct, &count)
 	if err != nil {
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
 		var stmt = sth(db,query)
@@ -79,7 +79,7 @@ func (c Category) Unread() int {
 		if err != nil {
 			err.Error()
 		}
-		mcsettime(cct, count, 60)
+		mc.SetTime(cct, count, 60)
 	}
 	return count
 }
@@ -114,21 +114,21 @@ func (c Category) Next (id string) Entry {
 	var retval string
 	var e Entry
 	nes := "CategoryEntry"+id+"Next"
-	err := mcget(nes, &e)
+	err := mc.Get(nes, &e)
 	if err != nil {
 		print("-"+nes)
 		var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id > "+id+" order by id ASC limit 1"
 		var stmt = sth(db,query)
 		stmt.QueryRow().Scan(&retval)
 		e = getEntry(retval)
-		mcsettime(nes, e, 300)
+		mc.SetTime(nes, e, 300)
 	}
 	return e
 }
 func (c Category) Previous(id string) Entry {
 	var e Entry
 	pes := "CategoryEntry"+id+"Previous"
-	err := mcget(pes, &e)
+	err := mc.Get(pes, &e)
 	if err != nil {
 		print("-"+pes)
 		var retval string
@@ -136,7 +136,7 @@ func (c Category) Previous(id string) Entry {
 		var stmt = sth(db,query)
 		stmt.QueryRow().Scan(&retval)
 		e := getEntry(retval)
-		mcsettime(pes, e, 300)
+		mc.SetTime(pes, e, 300)
 		return e
 	}
 	return e
@@ -144,14 +144,14 @@ func (c Category) Previous(id string) Entry {
 
 func getCat(id string) Category {
 	var cat Category
-	err := mcget("Category" + id,&cat)
+	err := mc.Get("Category" + id,&cat)
 	if err != nil { //cache miss
 		err := stmtGetCat.QueryRow(id).Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
 		if err != nil {
 			err.Error()
 		}
 		print("-cat" + tostr(cat.ID))
-		mcset("Category"+id, cat)
+		mc.Set("Category"+id, cat)
 	}
 	return cat
 }
@@ -160,7 +160,7 @@ func (c Category) Feeds() []Feed {
 	var feedids []int
 
 	//Try getting from cache first
-	err := mcget("CategoryFeeds_" + tostr(c.ID), &feedids)
+	err := mc.Get("CategoryFeeds_" + tostr(c.ID), &feedids)
 	if err != nil {
 		rows, err := stmtGetCatFeeds.Query(tostr(c.ID))
 		if err != nil {
@@ -174,7 +174,7 @@ func (c Category) Feeds() []Feed {
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
 		}
-		mcset("CategoryFeeds_"+tostr(c.ID), feedids)
+		mc.Set("CategoryFeeds_"+tostr(c.ID), feedids)
 	} else {
 		print("+CFL_" + tostr(c.ID))
 		for _,i := range feedids {
@@ -198,7 +198,7 @@ func getCategories() []Category {
 	var catids []int
 
 	//Try getting a category list from cache
-	err := mcget("CategoryList_" + userName, &catids)
+	err := mc.Get("CategoryList_" + userName, &catids)
 	if err != nil {
 		print("-CL" + userName)
 		rows, err := stmtGetCats.Query(userName)
@@ -211,9 +211,9 @@ func getCategories() []Category {
 			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
 			allCats = append(allCats, cat)
 			catids = append(catids, cat.ID)
-			mcset("Category"+tostr(cat.ID), cat)
+			mc.Set("Category"+tostr(cat.ID), cat)
 		}
-		mcset("CategoryList_"+userName, catids)
+		mc.Set("CategoryList_"+userName, catids)
 	} else {
 		print("+CL" + userName)
 		for _,i := range catids {
@@ -227,7 +227,7 @@ func getCategories() []Category {
 func GetAllCategories() []Category {
 	var allCats []Category
 	var catids []int
-	err := mcget("CategoryList", &catids)
+	err := mc.Get("CategoryList", &catids)
 	if err != nil {
 		print("-CL<ALL>")
 		rows, err := stmtGetAllCats.Query()
@@ -240,9 +240,9 @@ func GetAllCategories() []Category {
 			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID)
 			allCats = append(allCats, cat)
 			catids = append(catids, cat.ID)
-			mcset("Category"+tostr(cat.ID), cat)
+			mc.Set("Category"+tostr(cat.ID), cat)
 		}
-		mcset("CategoryList", allCats)
+		mc.Set("CategoryList", allCats)
 	} else {
 		print("+CL<ALL>")
 		for _,i := range catids {

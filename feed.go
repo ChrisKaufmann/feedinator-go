@@ -65,13 +65,13 @@ func (f Feed) Next(id string) Entry {
 	nes := "FeedEntry" + id + "Next"
 	pes := "FeedEntry" + id + "Previous"
 	ce := getEntry(id)
-	mcsettime(pes, ce, 300)
-	err := mcget(nes, &e)
+	mc.SetTime(pes, ce, 300)
+	err := mc.Get(nes, &e)
 	if err != nil {
 		var retval string
 		stmtNextFeedEntry.QueryRow(tostr(f.ID), id).Scan(&retval)
 		e := getEntry(retval)
-		mcsettime(nes, e, 300)
+		mc.SetTime(nes, e, 300)
 		return e
 	}
 	return e
@@ -184,7 +184,7 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 func (f Feed) ClearCache() {
 	cl := []string{"Feed" + tostr(f.ID), "FeedUnreadCount" + tostr(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList"}
 	for i := range cl {
-		err := mcdel(cl[i])
+		err := mc.Delete(cl[i])
 		if err != nil {
 			err.Error()
 		}
@@ -266,7 +266,7 @@ func getFeeds() []Feed {
 func getAllFeeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
-	err := mcget("FeedList", &feedids)
+	err := mc.Get("FeedList", &feedids)
 	if err != nil {
 		print("-FL<ALL>")
 		rows, err := stmtGetAllFeeds.Query()
@@ -279,9 +279,9 @@ func getAllFeeds() []Feed {
 			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString)
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
-			mcset("Feed"+tostr(feed.ID), feed)
+			mc.Set("Feed"+tostr(feed.ID), feed)
 		}
-		mcset("FeedList", feedids)
+		mc.Set("FeedList", feedids)
 	} else {
 		print("+FL<ALL>")
 		for i := range feedids {
@@ -299,7 +299,7 @@ func getFeedsWithoutCats() []Feed {
 	var allFeeds []Feed
 	var feedids []int
 	var fcn = "FeedsWithoutCats" + userName
-	err := mcget(fcn, &feedids)
+	err := mc.Get(fcn, &feedids)
 	if err != nil {
 		print("-" + fcn)
 		rows, err := stmtGetFeedsWithoutCats.Query(userName)
@@ -313,7 +313,7 @@ func getFeedsWithoutCats() []Feed {
 			allFeeds = append(allFeeds, f)
 			feedids = append(feedids, f.ID)
 		}
-		mcsettime(fcn, feedids, 120)
+		mc.SetTime(fcn, feedids, 120)
 	} else {
 		print("+" + fcn)
 		for i := range feedids {
@@ -328,7 +328,7 @@ func getFeed(id string) Feed {
 	var feed Feed
 	var fcn = "Feed" + id
 
-	err := mcget(fcn,&feed)
+	err := mc.Get(fcn,&feed)
 	if err != nil { //cache miss
 		err := stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString, &feed.Expirey)
 		if err != nil {
@@ -339,7 +339,7 @@ func getFeed(id string) Feed {
 		}
 		feed.Title = html.UnescapeString(feed.Title)
 		print("-feed" + id)
-		mcsettime(fcn, feed, 120)
+		mc.SetTime(fcn, feed, 120)
 	}
 	return feed
 }
