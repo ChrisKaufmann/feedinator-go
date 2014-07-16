@@ -72,6 +72,9 @@ func (c Category) Unread() int {
 	var count int
 	var cct = "CategoryUnreadCount" + tostr(c.ID)
 	err := mc.Get(cct, &count)
+	if len(c.FeedsStr()) < 1 {
+		return 0
+	}
 	if err != nil {
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
 		print(query+"\n")
@@ -79,6 +82,7 @@ func (c Category) Unread() int {
 		err := stmt.QueryRow().Scan(&count)
 		if err != nil {
 			err.Error()
+			return 0
 		}
 		mc.SetTime(cct, count, 60)
 	}
