@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/ChrisKaufmann/easymemcache"
 )
 
 var (
@@ -27,9 +28,11 @@ var (
 	entryLinkHtml  = template.Must(template.ParseFiles("templates/entry_link.html"))
 	entryHtml      = template.Must(template.ParseFiles("templates/entry.html"))
 	menuDropHtml   = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
+	categoryPrintHtml= template.Must(template.ParseFiles("templates/category_print.html"))
 	cookieName     = "feedinator_auth"
 	viewModes      = [...]string{"Default", "Link", "Extended", "Proxy"}
 	port           string
+	mc = easymemcache.New("127.0.0.1:11211")
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -44,6 +47,11 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
+	MyUrl, err := c.GetString("Web", "url")
+	if err != nil {
+		err.Error()
+	}
+	mc.Prefix=(MyUrl+port)
 }
 
 func main() {
@@ -107,6 +115,9 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		c := getCat(id)
 		print("in unread\n")
 		fmt.Fprintf(w, strconv.Itoa(c.Unread()))
+	case "print":
+		c := getCat(id)
+		categoryPrintHtml.Execute(w,c)
 	}
 }
 func handleStats(w http.ResponseWriter, r *http.Request) {

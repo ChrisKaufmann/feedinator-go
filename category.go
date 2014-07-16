@@ -74,6 +74,7 @@ func (c Category) Unread() int {
 	err := mc.Get(cct, &count)
 	if err != nil {
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
+		print(query+"\n")
 		var stmt = sth(db,query)
 		err := stmt.QueryRow().Scan(&count)
 		if err != nil {

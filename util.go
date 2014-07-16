@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"github.com/ChrisKaufmann/easymemcache"
 	"html/template"
 	"io"
 	"net/http"
@@ -13,9 +12,6 @@ import (
 	"strings"
 )
 
-var (
-	mc = easymemcache.New("127.0.0.1:11211")
-)
 
 //puts path vars right into variables passed as params, until it runs out
 //ex: pathVars(r,"/entry/",&id,&todo,&val) // populates id, todo, and val
