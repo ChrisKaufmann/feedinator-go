@@ -30,10 +30,16 @@ type Feed struct {
 }
 
 func (f Feed) Unread() int {
-	var count int
-	err := stmtFeedUnread.QueryRow(f.ID).Scan(&count)
+	count, err := mc.Geti("Feed"+tostr(f.ID)+"UnreadCount")
 	if err != nil {
-		err.Error()
+		print("fc"+tostr(f.ID)+"-")
+		err := stmtFeedUnread.QueryRow(f.ID).Scan(&count)
+		if err != nil {
+			err.Error()
+		}
+		mc.Set("Feed"+tostr(f.ID)+"UnreadCount", count)
+	} else {
+		print("fc"+tostr(f.ID)+"+")
 	}
 	return count
 }
@@ -88,7 +94,7 @@ func (f Feed) GetEntriesByParam(p string) []Entry {
 	return el
 }
 func (feed Feed) Print() {
-	print("\nFeed:\n" + "\tID: " + tostr(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + tostr(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + tostr(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString + "\n")
+	print("\nFeed:\n" + "\tID: " + tostr(feed.ID) + "\n\tTitle: " + feed.Title + "\n\tURL: " + feed.Url + "\n\tUserName: " + feed.UserName + "\n\tPublic: " + feed.Public + "\n\tCategoryID: " + tostr(feed.CategoryID) + "\n\tViewMode: " + feed.ViewMode + "\n\tAutoscrollPX: " + tostr(feed.AutoscrollPX) + "\n\tExclude: " + feed.Exclude + "\n\tErrorstring: " + feed.ErrorString + "\n\tUnread:" + tostr(feed.Unread())+"\n")
 }
 
 func (f Feed) Save() {
@@ -182,16 +188,23 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 	}
 }
 func (f Feed) ClearCache() {
+	f.Print()
 	kl := mc.StartsWith("Feed" + tostr(f.ID))
-	mc.Delete(kl...)
-/*	cl := []string{"Feed" + tostr(f.ID), "FeedUnreadCount" + tostr(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList"}
-	for i := range cl {
-		err := mc.Delete(cl[i])
+	for _,i := range kl {
+		err := mc.Delete(i)
 		if err != nil {
 			err.Error()
 		}
 	}
-	*/
+	mc.Delete(kl...)
+	cl := []string{"Feed" + tostr(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList", "Feed"+tostr(f.ID)+"UnreadCount"}
+	for _,i := range cl {
+		err := mc.Delete(i)
+		if err != nil {
+			err.Error()
+		}
+	}
+	f.Print()
 }
 func (f Feed) DeleteExcludes() {
 	el := f.Excludes()

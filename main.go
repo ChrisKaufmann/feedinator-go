@@ -47,11 +47,11 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
-	MyUrl, err := c.GetString("Web", "url")
+	environment, err := c.GetString("Web", "environment")
 	if err != nil {
 		err.Error()
 	}
-	mc.Prefix=(MyUrl+port)
+	mc.Prefix=(environment)
 }
 
 func main() {
@@ -118,6 +118,9 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 	case "print":
 		c := getCat(id)
 		categoryPrintHtml.Execute(w,c)
+	case "clearcache":
+		c:= getCat(id)
+		c.ClearCache()
 	}
 }
 func handleStats(w http.ResponseWriter, r *http.Request) {
@@ -200,6 +203,9 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	case "deleteexcludes":
 		f.DeleteExcludes()
 		fmt.Fprintf(w, "Deleted Excludes")
+	case "clearcache":
+		f.ClearCache()
+		fmt.Fprintf(w, "Cleared Cache")
 	}
 	return
 }

@@ -58,17 +58,23 @@ func (c Category) Update() {
 	c.ClearCache()
 }
 func (c Category) ClearCache() {
-	cl := mc.StartsWith("Category"+tostr(c.ID))
+	cl := mc.Find("Category"+tostr(c.ID))
 	mc.Delete(cl...)
+	mcl := []string{"Category"+tostr(c.ID),"Category"+tostr(c.ID)+"UnreadCount","Category"+tostr(c.ID)+"Feeds"}
+	for _,k := range mcl {
+		print("Deleting "+k+"\n")
+		mc.Delete(k)
+	}
+	mc.Delete(mcl...)
 }
 func (c Category) Unread() int {
-	var count int
 	var cct = "Category"+tostr(c.ID)+"UnreadCount"
-	err := mc.Get(cct, &count)
 	if len(c.FeedsStr()) < 1 {
 		return 0
 	}
+	count, err := mc.Geti(cct)
 	if err != nil {
+		print("cc"+tostr(c.ID)+"-")
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
 		var stmt = sth(db,query)
 		err := stmt.QueryRow().Scan(&count)
@@ -77,6 +83,8 @@ func (c Category) Unread() int {
 			return 0
 		}
 		mc.SetTime(cct, count, 60)
+	} else {
+		print("cc"+tostr(c.ID)+"+")
 	}
 	return count
 }

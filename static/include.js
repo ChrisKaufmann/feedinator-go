@@ -298,6 +298,11 @@ function delete_category(form)
 	document.getElementById('menu_status').innerHTML='Submitting...';
 	$.ajax({type: "GET",url: '/category/'+current_view_id+'/delete/0', success:function(html){$('#menu_status').html(html);}})
 }
+function clear_cache(form)
+{
+	document.getElementById('menu_status').innerHTML='Submitting...';
+	$.ajax({type: "GET", url: '/'+current_view+'/'+current_view_id+'/clearcache', success:function(html){$('#menu_status').html(html);}})
+}
 //Just for scrolling to the top when loading something
 function scrollup(id)
 {
