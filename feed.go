@@ -182,13 +182,16 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 	}
 }
 func (f Feed) ClearCache() {
-	cl := []string{"Feed" + tostr(f.ID), "FeedUnreadCount" + tostr(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList"}
+	kl := mc.StartsWith("Feed" + tostr(f.ID))
+	mc.Delete(kl...)
+/*	cl := []string{"Feed" + tostr(f.ID), "FeedUnreadCount" + tostr(f.ID), "FeedsWithoutCats" + f.UserName, "FeedList"}
 	for i := range cl {
 		err := mc.Delete(cl[i])
 		if err != nil {
 			err.Error()
 		}
 	}
+	*/
 }
 func (f Feed) DeleteExcludes() {
 	el := f.Excludes()

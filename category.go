@@ -58,26 +58,18 @@ func (c Category) Update() {
 	c.ClearCache()
 }
 func (c Category) ClearCache() {
-	sid := tostr(c.ID)
-	cl := []string{"Category"+sid,"CategoryUnreadCount"+sid,"CategoryFeeds_" + sid,"CategoryList_" + userName,"CategoryList"  }
-	for _,i := range cl {
-//		err := mc.Delete(i)
-		err := mc.Delete(i)
-		if err != nil {
-			err.Error()
-		}
-	}
+	cl := mc.StartsWith("Category"+tostr(c.ID))
+	mc.Delete(cl...)
 }
 func (c Category) Unread() int {
 	var count int
-	var cct = "CategoryUnreadCount" + tostr(c.ID)
+	var cct = "Category"+tostr(c.ID)+"UnreadCount"
 	err := mc.Get(cct, &count)
 	if len(c.FeedsStr()) < 1 {
 		return 0
 	}
 	if err != nil {
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
-		print(query+"\n")
 		var stmt = sth(db,query)
 		err := stmt.QueryRow().Scan(&count)
 		if err != nil {
@@ -118,7 +110,7 @@ func (c Category) GetEntriesByParam(p string) []Entry {
 func (c Category) Next (id string) Entry {
 	var retval string
 	var e Entry
-	nes := "CategoryEntry"+id+"Next"
+	nes := "Category"+tostr(c.ID)+"NextEntry"+id
 	err := mc.Get(nes, &e)
 	if err != nil {
 		print("-"+nes)
@@ -132,7 +124,7 @@ func (c Category) Next (id string) Entry {
 }
 func (c Category) Previous(id string) Entry {
 	var e Entry
-	pes := "CategoryEntry"+id+"Previous"
+	pes := "CategoryEntry"+tostr(c.ID)+"PreviousEntry"+id
 	err := mc.Get(pes, &e)
 	if err != nil {
 		print("-"+pes)
@@ -163,9 +155,10 @@ func getCat(id string) Category {
 func (c Category) Feeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
+	var cfl = "Category"+tostr(c.ID)+"Feeds"
 
 	//Try getting from cache first
-	err := mc.Get("CategoryFeeds_" + tostr(c.ID), &feedids)
+	err := mc.Get(cfl, &feedids)
 	if err != nil {
 		rows, err := stmtGetCatFeeds.Query(tostr(c.ID))
 		if err != nil {
@@ -179,7 +172,7 @@ func (c Category) Feeds() []Feed {
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
 		}
-		mc.Set("CategoryFeeds_"+tostr(c.ID), feedids)
+		mc.Set(cfl, feedids)
 	} else {
 		print("+CFL_" + tostr(c.ID))
 		for _,i := range feedids {
