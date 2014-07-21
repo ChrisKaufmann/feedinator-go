@@ -41,8 +41,8 @@
 				</td>
 				<td align='right' valign='center'>
 					<form name='rename_feed_form'>
-						<input type='text' size=20 name='rename_feed_text' value='{{.Title}}'>
-						<input type='button' value='Rename' onclick='rename_feed(this.form)'>
+						<input type='text' size=20 name='rename_text' value='{{.Title}}'>
+						<input type='button' value='Rename' onclick='rename("feed",{{.ID}},this.form)'>
 					</form>
 				</td>
 				<td>
@@ -66,7 +66,7 @@
 				<td>
 					<form name='update_exclude_list'>
 						<input type='text' size=20 name='rename_exclude_text' value='{{.Exclude}}'>
-						<input type='button' value='Exclude' onclick='update_exclude(this.form)'>
+						<input type='button' value='Exclude' onclick='update_exclude("feed",{{.ID}},this.form)'>
 					</form>
 				</td>
 				<td>

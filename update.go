@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/ChrisKaufmann/easymemcache"
+	"github.com/msbranco/goconfig"
 )
 
 var (
@@ -10,6 +12,7 @@ var (
 	profileInfoURL string
 	cookieName     string
 	feed_id		   string
+	mc = easymemcache.New("127.0.0.1:11211")
 )
 
 func init() {
@@ -21,6 +24,16 @@ func init() {
 func main() {
 	// Get cmd line param (if any), and run that one if passed
 	flag.Parse()
+	c, err := goconfig.ReadConfigFile("config")
+	port, err := c.GetString("Web", "port")
+	if err != nil {
+		err.Error()
+	}
+	MyUrl, err := c.GetString("Web", "url")
+	if err != nil {
+		err.Error()
+	}
+	mc.Prefix=(MyUrl+port)
 	if feed_id != "all" {
 		print("Updating feed id "+feed_id)
 		//update just the one

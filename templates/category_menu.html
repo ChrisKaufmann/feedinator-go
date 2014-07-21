@@ -21,14 +21,20 @@
 			<tr>
 				<td>
 					<form name='rename_category_form'>
-						<input type='text' name='rename_category_text' value='{{.Name}}'>
-						<input type='button' value='Rename' onclick='rename_category(this.form)'>
+						<input type='text' name='rename_text' value='{{.Name}}'>
+						<input type='button' value='Rename' onclick='rename("category",{{.ID}},this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='description_form'>
 						<input type='text' name='describe_category_text' value='{{.Description}}'>
 						<input type='button' value='Describe' onclick='describe_category(this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_exclude_list'>
+						<input type='text' size=20 name='rename_exclude_text' value='{{.Exclude}}'>
+						<input type='button' value='Exclude' onclick='update_exclude("category",{{.ID}},this.form)'>
 					</form>
 				</td>
 				<td>

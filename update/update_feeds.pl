@@ -141,6 +141,9 @@ sub get_feedlist
 		my $sql=qq{select id, feed_url,user_name,title,exclude from ttrss_feeds where $where};
 		my $sth=$dbh->prepare($sql);
 		$sth->execute();
+		#get category excludes
+		my $cat_sql=qq{select c.exclude from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and f.id=?};
+		my $cat_sth=$dbh->prepare($cat_sql);
 		while(my ($id,$link,$username,$title,$exclude)=$sth->fetchrow_array)
 		{
 				$link=~s/http:\/\///;
@@ -149,6 +152,13 @@ sub get_feedlist
 				$namehash{$id}=$username;
 				$titlehash{$id}=$title;
 				$excludehash{$id}=$exclude;
+				$cat_sth->execute($id);
+				my $cat_exclude=($cat_sth->fetchrow_array())[0];
+				if($cat_exclude != "")
+				{
+					$excludehash{$id}="$exclude,$cat_exclude";
+				}
+				print $excludehash{$id};exit;
 		}
 		return %rethash;
 }

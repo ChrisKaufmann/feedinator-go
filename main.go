@@ -115,6 +115,11 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		c := getCat(id)
 		print("in unread\n")
 		fmt.Fprintf(w, strconv.Itoa(c.Unread()))
+	case "exclude":
+		c:= getCat(id)
+		c.Exclude=val
+		c.Save()
+		fmt.Fprintf(w, "Exclude:"+c.Exclude)
 	case "print":
 		c := getCat(id)
 		categoryPrintHtml.Execute(w,c)

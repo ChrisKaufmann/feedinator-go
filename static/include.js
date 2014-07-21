@@ -74,11 +74,11 @@ function update_link(form)
 }
 
 //update the exclude list for a given feed
-function update_exclude(form)
+function update_exclude(fc,id,form)
 {
 	document.getElementById('menu_status').innerHTML='Updating...';
 	var list	=form.rename_exclude_text.value;
-	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/exclude/'+list,success:function(html){$('#menu_status').html(html);}})
+	$.ajax({type: "GET",url: '/'+fc+'/'+current_view_id+'/exclude/'+list,success:function(html){$('#menu_status').html(html);}})
 }
 
 //toggle the visibility of a given passed div id
@@ -275,17 +275,11 @@ function update_autoscroll(form)
 	var newautoscroll=form.update_feed_autoscroll.value;
 	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/autoscroll/'+newautoscroll,success:function(html){$('#menu_status').html(html);}})
 }
-function rename_feed(form)
+function rename(fc,id,form)
 {
 	document.getElementById('menu_status').innerHTML='Submitting...';
-	var newname=form.rename_feed_text.value;
-	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/name/'+newname, success:function(html){$('#menu_status').html(html);}})
-}
-function rename_category(form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	var newname=form.rename_category_text.value;
-	$.ajax({type: "GET",url: '/category/'+current_view_id+'/name/'+newname, success:function(html){$('#menu_status').html(html);}})
+	var newname=form.rename_text.value;
+	$.ajax({type: "GET",url: '/'+fc+'/'+id+'/name/'+newname, success:function(html){$('#menu_status').html(html);}})
 }
 function describe_category(form)
 {
