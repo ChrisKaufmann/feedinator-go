@@ -9,7 +9,7 @@
 				<a href='javascript:entries("feed","{{.ID}}","marked/");'>Starred</a>&nbsp;
 				<a href='javascript:entries("feed","{{.ID}}","read/");'>Read</a>&nbsp;
 				<a href='javascript:update("feed","{{.ID}}");'>Update</a>&nbsp;
-				<a href='javascript:mark_list_read();'>Mark all read</a>
+				<a href='javascript:mark_list_read("feed",{{.ID}});'>Mark all read</a>
 			</td>
 			<td>
 				<div id='toggle_settings_div'><a href='javascript:toggle_visible("modify_div");'>^</a></div>
@@ -41,39 +41,40 @@
 				</td>
 				<td align='right' valign='center'>
 					<form name='rename_feed_form'>
-						<input type='text' size=20 name='rename_text' value='{{.Title}}'>
-						<input type='button' value='Rename' onclick='rename("feed",{{.ID}},this.form)'>
+						<input type='text' size=20 name='val' value='{{.Title}}'>
+						<input type='button' value='Rename' onclick='update("feed",{{.ID}},"name",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='update_link_form'>
 						<input type='text' name='update_link_text' value='{{.Url}}'>
-						<input type='button' value='Change Link' onclick='update_link(this.form)'>
+						<input type='button' value='Change Link' onclick='update_link("feed",{{.ID}},this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='update_feed_expirey'>
-						<input type='text' size=10 name='update_feed_expirey' value='{{.Expirey}}'>
-						<input type='button' value='Update Expirey' onclick='update_expirey(this.form)'>
+						<input type='text' size=10 name='val' value='{{.Expirey}}'>
+						<input type='button' value='Update Expirey' onclick='update("feed",{{.ID}},"expirey",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='update_feed_autoscroll'>
-						<input type='text' size=5 name='update_feed_autoscroll' value='{{.AutoscrollPX}}'>
-						<input type='button' value='Update Autoscroll' onclick='update_autoscroll(this.form)'>
+						<input type='text' size=5 name='val' value='{{.AutoscrollPX}}'>
+						<input type='button' value='Update Autoscroll' onclick='update("feed",{{.ID}},"autoscroll",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='update_exclude_list'>
-						<input type='text' size=20 name='rename_exclude_text' value='{{.Exclude}}'>
-						<input type='button' value='Exclude' onclick='update_exclude("feed",{{.ID}},this.form)'>
+						<input type='text' size=20 name='val' value='{{.Exclude}}'>
+						<input type='button' value='Exclude' onclick='update("feed",{{.ID}},"exclude",this.form)'>
 					</form>
 				</td>
 				<td>
 					<a href='javascript:DeleteExcludes({{.ID}});'>(DU)</a>
 				</td>
 				<form name='clearcache_form'>
-					<input type='button' value='Clear Cache' onclick='clear_cache(this.form)'>
+					<input type='hidden' name='val' value='0'>
+					<input type='button' value='Clear Cache' onclick='update("feed",{{.ID}},"clearcache",this.form)'>
 				</form>
 			</tr>
 		</table>

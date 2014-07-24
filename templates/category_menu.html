@@ -9,7 +9,7 @@
 				<a href='javascript:entries("category","{{.ID}}","marked/");'>Starred</a>&nbsp;
 				<a href='javascript:entries("category","{{.ID}}","read/");'>Read</a>&nbsp;</a>
 				<a href='javascript:update("category","{{.ID}}");'>Update</a>&nbsp;
-				<a href='javascript:mark_list_read();'>Mark all read</a>
+				<a href='javascript:mark_list_read("category",{{.ID}});'>Mark all read</a>
 			</td>
 			<td>
 				<div id='toggle_settings_div'><a href='javascript:toggle_visible("modify_div");'>^</a></div>
@@ -21,31 +21,33 @@
 			<tr>
 				<td>
 					<form name='rename_category_form'>
-						<input type='text' name='rename_text' value='{{.Name}}'>
-						<input type='button' value='Rename' onclick='rename("category",{{.ID}},this.form)'>
+						<input type='text' name='val' value='{{.Name}}'>
+						<input type='button' value='Rename' onclick='update("category",{{.ID}},"name",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='description_form'>
-						<input type='text' name='describe_category_text' value='{{.Description}}'>
-						<input type='button' value='Describe' onclick='describe_category(this.form)'>
+						<input type='text' name='val' value='{{.Description}}'>
+						<input type='button' value='Describe' onclick='update("category",{{.ID}},"desc",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='update_exclude_list'>
-						<input type='text' size=20 name='rename_exclude_text' value='{{.Exclude}}'>
-						<input type='button' value='Exclude' onclick='update_exclude("category",{{.ID}},this.form)'>
+						<input type='text' size=20 name='val' value='{{.Exclude}}'>
+						<input type='button' value='Exclude' onclick='update("category",{{.ID}},"exclude",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='delete_form'>
-						<input type='button' value='Delete' onclick='delete_category(this.form)'>
+						<input type="hidden" name="val" value="0">
+						<input type='button' value='Delete' onclick='update("category",{{.ID}},"delete",this.form)'>
 					</form>
 				</td>
 				<td>
 					<form name='clearcache_form'>
-						<input type='button' value='cc' onclick='clear_cache(this.form)'>
+						<input type='button' value='cc' onclick='update("category",{{.ID}},"clearcache",this.form)'>
 					</form>
+				</td>
 			</tr>
 		</table>
 	</div>

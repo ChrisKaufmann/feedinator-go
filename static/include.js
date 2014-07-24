@@ -54,31 +54,24 @@ function showNextEntry(id)
 		show_entry(html);
 	}});
 }
-// Update/refresh entries in a given feed/category
-function update(fc,id)
-{
-	document.getElementById('menu_status').innerHTML='Updating...';
-	$.ajax({type: "GET",url: fc+"/"+id+"/update", success:function(html){
-		$('#menu_status').html(html);
-		update_count(fc,id);
-	}})
-}
 // Update the link for a given feed
-function update_link(form)
+function update_link(fc,id,form)
 {
 	document.getElementById('menu_status').innerHTML='Updating...';
-	var link	=form.update_link_text.value;
-	link		=encodeURIComponent(link);
-	url			="url="+link
-	$.ajax({type: "POST",url: '/feed/'+current_view_id+'/link/', data: url,success:function(html){$('#menu_status').html(html);}})
+	var link        =form.update_link_text.value;
+	link            =encodeURIComponent(link);
+	url                     ="url="+link
+	$.ajax({type: "POST",url: '/'+fc+'/'+id+'/link/', data: url,success:function(html){$('#menu_status').html(html);}})
 }
-
-//update the exclude list for a given feed
-function update_exclude(fc,id,form)
+function update(fc,id,todo,form)
 {
 	document.getElementById('menu_status').innerHTML='Updating...';
-	var list	=form.rename_exclude_text.value;
-	$.ajax({type: "GET",url: '/'+fc+'/'+current_view_id+'/exclude/'+list,success:function(html){$('#menu_status').html(html);}})
+	try{val = form.val.value;}catch(err){}
+	try{val = encodeURIComponent(val);}catch(err){}
+	$.ajax({type: "GET",url: fc+"/"+id+"/"+todo+"/"+val, success:function(html){
+		$('#menu_status').html(html);
+		if(todo == "update"){update_count(fc,id);}
+	}})
 }
 
 //toggle the visibility of a given passed div id
@@ -181,7 +174,7 @@ function feedList()
 	$.ajax({type: "GET",url: '/feed/list/', success:function(html){$('#feeds_div').html(html);document.getElementById('feeds_status').innerHTML='';}})
 }
 
-function mark_list_read()
+function mark_list_read(fc, id)
 {
 	data=$("#entries_form").serialize();
 	ndata=data.replace(/id%5B%5D=/g,',')
@@ -262,40 +255,6 @@ function add_feed(form)
 		if(current_view == 'category') { categoryList(); }
 		if(current_view == 'feed') {feedList();}
 	}})
-}
-function update_expirey(form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	var newexpirey=form.update_feed_expirey.value;
-	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/expirey/'+newexpirey,success:function(html){$('#menu_status').html(html);}})
-}
-function update_autoscroll(form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	var newautoscroll=form.update_feed_autoscroll.value;
-	$.ajax({type: "GET",url: '/feed/'+current_view_id+'/autoscroll/'+newautoscroll,success:function(html){$('#menu_status').html(html);}})
-}
-function rename(fc,id,form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	var newname=form.rename_text.value;
-	$.ajax({type: "GET",url: '/'+fc+'/'+id+'/name/'+newname, success:function(html){$('#menu_status').html(html);}})
-}
-function describe_category(form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	var newdesc=form.describe_category_text.value;
-	$.ajax({type: "GET",url: '/category/'+current_view_id+'/desc/'+newdesc  ,success:function(html){$('#menu_status').html(html);}})
-}
-function delete_category(form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	$.ajax({type: "GET",url: '/category/'+current_view_id+'/delete/0', success:function(html){$('#menu_status').html(html);}})
-}
-function clear_cache(form)
-{
-	document.getElementById('menu_status').innerHTML='Submitting...';
-	$.ajax({type: "GET", url: '/'+current_view+'/'+current_view_id+'/clearcache', success:function(html){$('#menu_status').html(html);}})
 }
 //Just for scrolling to the top when loading something
 function scrollup(id)

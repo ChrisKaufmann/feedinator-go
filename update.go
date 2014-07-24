@@ -25,15 +25,9 @@ func main() {
 	// Get cmd line param (if any), and run that one if passed
 	flag.Parse()
 	c, err := goconfig.ReadConfigFile("config")
-	port, err := c.GetString("Web", "port")
-	if err != nil {
-		err.Error()
-	}
-	MyUrl, err := c.GetString("Web", "url")
-	if err != nil {
-		err.Error()
-	}
-	mc.Prefix=(MyUrl+port)
+	env, err := c.GetString("Web", "environment")
+	if err != nil {panic(err.Error())}
+	mc.Prefix=(env)
 	if feed_id != "all" {
 		print("Updating feed id "+feed_id)
 		//update just the one
@@ -43,7 +37,8 @@ func main() {
 	} else {
 		print("Updating all feeds")
 		//update all feeds
-		for _,f := range getAllFeeds() {
+		af := getAllFeeds()
+		for _,f := range shuffleFeeds(af) {
 			f.Update()
 		}
 	}

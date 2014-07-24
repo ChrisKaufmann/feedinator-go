@@ -7,7 +7,7 @@ use CGI;
 use Config::Std;
 use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
 use HTML::Entities;
-print "Updating\n";
+use Data::Dumper;
 my $cgi=new CGI;
 my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
@@ -16,7 +16,8 @@ my $db_pass =$config{'DB'}{'pass'};
 my $db_host =$config{'DB'}{'host'}?$config{'DB'}{'host'}:'localhost';
 my $db_db   =$config{'DB'}{'db'};
 my $debug   =$cgi->param('debug') || 0;
-my $dbh=DBI->connect("DBI:mysql:$db_db:$db_host","$db_user","$db_pass");
+my $dbh=DBI->connect("DBI:mysql:$db_db:$db_host","$db_user","$db_pass") 
+	|| die("Couldn't connect to db: $!");
 my %namehash=();
 my %titlehash=();
 my %excludehash=();
@@ -44,7 +45,6 @@ exit();
 sub update_feed
 {
 	my $id=shift			|| return;
-	print "\nID: $id\n";
 	my $source=shift		|| return;
 	my $username=shift;
 	my $feed;
@@ -139,11 +139,11 @@ sub get_feedlist
 		my %rethash=();
 		my $where=$cgi->param('feed_id') ? " id = ".$cgi->param('feed_id')." ": 1;
 		my $sql=qq{select id, feed_url,user_name,title,exclude from ttrss_feeds where $where};
-		my $sth=$dbh->prepare($sql);
-		$sth->execute();
+		my $sth=$dbh->prepare($sql) || die($!);
+		$sth->execute() || die("Couldn't execute: $!");
 		#get category excludes
 		my $cat_sql=qq{select c.exclude from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and f.id=?};
-		my $cat_sth=$dbh->prepare($cat_sql);
+		my $cat_sth=$dbh->prepare($cat_sql) || die ($!);
 		while(my ($id,$link,$username,$title,$exclude)=$sth->fetchrow_array)
 		{
 				$link=~s/http:\/\///;
@@ -152,13 +152,16 @@ sub get_feedlist
 				$namehash{$id}=$username;
 				$titlehash{$id}=$title;
 				$excludehash{$id}=$exclude;
-				$cat_sth->execute($id);
-				my $cat_exclude=($cat_sth->fetchrow_array())[0];
-				if($cat_exclude != "")
+				$cat_sth->execute($id)
+					|| die("Couldn't execute cat_sth: $!\n");
+				if($cat_sth->rows != 0)
 				{
-					$excludehash{$id}="$exclude,$cat_exclude";
+					my $cat_exclude=($cat_sth->fetchrow_array())[0];
+					if($cat_exclude != "")
+					{
+						$excludehash{$id}="$exclude,$cat_exclude";
+					}
 				}
-				print $excludehash{$id};exit;
 		}
 		return %rethash;
 }

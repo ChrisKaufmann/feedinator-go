@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"crypto/sha1"
 	"database/sql"
 	"encoding/base64"
@@ -58,6 +59,20 @@ func tostr(i interface{}) string {
 func toint(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
+}
+func shufflei(slice []int) []int{
+	for i := range slice {
+		j := rand.Intn(i+1)
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	return slice
+}
+func shuffleFeeds(slice []Feed) ([]Feed) {
+	for i := range slice {
+		j := rand.Intn(i+1)
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	return slice
 }
 func getHash(s string) string {
 	h := sha1.New()

@@ -137,23 +137,38 @@ func markEntry(id string, m string) string {
 			stmtUpdateReadEntry.Exec("0", id)
 			e := getEntry(id)
 			f := getFeed(tostr(e.FeedID))
-			mc.Decrement("CategoryUnreadCount"+tostr(f.CategoryID),1)
-			mc.Decrement("FeedUnreadCount"+tostr(e.FeedID),1)
+			mc.Decrement("Category"+tostr(f.CategoryID)+"_UnreadCount",1)
+			mc.Decrement("Feed"+tostr(f.ID)+"_UnreadCount",1)
+			mc.Delete("Category"+tostr(f.CategoryID)+"_unreadentries")
+			mc.Delete("Feed"+tostr(f.ID)+"_unreadentries")
+			mc.Delete("Category"+tostr(f.CategoryID)+"_readentries")
+			mc.Delete("Feed"+tostr(f.ID)+"_readentries")
 		case "unread":
 			stmtUpdateReadEntry.Exec("1", id)
 			e := getEntry(id)
 			f := getFeed(tostr(e.FeedID))
-			mc.Increment("CategoryUnreadCount"+tostr(f.CategoryID),1)
-			mc.Increment("FeedUnreadCount"+tostr(f.CategoryID),1)
+			mc.Increment("Category"+tostr(f.CategoryID)+"_UnreadCount",1)
+			mc.Increment("Feed"+tostr(f.ID)+"_UnreadCount",1)
+			mc.Delete("Category"+tostr(f.CategoryID)+"_unreadentries")
+			mc.Delete("Feed"+tostr(f.ID)+"_unreadentries")
+			mc.Delete("Category"+tostr(f.CategoryID)+"_readentries")
+			mc.Delete("Feed"+tostr(f.ID)+"_readentries")
 		case "marked":
+			e := getEntry(id)
+			f := getFeed(tostr(e.FeedID))
+			mc.Delete("Feed"+tostr(e.FeedID)+"_markedentries")
+			mc.Delete("Category"+tostr(f.CategoryID)+"_markedentries")
 			stmtUpdateMarkEntry.Exec("1", id)
 		case "unmarked":
 			stmtUpdateMarkEntry.Exec("0", id)
 		case "togglemarked":
 			e := getEntry(id)
+			f := getFeed(tostr(e.FeedID))
 			stmtUpdateMarkEntry.Exec(toint(e.Marked)^1, id)
 			en := getEntry(id)
 			ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
+			mc.Delete("Feed"+tostr(e.FeedID)+"_markedentries")
+			mc.Delete("Category"+tostr(f.CategoryID)+"_markedentries")
 	}
 	return ret
 }

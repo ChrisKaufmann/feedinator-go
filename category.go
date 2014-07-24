@@ -71,6 +71,7 @@ func (c Category) Update() {
 	c.ClearCache()
 }
 func (c Category) ClearCache() {
+	mc.DeleteLike("Category"+tostr(c.ID)+"_")
 	cl := mc.Find("Category" + tostr(c.ID))
 	mc.Delete(cl...)
 	mcl := []string{"Category" + tostr(c.ID), "Category" + tostr(c.ID) + "UnreadCount", "Category" + tostr(c.ID) + "Feeds"}
@@ -80,25 +81,17 @@ func (c Category) ClearCache() {
 	}
 	mc.Delete(mcl...)
 }
-func (c Category) Unread() int {
-	var cct = "Category" + tostr(c.ID) + "UnreadCount"
-	if len(c.FeedsStr()) < 1 {
-		return 0
-	}
-	count, err := mc.Geti(cct)
-	if err != nil {
+func (c Category) Unread() (count int) {
+	mc.GetOr("Category"+tostr(c.ID)+"_UnreadCount",&count, func() {
 		print("cc" + tostr(c.ID) + "-")
+		if len(c.FeedsStr()) < 1 { count=0;return }
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
 		var stmt = sth(db, query)
 		err := stmt.QueryRow().Scan(&count)
 		if err != nil {
-			err.Error()
-			return 0
+			print(err.Error())
 		}
-		mc.Set(cct, count)
-	} else {
-		print("cc" + tostr(c.ID) + "+")
-	}
+	})
 	return count
 }
 func (c Category) Class() string {
@@ -110,20 +103,27 @@ func (c Category) Class() string {
 func (c Category) Excludes() []string {
 	return strings.Split(strings.ToLower(c.Exclude), ",")
 }
-func (c Category) MarkedEntries() []Entry {
-	el := c.GetEntriesByParam("marked = 1")
+func (c Category) MarkedEntries() (el []Entry) {
+	mc.GetOr("Category"+tostr(c.ID)+"_markedentries", &el, func() {
+		el = c.GetEntriesByParam("marked = 1")
+	})
 	return el
 }
-func (c Category) UnreadEntries() []Entry {
-	el := c.GetEntriesByParam("unread = 1")
+func (c Category) UnreadEntries() (el []Entry) {
+	mc.GetOr("Category"+tostr(c.ID)+"_unreadentries", &el, func() {
+		el = c.GetEntriesByParam("unread = 1")
+	})
 	return el
 }
-func (c Category) ReadEntries() []Entry {
-	el := c.GetEntriesByParam("unread = '0'")
+func (c Category) ReadEntries() (el []Entry) {
+	mc.GetOr("Category"+tostr(c.ID)+"_readentries", &el, func() {
+		print(".")
+		el = c.GetEntriesByParam("unread = '0'")
+	})
 	return el
 }
-func (c Category) AllEntries() []Entry {
-	el := c.GetEntriesByParam("1=1")
+func (c Category) AllEntries() (el []Entry) {
+	el = c.GetEntriesByParam("1=1")
 	return el
 }
 func (c Category) GetEntriesByParam(p string) []Entry {
