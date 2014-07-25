@@ -74,7 +74,7 @@ func (c Category) ClearCache() {
 	mc.DeleteLike("Category"+tostr(c.ID)+"_")
 	cl := mc.Find("Category" + tostr(c.ID))
 	mc.Delete(cl...)
-	mcl := []string{"Category" + tostr(c.ID), "Category" + tostr(c.ID) + "UnreadCount", "Category" + tostr(c.ID) + "Feeds"}
+	mcl := []string{"Category" + tostr(c.ID), "Category" + tostr(c.ID) + "_UnreadCount", "Category" + tostr(c.ID) + "_Feeds"}
 	for _, k := range mcl {
 		print("Deleting " + k + "\n")
 		mc.Delete(k)
@@ -124,6 +124,7 @@ func (c Category) UnreadEntries() (el []Entry) {
 	mc.GetOr("Category"+tostr(c.ID)+"_unreadentries", &el, func() {
 		el = c.GetEntriesByParam("unread = 1")
 	})
+	mc.Set("Category"+tostr(c.ID)+"_UnreadCount", len(el))
 	return el
 }
 func (c Category) ReadEntries() (el []Entry) {
@@ -137,9 +138,10 @@ func (c Category) AllEntries() (el []Entry) {
 	el = c.GetEntriesByParam("1=1")
 	return el
 }
-func (c Category) GetEntriesByParam(p string) []Entry {
+func (c Category) GetEntriesByParam(p string) (el []Entry) {
+	if len(c.FeedsStr()) < 1 { return el}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
-	el := getEntriesFromSql(query)
+	el = getEntriesFromSql(query)
 	return el
 }
 func (c Category) Next(id string) Entry {
