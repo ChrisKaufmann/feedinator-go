@@ -21,6 +21,7 @@ my $dbh=DBI->connect("DBI:mysql:$db_db:$db_host","$db_user","$db_pass")
 my %namehash=();
 my %titlehash=();
 my %excludehash=();
+my %excludedatahash=();
 
 my ($second, $minute, $hour, $dayOfMonth, $month, 
 		$yearOffset, $dayOfWeek, $dayOfYear, $daylightSavings) = localtime();
@@ -58,6 +59,7 @@ sub update_feed
 	};  return if $@;
 	return unless $feed;
 	my @excludes=split(',',$excludehash{$id});
+	my @dataexcludes=split(',',$excludedatahash{$id});
 	my @guids=();
 	foreach my $item( $feed->entries )
 	{
@@ -92,6 +94,7 @@ sub update_feed
 		if(grep {$title=~m/$_/i } @excludes ){print "skipping $title\n";next;}   #skip items that match the exclude array
 		my $tmp_content=$item->content;
 		my $desc		=&escape($tmp_content->body);
+		if(grep {$desc=~m/$_/i } @dataexcludes) {print "skipping $title(data)\n";next;} #same with items in data
 		my $desc_hash   =sha1_hex(encode_utf8($desc));
 		$desc			='&nbsp;' if !$desc;
 		my $updated		=$item->modified || $today_time;
@@ -138,13 +141,13 @@ sub get_feedlist
 {
 		my %rethash=();
 		my $where=$cgi->param('feed_id') ? " id = ".$cgi->param('feed_id')." ": 1;
-		my $sql=qq{select id, feed_url,user_name,title,exclude from ttrss_feeds where $where};
+		my $sql=qq{select id, feed_url,user_name,title,exclude,exclude_data from ttrss_feeds where $where};
 		my $sth=$dbh->prepare($sql) || die($!);
 		$sth->execute() || die("Couldn't execute: $!");
 		#get category excludes
 		my $cat_sql=qq{select c.exclude from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and f.id=?};
 		my $cat_sth=$dbh->prepare($cat_sql) || die ($!);
-		while(my ($id,$link,$username,$title,$exclude)=$sth->fetchrow_array)
+		while(my ($id,$link,$username,$title,$exclude,$excludedata)=$sth->fetchrow_array)
 		{
 				$link=~s/http:\/\///;
 				$link='http://'.$link;
@@ -152,6 +155,7 @@ sub get_feedlist
 				$namehash{$id}=$username;
 				$titlehash{$id}=$title;
 				$excludehash{$id}=$exclude;
+				$excludedatahash{$id}=$excludedata;
 				$cat_sth->execute($id)
 					|| die("Couldn't execute cat_sth: $!\n");
 				if($cat_sth->rows != 0)

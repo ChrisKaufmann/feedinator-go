@@ -188,6 +188,10 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.Exclude = html.EscapeString(val)
 		f.Save()
 		fmt.Fprintf(w, "Exclude saved")
+	case "excludedata":
+		f.ExcludeData = html.EscapeString(val)
+		f.Save()
+		fmt.Fprintf(w, "Exclude Data Saved")
 	case "category":
 		f.CategoryID = toint(val)
 		f.Save()

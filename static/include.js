@@ -22,14 +22,6 @@ var status_div='left_notify'; //  id of the status div
 		}
 	});
 
-
-function DeleteExcludes(id)
-{
-	document.getElementById('menu_status').innerHTML='Deleting Excludes';
-	$.ajax({type: "GET",url: 'feed/'+id+'/deleteexcludes', success:function(html){
-		$('#menu_status').html(html);
-	}})
-}
 function showPreviousEntry(id)
 {
 	document.getElementById('menu_status').innerHTML='Getting previous id';
@@ -54,7 +46,7 @@ function showNextEntry(id)
 		show_entry(html);
 	}});
 }
-// Update the link for a given feed
+// Update the link for a given feed, this isn't update because it needs to POST the url
 function update_link(fc,id,form)
 {
 	document.getElementById('menu_status').innerHTML='Updating...';

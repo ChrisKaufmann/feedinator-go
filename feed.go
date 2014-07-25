@@ -2,13 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	rss "github.com/jteeuwen/go-pkg-rss"
 	"html"
 	"html/template"
 	"os"
 	"os/exec"
-	rss "github.com/jteeuwen/go-pkg-rss"
 	"strings"
-	"fmt"
 )
 
 type Feed struct {
@@ -23,6 +23,7 @@ type Feed struct {
 	ViewMode       string
 	AutoscrollPX   int
 	Exclude        string
+	ExcludeData    string
 	ErrorString    string
 	Expirey        string
 	ViewModeSelect template.HTML
@@ -31,7 +32,7 @@ type Feed struct {
 
 func (f Feed) Unread() (count int) {
 	mc.GetOr("Feed"+tostr(f.ID)+"_UnreadCount", &count, func() {
-		print("fc"+tostr(f.ID)+"-")
+		print("fc" + tostr(f.ID) + "-")
 		err := stmtFeedUnread.QueryRow(f.ID).Scan(&count)
 		if err != nil {
 			print(err.Error())
@@ -91,29 +92,30 @@ func (f Feed) Previous(id string) Entry {
 	return e
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
-	var query = "select "+entrySelectString +" from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
+	var query = "select " + entrySelectString + " from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
 	el := getEntriesFromSql(query)
 	return el
 }
 func (feed Feed) Print() {
-	print("\nFeed:\n" + 
-		"\tID: " + tostr(feed.ID) + 
-		"\n\tTitle: " + feed.Title + 
-		"\n\tURL: " + feed.Url + 
-		"\n\tUserName: " + feed.UserName + 
-		"\n\tPublic: " + feed.Public + 
-		"\n\tCategoryID: " + tostr(feed.CategoryID) + 
-		"\n\tViewMode: " + feed.ViewMode + 
-		"\n\tAutoscrollPX: " + tostr(feed.AutoscrollPX) + 
-		"\n\tExclude: " + feed.Exclude + 
-		"\n\tErrorstring: " + feed.ErrorString + 
-		"\n\tExpirey: " + feed.Expirey+
-		"\n\tUnread:" + tostr(feed.Unread())+"\n")
+	print("\nFeed:\n" +
+		"\tID: " + tostr(feed.ID) +
+		"\n\tTitle: " + feed.Title +
+		"\n\tURL: " + feed.Url +
+		"\n\tUserName: " + feed.UserName +
+		"\n\tPublic: " + feed.Public +
+		"\n\tCategoryID: " + tostr(feed.CategoryID) +
+		"\n\tViewMode: " + feed.ViewMode +
+		"\n\tAutoscrollPX: " + tostr(feed.AutoscrollPX) +
+		"\n\tExclude: " + feed.Exclude +
+		"\n\tExclude Data: " + feed.ExcludeData +
+		"\n\tErrorstring: " + feed.ErrorString +
+		"\n\tExpirey: " + feed.Expirey +
+		"\n\tUnread:" + tostr(feed.Unread()) + "\n")
 }
 
 func (f Feed) Save() {
-	f.Exclude=html.EscapeString(f.Exclude)
-	stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.Expirey, f.ID)
+	f.Exclude = html.EscapeString(f.Exclude)
+	stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID)
 	f.ClearCache()
 }
 func (f Feed) Class() string {
@@ -137,10 +139,10 @@ func (f Feed) Update() {
 
 	// Note actual work is done in makeItemHandler function
 	// I just don't like the way this works as much. Personal taste.
-//	feed := rss.New(5, true, chanHandler, makeItemHandler(f))
-//	if err := feed.Fetch(f.Url, nil); err != nil {
-//		err.Error()
-//	}
+	//	feed := rss.New(5, true, chanHandler, makeItemHandler(f))
+	//	if err := feed.Fetch(f.Url, nil); err != nil {
+	//		err.Error()
+	//	}
 
 }
 func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
@@ -203,16 +205,16 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 }
 func (f Feed) ClearCache() {
 	f.Print()
-	mc.DeleteLike("Feed"+tostr(f.ID)+"_")
-	cl := []string{"Feed" + tostr(f.ID)+"_", 
-		"FeedsWithoutCats" + f.UserName, 
-		"FeedList", 
-		"Feed"+tostr(f.ID)+"_UnreadCount",
-		"Feed"+tostr(f.ID)+"_readentries",
-		"Feed"+tostr(f.ID)+"_unreadentries",
-		"Feed"+tostr(f.ID)+"_markedentries",
-		}
-	for _,i := range cl {
+	mc.DeleteLike("Feed" + tostr(f.ID) + "_")
+	cl := []string{"Feed" + tostr(f.ID) + "_",
+		"FeedsWithoutCats" + f.UserName,
+		"FeedList",
+		"Feed" + tostr(f.ID) + "_UnreadCount",
+		"Feed" + tostr(f.ID) + "_readentries",
+		"Feed" + tostr(f.ID) + "_unreadentries",
+		"Feed" + tostr(f.ID) + "_markedentries",
+	}
+	for _, i := range cl {
 		err := mc.Delete(i)
 		if err != nil {
 			err.Error()
@@ -222,7 +224,7 @@ func (f Feed) ClearCache() {
 }
 func (f Feed) DeleteExcludes() {
 	el := f.Excludes()
-	for _,e := range el {
+	for _, e := range el {
 		e = escape_guid(e)
 		if len(e) < 1 {
 			continue
@@ -266,15 +268,16 @@ var (
 )
 
 func init() {
+	var selecttxt string = " id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
 	stmtInsertFeed = sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
-	stmtGetFeeds = sth(db, "select id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,'') from ttrss_feeds where user_name = ?")
-	stmtGetAllFeeds = sth(db, "select id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,'') from ttrss_feeds")
-	stmtGetFeed = sth(db, "select id,IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''), IFNULL(error_string,''),IFNULL(expirey,'') from ttrss_feeds where id = ?")
+	stmtGetFeeds = sth(db, "select "+selecttxt+" from ttrss_feeds where user_name = ?")
+	stmtGetAllFeeds = sth(db, "select "+selecttxt+"	from ttrss_feeds")
+	stmtGetFeed = sth(db, "select "+selecttxt+"	from ttrss_feeds where id = ?")
 	stmtFeedUnread = sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
 	stmtGetFeedsWithoutCats = sth(db, "select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
 	stmtNextFeedEntry = sth(db, "select id from ttrss_entries where feed_id=? and id > ? order by id ASC limit 1")
 	stmtPreviousFeedEntry = sth(db, "select id from ttrss_entries where feed_id=? and id<? order by id DESC limit 1")
-	stmtSaveFeed = sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,expirey=? where id=? limit 1")
+	stmtSaveFeed = sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
 	stmtDeleteFeedEntries = sth(db, "delete from ttrss_entries where feed_id=?")
 	stmtDeleteFeed = sth(db, "delete from ttrss_feeds where id=? limit 1")
 }
@@ -288,7 +291,7 @@ func getFeeds() (allFeeds []Feed) {
 		}
 		for rows.Next() {
 			var feed Feed
-			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString)
+			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString, &feed.Expirey)
 			allFeeds = append(allFeeds, feed)
 		}
 	})
@@ -307,7 +310,7 @@ func getAllFeeds() []Feed {
 		}
 		for rows.Next() {
 			var feed Feed
-			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString)
+			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
 			mc.Set("Feed"+tostr(feed.ID), feed)
@@ -332,7 +335,7 @@ func getFeedsWithoutCats() (allFeeds []Feed) {
 		print("-")
 		rows, err := stmtGetFeedsWithoutCats.Query(userName)
 		if err != nil {
-			err.Error()
+			print(err.Error())
 		}
 		for rows.Next() {
 			var id string
@@ -347,10 +350,10 @@ func getFeedsWithoutCats() (allFeeds []Feed) {
 
 func getFeed(id string) Feed {
 	var feed Feed
-	var fcn = "Feed" + id +"_"
+	var fcn = "Feed" + id + "_"
 
-	mc.GetOr(fcn,&feed,func () {
-		err := stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString, &feed.Expirey)
+	mc.GetOr(fcn, &feed, func() {
+		err := stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 		if err != nil {
 			err.Error()
 		}

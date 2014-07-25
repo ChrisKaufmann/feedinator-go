@@ -20,62 +20,72 @@
 	<div id='modify_div' style='border:1px solid #979797;display:none'>
 		<table>
 			<tr>
+				<td valign='bottom' >
+					<form name='view_customize_form'>
+						<select name='select' onchange='customize(this.form)'>
+							<option value=''>Customize
+							<option value=''>--View Mode--
+							{{.ViewModeSelect }}
+							<option value='none'>--Category--
+							{{.CategorySelect}}
+							<option value='null'>None
+							<option value=''>--Delete--
+							<option value='delete'>Delete Feed
+						</select>
+					</form>
+				</td>
 				<td>
-				</td>
-				<td align='right' valign='center'>
-					<div id='customize_dropdown'>
-						<form name='view_customize_form'>
-							<select name='select' onchange='customize(this.form)'>
-								<option value=''>Customize
-								<option value=''>--View Mode--
-								{{.ViewModeSelect }}
-								<option value='none'>--Category--
-								{{.CategorySelect}}
-								<option value='null'>None
-								<option value=''>--Delete--
-								<option value='delete'>Delete Feed
-							</select>
-						</form>
-	
-					</div>
-				</td>
-				<td align='right' valign='center'>
 					<form name='rename_feed_form'>
-						<input type='text' size=20 name='val' value='{{.Title}}'>
+						<input type='text' placeholder='name' size=20 name='val' value='{{.Title}}'>
 						<input type='button' value='Rename' onclick='update("feed",{{.ID}},"name",this.form)'>
 					</form>
 				</td>
 				<td>
-					<form name='update_link_form'>
-						<input type='text' name='update_link_text' value='{{.Url}}'>
-						<input type='button' value='Change Link' onclick='update_link("feed",{{.ID}},this.form)'>
-					</form>
-				</td>
-				<td>
 					<form name='update_feed_expirey'>
-						<input type='text' size=10 name='val' value='{{.Expirey}}'>
+						<input type='text' placeholder='Expire, like "99 DAY"' size=20 name='val' value='{{.Expirey}}'>
 						<input type='button' value='Update Expirey' onclick='update("feed",{{.ID}},"expirey",this.form)'>
 					</form>
 				</td>
 				<td>
-					<form name='update_feed_autoscroll'>
-						<input type='text' size=5 name='val' value='{{.AutoscrollPX}}'>
-						<input type='button' value='Update Autoscroll' onclick='update("feed",{{.ID}},"autoscroll",this.form)'>
-					</form>
-				</td>
-				<td>
 					<form name='update_exclude_list'>
-						<input type='text' size=20 name='val' value='{{.Exclude}}'>
+						<input type='text' placeholder='Exclude for title' size=20 name='val' value='{{.Exclude}}'>
 						<input type='button' value='Exclude' onclick='update("feed",{{.ID}},"exclude",this.form)'>
 					</form>
 				</td>
 				<td>
-					<a href='javascript:DeleteExcludes({{.ID}});'>(DU)</a>
+					<form name='clearcache_form'>
+						<input type='hidden' name='val' value='0'>
+						<input type='button' value='Clear Cache' onclick='update("feed",{{.ID}},"clearcache",this.form)'>
+					</form>
 				</td>
-				<form name='clearcache_form'>
-					<input type='hidden' name='val' value='0'>
-					<input type='button' value='Clear Cache' onclick='update("feed",{{.ID}},"clearcache",this.form)'>
-				</form>
+			</tr>
+			<tr>
+				<td>
+				</td>
+				<td>
+					<form name='update_link_form'>
+						<input type='text' placeholder='link' name='update_link_text' value='{{.Url}}'>
+						<input type='button' value='Change Link' onclick='update_link("feed",{{.ID}},this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_feed_autoscroll'>
+						<input type='text' placeholder='Autoscroll pixels' size=20 name='val' value='{{.AutoscrollPX}}'>
+						<input type='button' value='Update Autoscroll' onclick='update("feed",{{.ID}},"autoscroll",this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='update_excludedata_list'>
+						<input type='text' placeholder='Exclude for Data' size=20 name='val' value='{{.ExcludeData}}'>
+						<input type='button' value='Exclude' onclick='update("feed",{{.ID}},"excludedata",this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='delete_excludes_form'>
+						<input type='hidden' name='val' value='0'>
+						<input type='button' value='Delete Excludes' onclick='update("feed",{{.ID}},"deleteexcludes",this.form)'>
+					</form>
+				</td>
 			</tr>
 		</table>
 	</div>
