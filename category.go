@@ -103,6 +103,11 @@ func (c Category) Class() string {
 func (c Category) Excludes() []string {
 	return strings.Split(strings.ToLower(c.Exclude), ",")
 }
+func (c Category) DeleteExcludes() {
+	for _,f := range c.Feeds() {
+		f.DeleteExcludes()
+	}
+}
 func (c Category) SearchTitles(s string) (el []Entry) {
 	mc.GetOr("Category"+tostr(c.ID)+"_search_"+s, &el, func() {
 		el = c.GetEntriesByParam("title like '%"+s+"%'")

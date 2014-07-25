@@ -51,7 +51,14 @@
 				</td>
 				<td>
 					<form name='clearcache_form'>
+						<input type='hidden' name='val' value='0'>
 						<input type='button' value='cc' onclick='update("category",{{.ID}},"clearcache",this.form)'>
+					</form>
+				</td>
+				<td>
+					<form name='delete_excludes_form'>
+						<input type='hidden' name='val' value='0'>
+						<input type='button' value='Delete Excludes' onclick='update("category",{{.ID}},"deleteexcludes",this.form)'>
 					</form>
 				</td>
 			</tr>

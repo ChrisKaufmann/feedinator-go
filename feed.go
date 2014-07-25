@@ -76,6 +76,9 @@ func (f Feed) AllEntries() (el []Entry) {
 func (f Feed) Excludes() []string {
 	return strings.Split(strings.ToLower(f.Exclude), ",")
 }
+func (f Feed) ExcludesData() []string {
+	return strings.Split(strings.ToLower(f.ExcludeData), ",")
+}
 func (f Feed) Next(id string) Entry {
 	var e Entry
 	nes := "FeedEntry" + id + "Next"
@@ -235,6 +238,16 @@ func (f Feed) DeleteExcludes() {
 			continue
 		}
 		var query = "delete from ttrss_entries where feed_id=" + tostr(f.ID) + " and title like '%" + e + "%'"
+		var stmt = sth(db, query)
+		stmt.Exec()
+	}
+	ed := f.ExcludesData()
+	for _, e := range ed {
+		e = escape_guid(e)
+		if len(e) < 1 {
+			continue
+		}
+		var query = "delete from ttrss_entries where feed_id=" + tostr(f.ID) + " and content like '%" + e + "%'"
 		var stmt = sth(db, query)
 		stmt.Exec()
 	}

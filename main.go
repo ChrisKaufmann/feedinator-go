@@ -126,6 +126,9 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 	case "clearcache":
 		c:= getCat(id)
 		c.ClearCache()
+	case "deleteexcludes":
+		c:=getCat(id)
+		c.DeleteExcludes()
 	}
 }
 func handleStats(w http.ResponseWriter, r *http.Request) {
