@@ -5,6 +5,12 @@
 				<div id='menu_status' style='height:20px;width:140px'></div>
 			</td>
 			<td align='right'>
+				<form name='feed_search_form'>
+					<input type='text' placeholder='Search' name='val' size=20>
+					<input type='button' value='Search' onclick='search("category",{{.ID}},this.form)'>
+				</form>
+			</td>
+			<td align='right'>
 				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
 				<a href='javascript:entries("category","{{.ID}}","marked/");'>Starred</a>&nbsp;
 				<a href='javascript:entries("category","{{.ID}}","read/");'>Read</a>&nbsp;</a>

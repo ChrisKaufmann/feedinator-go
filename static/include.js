@@ -182,6 +182,25 @@ function categoryList(id)
 	$.ajax({type: "GET",url: "/categoryList/"+id, success:function(html){$('#feeds_div').html(html);	document.getElementById('feeds_status').innerHTML='';
 }})
 }
+function search(feedcat,id,form)
+{
+	try{val = form.val.value;}catch(err){alert(err);}
+	path=feedcat+"/"+id+"/search/"+val;
+	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
+	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
+	$.ajax({
+		type: "GET",
+		url: '/entries/'+path, 
+		success: function(html){
+			$('#entries_list_div').html(html);
+			document.getElementById('menu_status').innerHTML='';
+			if($('#entries_list_div').is(":hidden")){
+				$('#entries_list_div').toggle();
+			}
+			scrollup('entries_list_div');
+		}
+	});
+}
 function entries(feedcat,id,mode)
 {
 	current_view=feedcat;

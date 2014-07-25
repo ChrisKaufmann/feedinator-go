@@ -61,6 +61,13 @@ func (f Feed) ReadEntries() (el []Entry) {
 	})
 	return el
 }
+func (f Feed) SearchTitles(s string) (el []Entry) {
+	print("f.search("+s+")")
+	mc.GetOr("Feed"+tostr(f.ID)+"_search_"+s, &el, func() {
+		el = f.GetEntriesByParam("title like '%"+s+"%'")
+	})
+	return el
+}
 func (f Feed) AllEntries() (el []Entry) {
 	print("f.allEntries")
 	el = f.GetEntriesByParam("1=1")
@@ -204,7 +211,6 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 	}
 }
 func (f Feed) ClearCache() {
-	f.Print()
 	mc.DeleteLike("Feed" + tostr(f.ID) + "_")
 	cl := []string{"Feed" + tostr(f.ID) + "_",
 		"FeedsWithoutCats" + f.UserName,
@@ -220,7 +226,6 @@ func (f Feed) ClearCache() {
 			err.Error()
 		}
 	}
-	f.Print()
 }
 func (f Feed) DeleteExcludes() {
 	el := f.Excludes()
