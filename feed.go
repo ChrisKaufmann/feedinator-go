@@ -134,6 +134,10 @@ func (f Feed) Class() string {
 	}
 	return "odd"
 }
+func (f Feed) Category() (c Category) {
+	c = getCat(tostr(f.CategoryID))
+	return c
+}
 func (f Feed) Update() {
 	os.Chdir("update")
 	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+tostr(f.ID)).Output()
@@ -144,8 +148,7 @@ func (f Feed) Update() {
 	}
 	f.ClearCache()
 
-	c := getCat(tostr(f.CategoryID))
-	c.ClearCache()
+	f.Category().ClearCache()
 
 	// Note actual work is done in makeItemHandler function
 	// I just don't like the way this works as much. Personal taste.
