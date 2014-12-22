@@ -1,18 +1,19 @@
 package main
 
 import (
-	"math/rand"
 	"crypto/sha1"
 	"database/sql"
+	"time"
+	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
 )
-
 
 //puts path vars right into variables passed as params, until it runs out
 //ex: pathVars(r,"/entry/",&id,&todo,&val) // populates id, todo, and val
@@ -60,16 +61,16 @@ func toint(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
 }
-func shufflei(slice []int) []int{
+func shufflei(slice []int) []int {
 	for i := range slice {
-		j := rand.Intn(i+1)
+		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
 	}
 	return slice
 }
-func shuffleFeeds(slice []Feed) ([]Feed) {
+func shuffleFeeds(slice []Feed) []Feed {
 	for i := range slice {
-		j := rand.Intn(i+1)
+		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
 	}
 	return slice
@@ -104,13 +105,29 @@ func escape_guid(s string) string {
 }
 
 func unescape(s string) string {
-	var codes=map[string]string{
-		"&amp;":	"&",
-		"&nbsp;":	" ",
+	var codes = map[string]string{
+		"&amp;":               "&",
+		"&nbsp;":              " ",
 		"&acirc;&#128;&#153;": "'",
 	}
 	for k, v := range codes {
 		s = strings.Replace(s, k, v, -1)
 	}
 	return s
+}
+func randomString(l int) string {
+	rand.Seed(time.Now().UTC().UnixNano())
+	bytes := make([]byte, l)
+	for i := 0; i < l; i++ {
+		bytes[i] = byte(randInt(65, 90))
+	}
+	return string(bytes)
+}
+func randInt(min int, max int) int {
+	return min + rand.Intn(max-min)
+}
+func hash(s string) string {
+	h := sha512.New()
+	h.Write([]byte(s))
+	return base64.URLEncoding.EncodeToString(h.Sum(nil))
 }

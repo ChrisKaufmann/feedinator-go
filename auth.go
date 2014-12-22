@@ -3,13 +3,10 @@ package main
 import (
 	"fmt"
 	"code.google.com/p/goauth2/oauth"
-	"crypto/sha512"
-	"encoding/base64"
 	"encoding/json"
 	"github.com/msbranco/goconfig"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"time"
 )
@@ -140,20 +137,4 @@ func loggedIn(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return false
-}
-func randomString(l int) string {
-	rand.Seed(time.Now().UTC().UnixNano())
-	bytes := make([]byte, l)
-	for i := 0; i < l; i++ {
-		bytes[i] = byte(randInt(65, 90))
-	}
-	return string(bytes)
-}
-func randInt(min int, max int) int {
-	return min + rand.Intn(max-min)
-}
-func hash(s string) string {
-	h := sha512.New()
-	h.Write([]byte(s))
-	return base64.URLEncoding.EncodeToString(h.Sum(nil))
 }

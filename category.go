@@ -3,8 +3,8 @@ package main
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
-	"strings"
 	"html"
+	"strings"
 )
 
 type Category struct {
@@ -49,11 +49,11 @@ func (c Category) Save() {
 	c.ClearCache()
 }
 func (c Category) Print() {
-	print("Category: "+tostr(c.ID)+"\n"+
-		"\tName:\t"+c.Name+"\n"+
-		"\tDesc:\t"+c.Description+"\n"+
-		"\tUser:\t"+c.UserName+"\n"+
-		"\tExclude:\t"+c.Exclude+"\n")
+	print("Category: " + tostr(c.ID) + "\n" +
+		"\tName:\t" + c.Name + "\n" +
+		"\tDesc:\t" + c.Description + "\n" +
+		"\tUser:\t" + c.UserName + "\n" +
+		"\tExclude:\t" + c.Exclude + "\n")
 }
 func (c Category) Insert() {
 	stmtAddCat.Exec(userName, c.Name)
@@ -71,7 +71,7 @@ func (c Category) Update() {
 	c.ClearCache()
 }
 func (c Category) ClearCache() {
-	mc.DeleteLike("Category"+tostr(c.ID)+"_")
+	mc.DeleteLike("Category" + tostr(c.ID) + "_")
 	cl := mc.Find("Category" + tostr(c.ID))
 	mc.Delete(cl...)
 	mcl := []string{"Category" + tostr(c.ID), "Category" + tostr(c.ID) + "_UnreadCount", "Category" + tostr(c.ID) + "_Feeds"}
@@ -82,9 +82,12 @@ func (c Category) ClearCache() {
 	mc.Delete(mcl...)
 }
 func (c Category) Unread() (count int) {
-	mc.GetOr("Category"+tostr(c.ID)+"_UnreadCount",&count, func() {
+	mc.GetOr("Category"+tostr(c.ID)+"_UnreadCount", &count, func() {
 		print("cc" + tostr(c.ID) + "-")
-		if len(c.FeedsStr()) < 1 { count=0;return }
+		if len(c.FeedsStr()) < 1 {
+			count = 0
+			return
+		}
 		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
 		var stmt = sth(db, query)
 		err := stmt.QueryRow().Scan(&count)
@@ -104,14 +107,22 @@ func (c Category) Excludes() []string {
 	return strings.Split(strings.ToLower(c.Exclude), ",")
 }
 func (c Category) DeleteExcludes() {
-	for _,f := range c.Feeds() {
+	for _, f := range c.Feeds() {
 		f.DeleteExcludes()
 	}
 }
 func (c Category) SearchTitles(s string) (el []Entry) {
-	mc.GetOr("Category"+tostr(c.ID)+"_search_"+s, &el, func() {
-		el = c.GetEntriesByParam("title like '%"+s+"%'")
-	})
+	// start with unread
+	//	mc.GetOr("Category"+tostr(c.ID)+"_search_"+s, &el, func() {
+	//		el = c.GetEntriesByParam("title like '%"+s+"%'")
+	//	})
+	ul := c.UnreadEntries()
+	for _, e := range ul {
+		if strings.Contains(strings.ToLower(e.Title), strings.ToLower(s)) {
+			el = append(el, e)
+		}
+	}
+
 	return el
 }
 func (c Category) MarkedEntries() (el []Entry) {
@@ -139,7 +150,9 @@ func (c Category) AllEntries() (el []Entry) {
 	return el
 }
 func (c Category) GetEntriesByParam(p string) (el []Entry) {
-	if len(c.FeedsStr()) < 1 { return el}
+	if len(c.FeedsStr()) < 1 {
+		return el
+	}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
 	el = getEntriesFromSql(query)
 	return el

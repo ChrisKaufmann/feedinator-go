@@ -15,7 +15,7 @@ import (
 
 var (
 	userName       string
-	cachefile      = "cache.json"
+	cachefile      = "/dev/null"
 	indexHtml      = template.Must(template.ParseFiles("templates/index-nologin.html"))
 	mainHtml       = template.Must(template.ParseFiles("templates/main.html"))
 	categoryHtml   = template.Must(template.ParseFiles("templates/category.html"))
@@ -29,7 +29,7 @@ var (
 	entryHtml      = template.Must(template.ParseFiles("templates/entry.html"))
 	menuDropHtml   = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
 	categoryPrintHtml= template.Must(template.ParseFiles("templates/category_print.html"))
-	cookieName     = "feedinator_auth"
+	cookieName	string
 	viewModes      = [...]string{"Default", "Link", "Extended", "Proxy"}
 	port           string
 	mc = easymemcache.New("127.0.0.1:11211")
@@ -51,6 +51,7 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
+	cookieName     = "feedinator_auth_"+environment
 	mc.Prefix=(environment)
 }
 

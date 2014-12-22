@@ -9,3 +9,4 @@ ClientSecret=WG0dpkjHnreoG85OvwXk16O7
 [Web]
 port=9001
 url=https://dev.feedinator.com/
+environment=dev
