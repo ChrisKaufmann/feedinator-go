@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ChrisKaufmann/easymemcache"
 	"github.com/msbranco/goconfig"
 	"html"
 	"html/template"
@@ -10,29 +11,28 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/ChrisKaufmann/easymemcache"
 )
 
 var (
-	userName       string
-	cachefile      = "/dev/null"
-	indexHtml      = template.Must(template.ParseFiles("templates/index-nologin.html"))
-	mainHtml       = template.Must(template.ParseFiles("templates/main.html"))
-	categoryHtml   = template.Must(template.ParseFiles("templates/category.html"))
-	categoryHtmlS  = template.Must(template.ParseFiles("templates/category_selected.html"))
-	feedHtml       = template.Must(template.ParseFiles("templates/feed.html"))
-	feedHtmlSpaced = template.Must(template.ParseFiles("templates/feed_spaced.html"))
-	listEntryHtml  = template.Must(template.ParseFiles("templates/listentry.html"))
-	feedMenuHtml   = template.Must(template.ParseFiles("templates/feed_menu.html"))
-	catMenuHtml    = template.Must(template.ParseFiles("templates/category_menu.html"))
-	entryLinkHtml  = template.Must(template.ParseFiles("templates/entry_link.html"))
-	entryHtml      = template.Must(template.ParseFiles("templates/entry.html"))
-	menuDropHtml   = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
-	categoryPrintHtml= template.Must(template.ParseFiles("templates/category_print.html"))
-	cookieName	string
-	viewModes      = [...]string{"Default", "Link", "Extended", "Proxy"}
-	port           string
-	mc = easymemcache.New("127.0.0.1:11211")
+	userName          string
+	cachefile         = "/dev/null"
+	indexHtml         = template.Must(template.ParseFiles("templates/index-nologin.html"))
+	mainHtml          = template.Must(template.ParseFiles("templates/main.html"))
+	categoryHtml      = template.Must(template.ParseFiles("templates/category.html"))
+	categoryHtmlS     = template.Must(template.ParseFiles("templates/category_selected.html"))
+	feedHtml          = template.Must(template.ParseFiles("templates/feed.html"))
+	feedHtmlSpaced    = template.Must(template.ParseFiles("templates/feed_spaced.html"))
+	listEntryHtml     = template.Must(template.ParseFiles("templates/listentry.html"))
+	feedMenuHtml      = template.Must(template.ParseFiles("templates/feed_menu.html"))
+	catMenuHtml       = template.Must(template.ParseFiles("templates/category_menu.html"))
+	entryLinkHtml     = template.Must(template.ParseFiles("templates/entry_link.html"))
+	entryHtml         = template.Must(template.ParseFiles("templates/entry.html"))
+	menuDropHtml      = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
+	categoryPrintHtml = template.Must(template.ParseFiles("templates/category_print.html"))
+	cookieName        string
+	viewModes         = [...]string{"Default", "Link", "Extended", "Proxy"}
+	port              string
+	mc                = easymemcache.New("127.0.0.1:11211")
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -51,11 +51,12 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
-	cookieName     = "feedinator_auth_"+environment
-	mc.Prefix=(environment)
+	cookieName = "feedinator_auth_" + environment
+	mc.Prefix = (environment)
 }
 
 func main() {
+	defer db.Close()
 	http.HandleFunc("/main", handleMain)
 	http.HandleFunc("/authorize", handleAuthorize)
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
@@ -117,18 +118,18 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		print("in unread\n")
 		fmt.Fprintf(w, strconv.Itoa(c.Unread()))
 	case "exclude":
-		c:= getCat(id)
-		c.Exclude=val
+		c := getCat(id)
+		c.Exclude = val
 		c.Save()
 		fmt.Fprintf(w, "Exclude:"+c.Exclude)
 	case "print":
 		c := getCat(id)
-		categoryPrintHtml.Execute(w,c)
+		categoryPrintHtml.Execute(w, c)
 	case "clearcache":
-		c:= getCat(id)
+		c := getCat(id)
 		c.ClearCache()
 	case "deleteexcludes":
-		c:=getCat(id)
+		c := getCat(id)
 		c.DeleteExcludes()
 	}
 }
@@ -262,17 +263,22 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	}
 	var feedOrCat string
 	var id string
-	pathVars(r, "/menu/", &feedOrCat, &id)
+	var mode string
+	var curID string
+	var modifier string
+	pathVars(r, "/menu/", &feedOrCat, &id, &mode, &curID, &modifier)
+
 	switch feedOrCat {
-	    case "category":
-			cat := getCat(id)
-			catMenuHtml.Execute(w, cat)
-		case "feed":
-			f := getFeed(id)
-			setSelects(&f)
-			feedMenuHtml.Execute(w, f)
-		case "marked":
-			fmt.Fprintf(w,"&nbsp;")
+	case "category":
+		cat := getCat(id)
+		catMenuHtml.Execute(w, cat)
+		c.SearchSelect=getSearchSelect(curID)
+	case "feed":
+		f := getFeed(id)
+		setSelects(&f)
+		feedMenuHtml.Execute(w, f)
+	case "marked":
+		fmt.Fprintf(w, "&nbsp;")
 	}
 }
 func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
@@ -371,8 +377,9 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var feedOrCat string
 	var id string
 	var mode string
-	var curID string //only really needed for getting the next one in a feed/cat
-	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID)
+	var curID string //current entry id for next/previous or search term for search
+	var modifier string //secondary mode for next/previous/search (read/unread/marked/etc)
+	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID, &modifier)
 	var el []Entry
 	switch feedOrCat {
 	case "feed":
@@ -407,7 +414,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 		case "all":
 			el = c.AllEntries()
 		case "search":
-			el = c.SearchTitles(curID)
+			el = c.SearchTitles(curID,modifier)
 		case "previous":
 			nid := strconv.Itoa(c.Previous(curID).ID)
 			fmt.Fprintf(w, nid)

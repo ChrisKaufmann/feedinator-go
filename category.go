@@ -2,18 +2,21 @@ package main
 
 import (
 	"database/sql"
+	"html/template"
+
 	_ "github.com/go-sql-driver/mysql"
 	"html"
 	"strings"
 )
 
 type Category struct {
-	Name        string
-	Description string
-	UserName    string
-	ID          int
-	Evenodd     string
-	Exclude     string
+	Name         string
+	Description  string
+	UserName     string
+	ID           int
+	Evenodd      string
+	Exclude      string
+	SearchSelect template.HTML
 }
 
 var (
@@ -111,17 +114,29 @@ func (c Category) DeleteExcludes() {
 		f.DeleteExcludes()
 	}
 }
-func (c Category) SearchTitles(s string) (el []Entry) {
+func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search string, m=modifier (read/unread/marked/all)
+	var ul []Entry
+	switch m {
+	case "marked":
+		ul = c.MarkedEntries()
+	case "read":
+		ul = c.ReadEntries()
+	case "all":
+		ul = c.AllEntries()
+	default: //yeah, default to unread
+		ul = c.UnreadEntries()
+	}
+	if len(ul) != 0 {
+		for _, e := range ul {
+			if strings.Contains(strings.ToLower(e.Title), strings.ToLower(s)) {
+				el = append(el, e)
+			}
+		}
+	}
 	// start with unread
 	//	mc.GetOr("Category"+tostr(c.ID)+"_search_"+s, &el, func() {
 	//		el = c.GetEntriesByParam("title like '%"+s+"%'")
 	//	})
-	ul := c.UnreadEntries()
-	for _, e := range ul {
-		if strings.Contains(strings.ToLower(e.Title), strings.ToLower(s)) {
-			el = append(el, e)
-		}
-	}
 
 	return el
 }

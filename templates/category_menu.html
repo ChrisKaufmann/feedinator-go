@@ -7,6 +7,12 @@
 			<td align='right'>
 				<form name='feed_search_form'>
 					<input type='text' placeholder='Search' name='val' size=20>
+					<select name='search_select'>
+						<option value='unread'>Unread
+						<option value='read'>Read
+						<option value='marked'>Marked
+						<option value='all'>All
+					</select>
 					<input type='button' value='Search' onclick='search("category",{{.ID}},this.form)'>
 				</form>
 			</td>

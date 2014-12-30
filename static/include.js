@@ -185,7 +185,9 @@ function categoryList(id)
 function search(feedcat,id,form)
 {
 	try{val = form.val.value;}catch(err){alert(err);}
-	path=feedcat+"/"+id+"/search/"+val;
+	var index=form.search_select.selectedIndex;
+    var selvalue=form.search_select.options[index].value;
+	path=feedcat+"/"+id+"/search/"+val+"/"+selvalue;
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
 	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
 	$.ajax({

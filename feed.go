@@ -28,6 +28,7 @@ type Feed struct {
 	Expirey        string
 	ViewModeSelect template.HTML
 	CategorySelect template.HTML
+	SearchSelect   template.HTML
 }
 
 func (f Feed) Unread() (count int) {
