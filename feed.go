@@ -29,6 +29,7 @@ type Feed struct {
 	ViewModeSelect template.HTML
 	CategorySelect template.HTML
 	SearchSelect   template.HTML
+	Search		   string
 }
 
 func (f Feed) Unread() (count int) {
@@ -62,11 +63,26 @@ func (f Feed) ReadEntries() (el []Entry) {
 	})
 	return el
 }
-func (f Feed) SearchTitles(s string) (el []Entry) {
-	print("f.search("+s+")")
-	mc.GetOr("Feed"+tostr(f.ID)+"_search_"+s, &el, func() {
-		el = f.GetEntriesByParam("title like '%"+s+"%'")
-	})
+func (f Feed) SearchTitles(s string,m string) (el []Entry) {
+	var ul []Entry
+	switch m {
+		case "marked":
+			ul = f.MarkedEntries()
+		case "read":
+			ul = f.ReadEntries()
+		case "all":
+			ul = f.AllEntries()
+		default: //default to unread
+			ul = f.UnreadEntries()
+	}
+	if s == "" {return ul}
+	if len(ul) != 0 {
+		for _,e := range ul {
+			if strings.Contains(strings.ToLower(e.Title), strings.ToLower(s)) {
+				el = append(el, e)
+			}
+		}
+	}
 	return el
 }
 func (f Feed) AllEntries() (el []Entry) {
@@ -163,7 +179,7 @@ func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
 	//println(len(newchannels), "new channel(s) in", feed.Url)
 	//We're currently ignoring channels
 }
-
+/*
 func makeItemHandler(f Feed) rss.ItemHandler {
 	return func(feed *rss.Feed, ch *rss.Channel, newitems []*rss.Item) {
 		println(len(newitems), "new item(s) in", ch.Title)
@@ -217,6 +233,7 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 		f.ClearCache()
 	}
 }
+*/
 func (f Feed) ClearCache() {
 	mc.DeleteLike("Feed" + tostr(f.ID) + "_")
 	cl := []string{"Feed" + tostr(f.ID) + "_",

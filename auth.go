@@ -117,6 +117,10 @@ func makeSureUserExists(e string) {
 	}
 }
 func loggedIn(w http.ResponseWriter, r *http.Request) bool {
+	if environment == "test" {
+		userName="chris"
+		return true
+	}
 	cookie, err := r.Cookie(cookieName)
 	if err != nil {
 		//just means that the cookie doesn't exist or we couldn't read it

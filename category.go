@@ -17,6 +17,7 @@ type Category struct {
 	Evenodd      string
 	Exclude      string
 	SearchSelect template.HTML
+	Search		 string
 }
 
 var (
@@ -126,6 +127,7 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 	default: //yeah, default to unread
 		ul = c.UnreadEntries()
 	}
+	if s == "" {return ul}
 	if len(ul) != 0 {
 		for _, e := range ul {
 			if strings.Contains(strings.ToLower(e.Title), strings.ToLower(s)) {

@@ -33,6 +33,7 @@ var (
 	viewModes         = [...]string{"Default", "Link", "Extended", "Proxy"}
 	port              string
 	mc                = easymemcache.New("127.0.0.1:11211")
+	environment		  string
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -47,7 +48,7 @@ func init() {
 	if err != nil {
 		err.Error()
 	}
-	environment, err := c.GetString("Web", "environment")
+	environment, err = c.GetString("Web", "environment")
 	if err != nil {
 		err.Error()
 	}
@@ -268,14 +269,17 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	var modifier string
 	pathVars(r, "/menu/", &feedOrCat, &id, &mode, &curID, &modifier)
 
+	print("fc="+feedOrCat+"id="+id+"mode="+id+"curid="+curID+"mod="+modifier+"\n")
 	switch feedOrCat {
 	case "category":
 		cat := getCat(id)
+		cat.SearchSelect=getSearchSelect(modifier)
+		cat.Search=curID
 		catMenuHtml.Execute(w, cat)
-		c.SearchSelect=getSearchSelect(curID)
 	case "feed":
 		f := getFeed(id)
-		setSelects(&f)
+		f.SearchSelect = getSearchSelect(modifier)
+		f.Search=curID
 		feedMenuHtml.Execute(w, f)
 	case "marked":
 		fmt.Fprintf(w, "&nbsp;")
@@ -291,6 +295,20 @@ func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
 	f := getFeed(id)
 	setSelects(&f)
 	menuDropHtml.Execute(w, f)
+}
+func getSearchSelect(cur string) (template.HTML) {
+	l := []string{"Unread","Read","Marked","All"}
+	var h string
+	for _,i:= range l{
+		sel := ""
+		print(strings.ToLower(i)+"=="+strings.ToLower(cur)+"\n")
+		if strings.ToLower(i) == strings.ToLower(cur) {
+			sel = "selected"
+		}
+		h = h+"<option value='"+strings.ToLower(i)+"'"+sel+">"+i+"\n"
+	}
+	print(h) 
+	return template.HTML(h)
 }
 func setSelects(f *Feed) {
 	var catHtml string
@@ -348,14 +366,15 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
 			categoryHtmlS.Execute(w, cat)
+			fmt.Fprintf(w, "<br>\n")
 			catFeeds := cat.Feeds()
 			for j := range catFeeds {
 				feedHtmlSpaced.Execute(w, catFeeds[j])
 			}
 		} else {
 			categoryHtml.Execute(w, cat)
+			fmt.Fprintf(w, "<br>\n")
 		}
-		fmt.Fprintf(w, "<br>\n")
 	}
 	fmt.Fprintf(w, "<hr>")
 	allFeeds := getFeedsWithoutCats()
@@ -392,7 +411,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 		case "all":
 			el = f.AllEntries()
 		case "search":
-			el = f.SearchTitles(curID)
+			el = f.SearchTitles(curID,modifier)
 		case "next":
 			nid := strconv.Itoa(f.Next(curID).ID)
 			fmt.Fprintf(w, nid)

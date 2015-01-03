@@ -6,7 +6,10 @@
 			</td>
 			<td align='right'>
 				<form name='feed_search_form'>
-					<input type='text' placeholder='Search' name='val' size=20>
+					<input type='text'  name='val' value='{{.Search}}' size=20>
+					<select name='search_select'>
+						{{.SearchSelect}}
+					</select>
 					<input type='button' value='Search' onclick='search("feed",{{.ID}},this.form)'>
 				</form>
 			</td>
