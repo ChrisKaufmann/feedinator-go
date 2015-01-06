@@ -8,6 +8,11 @@ use Config::Std;
 use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
 use HTML::Entities;
 use Data::Dumper;
+use LWP::UserAgent;
+use HTTP::Date;
+use Date::Parse;
+use POSIX qw(strftime);
+
 my $cgi=new CGI;
 my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
@@ -22,6 +27,7 @@ my %namehash=();
 my %titlehash=();
 my %excludehash=();
 my %excludedatahash=();
+my %updatedhash=();
 
 my ($second, $minute, $hour, $dayOfMonth, $month, 
 		$yearOffset, $dayOfWeek, $dayOfYear, $daylightSavings) = localtime();
@@ -33,7 +39,7 @@ my ($second, $minute, $hour, $dayOfMonth, $month,
 my %feed_list=&get_feedlist();
 my $count=0;
 my @feed_ids=sort(keys %feed_list);
-&shuffle(\@feed_ids);
+#&shuffle(\@feed_ids);
 foreach my $id(@feed_ids)
 {
 		$count++;
@@ -49,8 +55,21 @@ sub update_feed
 	my $source=shift		|| return;
 	my $username=shift;
 	my $feed;
+	my $ua=LWP::UserAgent->new;
+	print "id=$id, source=$source, updated_time=$updatedhash{$id}\n";
+	$ua->default_header('If-Modified-Since' => HTTP::Date::time2str(Date::Parse::str2time($updatedhash{$id})));
+	my $response=$ua->get($source);
+	if($response->code == 304)
+	{
+		print("No update, skipping\n");
+		my $updatetime=strftime "%Y-%m-%d %H:%M:%S", localtime($response->headers->date);
+		set_last_updated($id,$updatetime);
+		return;
+	}
+	
 	eval{
-	$feed = XML::Feed->parse(URI->new($source))
+	my $cc=$response->decoded_content;
+	$feed = XML::Feed->parse(\$cc)
 		or do {
 			print XML::Feed->errstr.", feed id=$id\n";
 			add_feed_error($id,XML::Feed->errstr);
@@ -104,6 +123,16 @@ sub update_feed
 		print "+";
 	}
 	print "\n";
+	set_last_updated($id);
+}
+sub set_last_updated
+{
+	my $id=shift || die("NO id passed to set_last_updated");
+	my $updated_date = shift || strftime "%Y-%m-%d %H:%M:%S", localtime;
+	print "Updated date=$updated_date\n";
+	my $sql = "update ttrss_feeds set last_updated=? where id=?";
+	my $sth=$dbh->prepare($sql) or die("Coudln't prepare sth for update last_updated: $!");
+	$sth->execute($updated_date,$id) or die("Couldn't execute update last_update: $!");
 }
 sub add_feed_error
 {
@@ -141,13 +170,13 @@ sub get_feedlist
 {
 		my %rethash=();
 		my $where=$cgi->param('feed_id') ? " id = ".$cgi->param('feed_id')." ": 1;
-		my $sql=qq{select id, feed_url,user_name,title,exclude,exclude_data from ttrss_feeds where $where};
+		my $sql=qq{select id, feed_url,user_name,title,exclude,exclude_data,last_updated from ttrss_feeds where $where};
 		my $sth=$dbh->prepare($sql) || die($!);
 		$sth->execute() || die("Couldn't execute: $!");
 		#get category excludes
 		my $cat_sql=qq{select c.exclude from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and f.id=?};
 		my $cat_sth=$dbh->prepare($cat_sql) || die ($!);
-		while(my ($id,$link,$username,$title,$exclude,$excludedata)=$sth->fetchrow_array)
+		while(my ($id,$link,$username,$title,$exclude,$excludedata,$last_updated)=$sth->fetchrow_array)
 		{
 				$link=~s/http:\/\///;
 				$link='http://'.$link;
@@ -156,6 +185,7 @@ sub get_feedlist
 				$titlehash{$id}=$title;
 				$excludehash{$id}=$exclude;
 				$excludedatahash{$id}=$excludedata;
+				$updatedhash{$id}=$last_updated;
 				$cat_sth->execute($id)
 					|| die("Couldn't execute cat_sth: $!\n");
 				if($cat_sth->rows != 0)
@@ -194,13 +224,13 @@ sub escape
 	my $in=shift;
 	return encode_entities($in);
 }
-sub shuffle
-{
-		my $array = shift;
-		my $i = @$array;
-		while ( --$i )
-		{
-				my $j = int rand( $i+1 );
-				@$array[$i,$j] = @$array[$j,$i];
-		}
-}
+#sub shuffle
+#{
+#		my $array = shift;
+#		my $i = @$array;
+#		while ( --$i )
+#		{
+#				my $j = int rand( $i+1 );
+#				@$array[$i,$j] = @$array[$j,$i];
+#		}
+#}
