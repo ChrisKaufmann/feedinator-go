@@ -33,7 +33,7 @@ var (
 	viewModes         = [...]string{"Default", "Link", "Extended", "Proxy"}
 	port              string
 	mc                = easymemcache.New("127.0.0.1:11211")
-	environment		  string
+	environment       string
 )
 
 const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -269,17 +269,17 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	var modifier string
 	pathVars(r, "/menu/", &feedOrCat, &id, &mode, &curID, &modifier)
 
-	print("fc="+feedOrCat+"id="+id+"mode="+id+"curid="+curID+"mod="+modifier+"\n")
+	print("fc=" + feedOrCat + "id=" + id + "mode=" + id + "curid=" + curID + "mod=" + modifier + "\n")
 	switch feedOrCat {
 	case "category":
 		cat := getCat(id)
-		cat.SearchSelect=getSearchSelect(modifier)
-		cat.Search=curID
+		cat.SearchSelect = getSearchSelect(modifier)
+		cat.Search = curID
 		catMenuHtml.Execute(w, cat)
 	case "feed":
 		f := getFeed(id)
 		f.SearchSelect = getSearchSelect(modifier)
-		f.Search=curID
+		f.Search = curID
 		feedMenuHtml.Execute(w, f)
 	case "marked":
 		fmt.Fprintf(w, "&nbsp;")
@@ -296,18 +296,18 @@ func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
 	setSelects(&f)
 	menuDropHtml.Execute(w, f)
 }
-func getSearchSelect(cur string) (template.HTML) {
-	l := []string{"Unread","Read","Marked","All"}
+func getSearchSelect(cur string) template.HTML {
+	l := []string{"Unread", "Read", "Marked", "All"}
 	var h string
-	for _,i:= range l{
+	for _, i := range l {
 		sel := ""
-		print(strings.ToLower(i)+"=="+strings.ToLower(cur)+"\n")
+		print(strings.ToLower(i) + "==" + strings.ToLower(cur) + "\n")
 		if strings.ToLower(i) == strings.ToLower(cur) {
 			sel = "selected"
 		}
-		h = h+"<option value='"+strings.ToLower(i)+"'"+sel+">"+i+"\n"
+		h = h + "<option value='" + strings.ToLower(i) + "'" + sel + ">" + i + "\n"
 	}
-	print(h) 
+	print(h)
 	return template.HTML(h)
 }
 func setSelects(f *Feed) {
@@ -396,7 +396,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var feedOrCat string
 	var id string
 	var mode string
-	var curID string //current entry id for next/previous or search term for search
+	var curID string    //current entry id for next/previous or search term for search
 	var modifier string //secondary mode for next/previous/search (read/unread/marked/etc)
 	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID, &modifier)
 	var el []Entry
@@ -411,7 +411,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 		case "all":
 			el = f.AllEntries()
 		case "search":
-			el = f.SearchTitles(curID,modifier)
+			el = f.SearchTitles(curID, modifier)
 		case "next":
 			nid := strconv.Itoa(f.Next(curID).ID)
 			fmt.Fprintf(w, nid)
@@ -433,7 +433,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 		case "all":
 			el = c.AllEntries()
 		case "search":
-			el = c.SearchTitles(curID,modifier)
+			el = c.SearchTitles(curID, modifier)
 		case "previous":
 			nid := strconv.Itoa(c.Previous(curID).ID)
 			fmt.Fprintf(w, nid)
