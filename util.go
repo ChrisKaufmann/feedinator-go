@@ -62,6 +62,7 @@ func toint(s string) int {
 	return i
 }
 func shufflei(slice []int) []int {
+    rand.Seed(time.Now().UnixNano())
 	for i := range slice {
 		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
@@ -69,6 +70,7 @@ func shufflei(slice []int) []int {
 	return slice
 }
 func shuffleFeeds(slice []Feed) []Feed {
+    rand.Seed(time.Now().UnixNano())
 	for i := range slice {
 		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
@@ -124,6 +126,7 @@ func randomString(l int) string {
 	return string(bytes)
 }
 func randInt(min int, max int) int {
+	rand.Seed(time.Now().UTC().UnixNano())
 	return min + rand.Intn(max-min)
 }
 func hash(s string) string {
