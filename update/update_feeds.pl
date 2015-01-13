@@ -30,7 +30,6 @@ my $insert_entry_sth=$dbh->prepare("insert into ttrss_entries (title,guid,link,u
 
 my %error_skips=();
 %error_skips = data($errors_key) if hasdata($errors_key);
-print Dumper \%error_skips;
 if($cgi->param('feed_id')){ update_feed($cgi->param('feed_id'));exit();}
 foreach my $id(sort keys %feeds)
 {
@@ -50,7 +49,7 @@ sub update_feed
 	my $time = strftime "%Y-%m-%d %H:%M:%S", localtime($response->headers->date);
 	if($response->code == 304)
 	{
-		print "\treturned 304 (no update)\n";
+		print "\t304 (no update)\n";
 		set_last_updated($id,$time);
 		return;
 	}
@@ -63,9 +62,7 @@ sub update_feed
 		print "\tNo data$1\n";
 		set_last_updated($id);
 		$error_skips{"$id"}=1;
-		print("e");
 		set($errors_key,\%error_skips);
-		print Dumper \%error_skips;
 		return;
 	}
 	my @guids=();
@@ -163,7 +160,6 @@ sub get_feeds
 sub set
 {
 	my $key=shift;
-	print "Setting $key\n";
 	my $val=shift || die("Not enough params passed to set");
 	$memd->set($key,$val);
 }
@@ -179,7 +175,6 @@ sub hasdata
 sub data
 {
 	my $key=shift || die ("No key passed to data");
-	print "Getting $key\n";
 	return %{$memd->get($key)};
 }
 sub get_dbh

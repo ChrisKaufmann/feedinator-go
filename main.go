@@ -269,7 +269,6 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	var modifier string
 	pathVars(r, "/menu/", &feedOrCat, &id, &mode, &curID, &modifier)
 
-	print("fc=" + feedOrCat + "id=" + id + "mode=" + id + "curid=" + curID + "mod=" + modifier + "\n")
 	switch feedOrCat {
 	case "category":
 		cat := getCat(id)
@@ -301,13 +300,11 @@ func getSearchSelect(cur string) template.HTML {
 	var h string
 	for _, i := range l {
 		sel := ""
-		print(strings.ToLower(i) + "==" + strings.ToLower(cur) + "\n")
 		if strings.ToLower(i) == strings.ToLower(cur) {
 			sel = "selected"
 		}
 		h = h + "<option value='" + strings.ToLower(i) + "'" + sel + ">" + i + "\n"
 	}
-	print(h)
 	return template.HTML(h)
 }
 func setSelects(f *Feed) {
