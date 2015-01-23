@@ -51,7 +51,6 @@ sub update_feed
 	{
 		print "\t304 (no update)\n";
 		set_last_updated($id,$time);
-		return;
 	}
 	eval{
 		my $cc=$response->decoded_content;
