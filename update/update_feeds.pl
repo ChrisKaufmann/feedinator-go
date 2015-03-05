@@ -34,7 +34,6 @@ if($cgi->param('feed_id')){ update_feed($cgi->param('feed_id'));exit();}
 foreach my $id(sort keys %feeds)
 {
 	update_feed($id);
-	$memd->set($errors_key,\%error_skips);
 }
 
 sub update_feed
@@ -44,7 +43,7 @@ sub update_feed
 	print "Updating $id(".$feeds{$id}{'link'}."): ";
 	my $feed; #holds the parsed feed
 	my $ua=LWP::UserAgent->new;
-	$ua->default_header('If-Modified-Since' => HTTP::Date::time2str(Date::Parse::str2time($feeds{$id}{'last_updated'})));
+#	$ua->default_header('If-Modified-Since' => HTTP::Date::time2str(Date::Parse::str2time($feeds{$id}{'last_updated'})));
 	my $response=$ua->get($feeds{$id}{'link'});
 	my $time = strftime "%Y-%m-%d %H:%M:%S", localtime($response->headers->date);
 	if($response->code == 304)
