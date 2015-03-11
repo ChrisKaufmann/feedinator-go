@@ -279,6 +279,7 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 		f := getFeed(id)
 		f.SearchSelect = getSearchSelect(modifier)
 		f.Search = curID
+		setSelects(&f)
 		feedMenuHtml.Execute(w, f)
 	case "marked":
 		fmt.Fprintf(w, "&nbsp;")

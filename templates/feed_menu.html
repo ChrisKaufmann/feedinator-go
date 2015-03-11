@@ -30,17 +30,19 @@
 		<table>
 			<tr>
 				<td valign='bottom' >
-					<form name='view_customize_form'>
-						<select name='select' onchange='customize(this.form)'>
-							<option value=''>Customize
-							<option value=''>--View Mode--
-							{{.ViewModeSelect }}
-							<option value='none'>--Category--
-							{{.CategorySelect}}
-							<option value='null'>None
-							<option value=''>--Delete--
-							<option value='delete'>Delete Feed
-						</select>
+					<div id='customize_dropdown'>
+						<form name='view_customize_form'>
+							<select name='select' onchange='customize(this.form)'>
+								<option value=''>Customize
+								<option value=''>--View Mode--
+								{{.ViewModeSelect }}
+								<option value='none'>--Category--
+								{{.CategorySelect}}
+								<option value='null'>None
+								<option value=''>--Delete--
+								<option value='delete'>Delete Feed
+							</select>
+						</div>
 					</form>
 				</td>
 				<td>

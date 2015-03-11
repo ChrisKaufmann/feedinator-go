@@ -152,7 +152,7 @@ func (c Category) UnreadEntries() (el []Entry) {
 	mc.GetOr("Category"+tostr(c.ID)+"_unreadentries", &el, func() {
 		el = c.GetEntriesByParam("unread = 1")
 	})
-	mc.Set("Category"+tostr(c.ID)+"_UnreadCount", len(el))
+	mc.SetTime("Category"+tostr(c.ID)+"_UnreadCount", len(el),60)
 	return el
 }
 func (c Category) ReadEntries() (el []Entry) {
@@ -294,7 +294,6 @@ func GetAllCategories() []Category {
 	var catids []int
 	err := mc.Get("CategoryList", &catids)
 	if err != nil {
-		print("-CL<ALL>")
 		rows, err := stmtGetAllCats.Query()
 		if err != nil {
 			err.Error()
@@ -309,7 +308,6 @@ func GetAllCategories() []Category {
 		}
 		mc.Set("CategoryList", allCats)
 	} else {
-		print("+CL<ALL>")
 		for _, i := range catids {
 			cat := getCat(tostr(i))
 			allCats = append(allCats, cat)
