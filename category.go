@@ -3,7 +3,8 @@ package main
 import (
 	"database/sql"
 	"html/template"
-
+	"fmt"
+	"strconv"
 	_ "github.com/go-sql-driver/mysql"
 	"html"
 	"strings"
@@ -135,11 +136,7 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 			}
 		}
 	}
-	// start with unread
-	//	mc.GetOr("Category"+tostr(c.ID)+"_search_"+s, &el, func() {
-	//		el = c.GetEntriesByParam("title like '%"+s+"%'")
-	//	})
-
+	mc.SetTime("CategoryCurrent", el, 60)
 	return el
 }
 func (c Category) MarkedEntries() (el []Entry) {
@@ -172,36 +169,69 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
 	el = getEntriesFromSql(query)
+    mc.SetTime("CategoryCurrent", el, 600)
 	return el
 }
 func (c Category) Next(id string) Entry {
 	var retval string
+	var CategoryCurrentList []Entry
 	var e Entry
-	nes := "Category" + tostr(c.ID) + "NextEntry" + id
-	err := mc.Get(nes, &e)
-	if err != nil {
-		print("-" + nes)
-		var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id > " + id + " order by id ASC limit 1"
-		var stmt = sth(db, query)
-		stmt.QueryRow().Scan(&retval)
-		e = getEntry(retval)
-		mc.SetTime(nes, e, 300)
+	err := mc.Get("CategoryCurrent", &CategoryCurrentList)
+	if err == nil {
+		print("got CategoryCurrent")
+		print(id)
+		if id == "" {
+			return CategoryCurrentList[0]
+		}
+		for i,p := range CategoryCurrentList {
+			if tostr(p.ID) == id {
+				return CategoryCurrentList[i+1]
+			}
+		}
+	} else {
+		nes := "Category" + tostr(c.ID) + "NextEntry" + id
+		err := mc.Get(nes, &e)
+		if err != nil {
+			print("-" + nes)
+			if id == "" {
+				id = "0"
+			}
+			var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id > " + id + " order by id ASC limit 1"
+			var stmt = sth(db, query)
+			stmt.QueryRow().Scan(&retval)
+			e = getEntry(retval)
+			mc.SetTime(nes, e, 300)
+		}
 	}
 	return e
 }
 func (c Category) Previous(id string) Entry {
 	var e Entry
-	pes := "CategoryEntry" + tostr(c.ID) + "PreviousEntry" + id
-	err := mc.Get(pes, &e)
-	if err != nil {
-		print("-" + pes)
-		var retval string
-		var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id < " + id + " order by id DESC limit 1"
-		var stmt = sth(db, query)
-		stmt.QueryRow().Scan(&retval)
-		e := getEntry(retval)
-		mc.SetTime(pes, e, 300)
-		return e
+	var CategoryCurrentList []Entry
+	err := mc.Get("CategoryCurrent", &CategoryCurrentList)
+	if err == nil {
+		print("got CategoryCurrent")
+		print(id)
+		if id == "" {
+			return CategoryCurrentList[0]
+		}
+		for i,p := range CategoryCurrentList {
+			if tostr(p.ID) == id {
+				return CategoryCurrentList[i-1]
+			}
+		}
+	} else {
+		pes := "CategoryEntry" + tostr(c.ID) + "PreviousEntry" + id
+		err := mc.Get(pes, &e)
+		if err != nil {
+			print("-" + pes)
+			var retval string
+			var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id < " + id + " order by id DESC limit 1"
+			var stmt = sth(db, query)
+			stmt.QueryRow().Scan(&retval)
+			e := getEntry(retval)
+			mc.SetTime(pes, e, 300)
+		}
 	}
 	return e
 }
@@ -288,6 +318,37 @@ func getCategories() []Category {
 
 	}
 	return allCats
+}
+func (c Category)markEntriesRead(ids []string) (err error) {
+    if len(ids) == 0 {
+        err = fmt.Errorf("Ids is null")
+    } else {
+        // make sure they're all integers
+        var id_list []string
+        for _,i := range(ids) {
+            if _, err := strconv.Atoi(i); err == nil {
+                id_list = append(id_list, i)
+            }
+        }
+        if len(id_list) < 1 {
+            err = fmt.Errorf("Not enough valid ids passed")
+            return err
+        }
+        j := strings.Join(id_list,",")
+        sql := "update ttrss_entries set unread=0 where id in ("+j+")"
+        stmtUpdateMarkEntries := sth(db, sql)
+        stmtUpdateMarkEntries.Exec()
+        mc.Decrement("Category"+tostr(c.ID)+"_UnreadCount", uint64(len(ids)))
+        mc.Delete("Category" + tostr(c.ID) + "_unreadentries")
+        mc.Delete("Category" + tostr(c.ID) + "_readentries")
+		for fid := range c.Feeds() {
+			f := getFeed(tostr(fid))
+			mc.Delete("Feed" + tostr(f.ID) + "_readentries")
+			mc.Delete("Feed"+tostr(f.ID)+"_UnreadCount")
+			mc.Delete("Feed" + tostr(f.ID) + "_unreadentries")
+		}
+    }
+    return err
 }
 func GetAllCategories() []Category {
 	var allCats []Category

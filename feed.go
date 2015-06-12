@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"strconv"
 	"fmt"
 	rss "github.com/jteeuwen/go-pkg-rss"
 	"html"
@@ -273,6 +274,34 @@ func (f Feed) DeleteExcludes() {
 		stmt.Exec()
 	}
 	f.ClearCache()
+}
+func (f Feed)markEntriesRead(ids []string) (err error) {
+    if len(ids) == 0 {
+        err = fmt.Errorf("Ids is null")
+    } else {
+		// make sure they're all integers
+		var id_list []string
+        for _,i := range(ids) {
+            if _, err := strconv.Atoi(i); err == nil {
+				id_list = append(id_list, i)
+            }
+        }
+		if len(id_list) < 1 {
+			err = fmt.Errorf("Not enough valid ids passed")
+			return err
+		}
+        j := strings.Join(id_list,",")
+		sql := "update ttrss_entries set unread=0 where feed_id="+tostr(f.ID)+" and id in ("+j+")"
+        stmtUpdateMarkEntries := sth(db, sql)
+        stmtUpdateMarkEntries.Exec()
+        mc.Decrement("Category"+tostr(f.CategoryID)+"_UnreadCount", uint64(len(ids)))
+        mc.Decrement("Feed"+tostr(f.ID)+"_UnreadCount", uint64(len(ids)))
+        mc.Delete("Category" + tostr(f.CategoryID) + "_unreadentries")
+        mc.Delete("Feed" + tostr(f.ID) + "_unreadentries")
+        mc.Delete("Category" + tostr(f.CategoryID) + "_readentries")
+        mc.Delete("Feed" + tostr(f.ID) + "_readentries")
+    }
+    return err
 }
 func (f Feed) Insert() {
 	if f.Url == "" {

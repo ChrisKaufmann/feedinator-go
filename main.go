@@ -224,19 +224,42 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	return
 }
 func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
+	t0 := time.Now()
+	print("handleMarkEntry")
 	if !loggedIn(w, r) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	var feedOrCat string
+	var fcid string
 	var retstr string
 	var id string
 	var tomark string
-	pathVars(r, "/entry/mark/", &id, &tomark)
+	pathVars(r, "/entry/mark/",&feedOrCat, &fcid, &id, &tomark)
+	print("fc="+feedOrCat+"<=>fcid="+fcid+"<=>id="+id+"<=>tomark="+tomark)
 	b := strings.Split(id, ",")
-	for i := range b {
-		retstr = markEntry(b[i], tomark)
+	// one thing can be marked whatever, but a list can only be marked read
+	if len(b) == 0 {
+		retstr = markEntry(b[0], tomark)
+	} else {
+	    switch feedOrCat {
+		    case "feed":
+				f := getFeed(fcid)
+				err := f.markEntriesRead(b)
+				if err != nil {
+					print(err.Error())
+				}
+			case "category":
+				c := getCat(fcid)
+				err := c.markEntriesRead(b)
+				if err != nil {
+					print(err.Error())
+				}
+		}
 	}
 	fmt.Fprintf(w, retstr)
+	t1 := time.Now()
+	fmt.Printf("handleFeedList %v\n", t1.Sub(t0))
 }
 func handleEntry(w http.ResponseWriter, r *http.Request) {
 	if !loggedIn(w, r) {

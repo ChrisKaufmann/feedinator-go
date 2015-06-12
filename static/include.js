@@ -10,12 +10,21 @@ var status_div='left_notify'; //  id of the status div
 		{
 			return;
 		}
-		if(e.which==39)
+		if(e.which == 38 || e.which == 85 || e.which ==40 || e.which == 68) // up,down,u,d
+		{
+			toggle_visible('entries_list_div');
+			return;
+		}
+		if(e.which == 77) // m
+		{
+			toggleMark(current_entry_id);
+		}
+		if(e.which==39 || e.which == 75 || e.which == 32) // ->, k, (space)
 		{
 	  		e.preventDefault();
 			showNextEntry(current_entry_id);
 		}
-		else if(e.which==37)
+		else if(e.which==37 || e.which == 74) // <-, j
 		{
 			e.preventDefault();
 			showPreviousEntry(current_entry_id);
@@ -87,7 +96,7 @@ function toggleMark(id)
 {
 	var mark_div='FMARKPIC-' +id;
 	var page_mark_div='EMARKPIC-' +id;
-	$.ajax({type: "GET",url: '/entry/mark/'+id+'/togglemarked', success:function(html){
+	$.ajax({type: "GET",url: '/entry/mark/ / /'+id+'/togglemarked', success:function(html){
 		try{document.getElementById('EMARKPIC-'+id).innerHTML=html;}catch(err){}
 		try{document.getElementById('FMARKPIC-'+id).innerHTML=html;}catch(err){}
 	}})
@@ -171,7 +180,7 @@ function mark_list_read(fc, id)
 	data=$("#entries_form").serialize();
 	ndata=data.replace(/id%5B%5D=/g,',')
 	data=ndata.replace(/&/g,'')
-	$.ajax({type: "GET",url: '/entry/mark/'+data+'/read', success:function(html){$('#entries_list_div').html(html);$('#menu_status').html('');empty_count();}});
+	$.ajax({type: "GET",url: '/entry/mark/'+fc+'/'+id+'/'+data+'/read', success:function(html){$('#entries_list_div').html(html);$('#menu_status').html('');empty_count();}});
 }
 // Populates the feeds_div with a list of categories.
 // If id is given, shows the feeds inside that category
@@ -224,6 +233,7 @@ function entries(feedcat,id,mode)
 				$('#entries_list_div').toggle();
 			}
 			scrollup('entries_list_div');
+			current_entry_id='';
 		}
 	});
 }
