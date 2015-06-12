@@ -10,7 +10,7 @@ var status_div='left_notify'; //  id of the status div
 		{
 			return;
 		}
-		if(e.which == 38 || e.which == 85 || e.which ==40 || e.which == 68) // up,down,u,d
+		if(e.which ==40 || e.which == 68) // up,down,u,d
 		{
 			toggle_visible('entries_list_div');
 			return;
