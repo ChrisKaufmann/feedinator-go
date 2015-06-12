@@ -169,68 +169,42 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
 	el = getEntriesFromSql(query)
-    mc.SetTime("CategoryCurrent", el, 600)
+    mc.SetTime("CategoryCurrent"+c.UserName, el, 600)
 	return el
 }
-func (c Category) Next(id string) Entry {
-	var retval string
-	var CategoryCurrentList []Entry
-	var e Entry
-	err := mc.Get("CategoryCurrent", &CategoryCurrentList)
-	if err == nil {
-		print("got CategoryCurrent")
-		print(id)
-		if id == "" {
-			return CategoryCurrentList[0]
-		}
-		for i,p := range CategoryCurrentList {
-			if tostr(p.ID) == id {
-				return CategoryCurrentList[i+1]
+func (c Category) Next(id string)(e Entry) {
+	var el []Entry
+	mc.GetOr("CategoryCurrent"+c.UserName, &el, func() {
+		el = c.GetEntriesByParam("id > "+id)
+	})
+	if id == "" {
+		return el[0]
+	}
+	for i,p := range el {
+		if tostr(p.ID) == id {
+			if i == len(el)-1 { // prevent overflow if current is the last one in the array
+				return e
 			}
-		}
-	} else {
-		nes := "Category" + tostr(c.ID) + "NextEntry" + id
-		err := mc.Get(nes, &e)
-		if err != nil {
-			print("-" + nes)
-			if id == "" {
-				id = "0"
-			}
-			var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id > " + id + " order by id ASC limit 1"
-			var stmt = sth(db, query)
-			stmt.QueryRow().Scan(&retval)
-			e = getEntry(retval)
-			mc.SetTime(nes, e, 300)
+			return el[i+1]
 		}
 	}
 	return e
 }
-func (c Category) Previous(id string) Entry {
-	var e Entry
+func (c Category) Previous(id string)(e Entry) {
+	var el []Entry
 	var CategoryCurrentList []Entry
-	err := mc.Get("CategoryCurrent", &CategoryCurrentList)
-	if err == nil {
-		print("got CategoryCurrent")
-		print(id)
-		if id == "" {
-			return CategoryCurrentList[0]
-		}
-		for i,p := range CategoryCurrentList {
-			if tostr(p.ID) == id {
-				return CategoryCurrentList[i-1]
+	mc.GetOr("CategoryCurrent", &el, func() {
+		el = c.GetEntriesByParam("id < "+id)
+	})
+	if id == "" {
+		return CategoryCurrentList[0]
+	}
+	for i,p := range CategoryCurrentList {
+		if tostr(p.ID) == id {	//prevent underflow if current is the last one in the array
+			if i == 0 {
+				return e
 			}
-		}
-	} else {
-		pes := "CategoryEntry" + tostr(c.ID) + "PreviousEntry" + id
-		err := mc.Get(pes, &e)
-		if err != nil {
-			print("-" + pes)
-			var retval string
-			var query = "select id from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and id < " + id + " order by id DESC limit 1"
-			var stmt = sth(db, query)
-			stmt.QueryRow().Scan(&retval)
-			e := getEntry(retval)
-			mc.SetTime(pes, e, 300)
+			return CategoryCurrentList[i-1]
 		}
 	}
 	return e

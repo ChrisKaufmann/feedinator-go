@@ -97,31 +97,46 @@ func (f Feed) Excludes() []string {
 func (f Feed) ExcludesData() []string {
 	return strings.Split(strings.ToLower(f.ExcludeData), ",")
 }
-func (f Feed) Next(id string) Entry {
-	var e Entry
-	nes := "FeedEntry" + id + "Next"
-	pes := "FeedEntry" + id + "Previous"
-	ce := getEntry(id)
-	mc.SetTime(pes, ce, 300)
-	err := mc.Get(nes, &e)
-	if err != nil {
-		var retval string
-		stmtNextFeedEntry.QueryRow(tostr(f.ID), id).Scan(&retval)
-		e := getEntry(retval)
-		mc.SetTime(nes, e, 300)
-		return e
+func (f Feed) Next(id string) (e Entry) {
+	var el []Entry
+	mc.GetOr("FeedCurrent"+f.UserName, &el, func() {
+		el = f.GetEntriesByParam("id > "+id)
+	})
+	if id == "" {
+		return el[0]
+	}
+	for i,p := range el{
+		if tostr(p.ID) == id {
+			if i == len(el)-1 {
+				return e
+			}
+			return el[i+1]
+		}
 	}
 	return e
 }
-func (f Feed) Previous(id string) Entry {
-	var retval string
-	stmtPreviousFeedEntry.QueryRow(tostr(f.ID), id).Scan(&retval)
-	e := getEntry(retval)
+func (f Feed) Previous(id string)(e Entry) {
+	var el []Entry
+	mc.GetOr("FeedCurrent"+f.UserName, &el, func() {
+		el = f.GetEntriesByParam("id < "+id)
+	})
+	if id == "" {
+		return el[0]
+	}
+	for i,p := range el{
+		if tostr(p.ID) == id {
+			if i == 0 {
+				return e
+			}
+			return el[i-1]
+		}
+	}
 	return e
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
 	var query = "select " + entrySelectString + " from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
 	el := getEntriesFromSql(query)
+	mc.Set("FeedCurrent"+f.UserName,el)
 	return el
 }
 func (feed Feed) Print() {
@@ -327,8 +342,6 @@ var (
 	stmtGetFeed             *sql.Stmt
 	stmtGetFeeds            *sql.Stmt
 	stmtGetAllFeeds         *sql.Stmt
-	stmtNextFeedEntry       *sql.Stmt
-	stmtPreviousFeedEntry   *sql.Stmt
 	stmtSaveFeed            *sql.Stmt
 	stmtInsertFeed          *sql.Stmt
 	stmtDeleteFeedEntries   *sql.Stmt
@@ -343,8 +356,6 @@ func init() {
 	stmtGetFeed = sth(db, "select "+selecttxt+"	from ttrss_feeds where id = ?")
 	stmtFeedUnread = sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
 	stmtGetFeedsWithoutCats = sth(db, "select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
-	stmtNextFeedEntry = sth(db, "select id from ttrss_entries where feed_id=? and id > ? order by id ASC limit 1")
-	stmtPreviousFeedEntry = sth(db, "select id from ttrss_entries where feed_id=? and id<? order by id DESC limit 1")
 	stmtSaveFeed = sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
 	stmtDeleteFeedEntries = sth(db, "delete from ttrss_entries where feed_id=?")
 	stmtDeleteFeed = sth(db, "delete from ttrss_feeds where id=? limit 1")
