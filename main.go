@@ -239,7 +239,9 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	print("fc="+feedOrCat+"<=>fcid="+fcid+"<=>id="+id+"<=>tomark="+tomark)
 	b := strings.Split(id, ",")
 	// one thing can be marked whatever, but a list can only be marked read
-	if len(b) == 0 {
+	print("\nlength: "+tostr(len(b))+"\n")
+	if len(b) == 1 {
+		print("Marking: "+tomark)
 		retstr = markEntry(b[0], tomark)
 	} else {
 	    switch feedOrCat {
