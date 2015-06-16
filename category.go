@@ -136,7 +136,7 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 			}
 		}
 	}
-	mc.SetTime("CategoryCurrent", el, 60)
+	mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
 func (c Category) MarkedEntries() (el []Entry) {
@@ -169,7 +169,7 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
 	el = getEntriesFromSql(query)
-    mc.SetTime("CategoryCurrent"+c.UserName, el, 600)
+    mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
 func (c Category) Next(id string)(e Entry) {
