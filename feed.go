@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/golang/glog"
+	u "github.com/ChrisKaufmann/goutils"
 	"database/sql"
 	"strconv"
 	"fmt"
@@ -34,32 +36,32 @@ type Feed struct {
 }
 
 func (f Feed) Unread() (count int) {
-	mc.GetOr("Feed"+tostr(f.ID)+"_UnreadCount", &count, func() {
-		print("fc" + tostr(f.ID) + "-")
+	mc.GetOr("Feed"+u.Tostr(f.ID)+"_UnreadCount", &count, func() {
+		print("fc" + u.Tostr(f.ID) + "-")
 		err := stmtFeedUnread.QueryRow(f.ID).Scan(&count)
 		if err != nil {
-			print(err.Error())
+			glog.Errorf("stmtFeedUnread.QueryRow(%s): %s", f.ID, err)
 		}
 	})
 	return count
 }
 func (f Feed) UnreadEntries() (el []Entry) {
 	print("f.unreadentries")
-	mc.GetOr("Feed"+tostr(f.ID)+"_unreadentries", &el, func() {
+	mc.GetOr("Feed"+u.Tostr(f.ID)+"_unreadentries", &el, func() {
 		el = f.GetEntriesByParam("unread = 1")
 	})
 	return el
 }
 func (f Feed) MarkedEntries() (el []Entry) {
 	print("f.markedentries")
-	mc.GetOr("Feed"+tostr(f.ID)+"_markedentries", &el, func() {
+	mc.GetOr("Feed"+u.Tostr(f.ID)+"_markedentries", &el, func() {
 		el = f.GetEntriesByParam("marked = 1")
 	})
 	return el
 }
 func (f Feed) ReadEntries() (el []Entry) {
 	print("f.ReadEntries")
-	mc.GetOr("Feed"+tostr(f.ID)+"_readentries", &el, func() {
+	mc.GetOr("Feed"+u.Tostr(f.ID)+"_readentries", &el, func() {
 		el = f.GetEntriesByParam("unread = '0'")
 	})
 	return el
@@ -106,7 +108,7 @@ func (f Feed) Next(id string) (e Entry) {
 		return el[0]
 	}
 	for i,p := range el{
-		if tostr(p.ID) == id {
+		if u.Tostr(p.ID) == id {
 			if i == len(el)-1 {
 				return e
 			}
@@ -124,7 +126,7 @@ func (f Feed) Previous(id string)(e Entry) {
 		return el[0]
 	}
 	for i,p := range el{
-		if tostr(p.ID) == id {
+		if u.Tostr(p.ID) == id {
 			if i == 0 {
 				return e
 			}
@@ -134,26 +136,26 @@ func (f Feed) Previous(id string)(e Entry) {
 	return e
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
-	var query = "select " + entrySelectString + " from ttrss_entries e where e.feed_id = " + tostr(f.ID) + " and " + p + " order by e.id ASC;"
+	var query = "select " + entrySelectString + " from ttrss_entries e where e.feed_id = " + u.Tostr(f.ID) + " and " + p + " order by e.id ASC;"
 	el := getEntriesFromSql(query)
 	mc.Set("FeedCurrent"+f.UserName,el)
 	return el
 }
 func (feed Feed) Print() {
 	print("\nFeed:\n" +
-		"\tID: " + tostr(feed.ID) +
+		"\tID: " + u.Tostr(feed.ID) +
 		"\n\tTitle: " + feed.Title +
 		"\n\tURL: " + feed.Url +
 		"\n\tUserName: " + feed.UserName +
 		"\n\tPublic: " + feed.Public +
-		"\n\tCategoryID: " + tostr(feed.CategoryID) +
+		"\n\tCategoryID: " + u.Tostr(feed.CategoryID) +
 		"\n\tViewMode: " + feed.ViewMode +
-		"\n\tAutoscrollPX: " + tostr(feed.AutoscrollPX) +
+		"\n\tAutoscrollPX: " + u.Tostr(feed.AutoscrollPX) +
 		"\n\tExclude: " + feed.Exclude +
 		"\n\tExclude Data: " + feed.ExcludeData +
 		"\n\tErrorstring: " + feed.ErrorString +
 		"\n\tExpirey: " + feed.Expirey +
-		"\n\tUnread:" + tostr(feed.Unread()) + "\n")
+		"\n\tUnread:" + u.Tostr(feed.Unread()) + "\n")
 }
 
 func (f Feed) Save() {
@@ -168,17 +170,18 @@ func (f Feed) Class() string {
 	return "odd"
 }
 func (f Feed) Category() (c Category) {
-	c = getCat(tostr(f.CategoryID))
+	c = getCat(u.Tostr(f.CategoryID))
 	return c
 }
 func (f Feed) Update() {
 	os.Chdir("update")
-	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+tostr(f.ID)).Output()
+	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+u.Tostr(f.ID)).Output()
+	if err != nil {
+		glog.Errorf("exec.Command(%s,%s,%s): %s","perl", "update_feeds.pl", "feed_id="+u.Tostr(f.ID), err)
+		return
+	}
 	os.Chdir("..")
 	fmt.Printf("FeedUpdate: %q\n", out)
-	if err != nil {
-		err.Error()
-	}
 	f.ClearCache()
 
 	f.Category().ClearCache()
@@ -251,19 +254,20 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 }
 */
 func (f Feed) ClearCache() {
-	mc.DeleteLike("Feed" + tostr(f.ID) + "_")
-	cl := []string{"Feed" + tostr(f.ID) + "_",
+	mc.DeleteLike("Feed" + u.Tostr(f.ID) + "_")
+	cl := []string{"Feed" + u.Tostr(f.ID) + "_",
 		"FeedsWithoutCats" + f.UserName,
 		"FeedList",
-		"Feed" + tostr(f.ID) + "_UnreadCount",
-		"Feed" + tostr(f.ID) + "_readentries",
-		"Feed" + tostr(f.ID) + "_unreadentries",
-		"Feed" + tostr(f.ID) + "_markedentries",
+		"Feed" + u.Tostr(f.ID) + "_UnreadCount",
+		"Feed" + u.Tostr(f.ID) + "_readentries",
+		"Feed" + u.Tostr(f.ID) + "_unreadentries",
+		"Feed" + u.Tostr(f.ID) + "_markedentries",
 	}
 	for _, i := range cl {
 		err := mc.Delete(i)
 		if err != nil {
-			err.Error()
+			glog.Errorf("mc.Delete(%s): %s",i,err)
+			return
 		}
 	}
 }
@@ -274,8 +278,12 @@ func (f Feed) DeleteExcludes() {
 		if len(e) < 1 {
 			continue
 		}
-		var query = "delete from ttrss_entries where feed_id=" + tostr(f.ID) + " and title like '%" + e + "%'"
-		var stmt = sth(db, query)
+		var query = "delete from ttrss_entries where feed_id=" + u.Tostr(f.ID) + " and title like '%" + e + "%'"
+		var stmt,err = u.Sth(db, query)
+		if err != nil {
+			glog.Errorf("u.Sth(db,%s): %s", query, err)
+			return
+		}
 		stmt.Exec()
 	}
 	ed := f.ExcludesData()
@@ -284,8 +292,12 @@ func (f Feed) DeleteExcludes() {
 		if len(e) < 1 {
 			continue
 		}
-		var query = "delete from ttrss_entries where feed_id=" + tostr(f.ID) + " and content like '%" + e + "%'"
-		var stmt = sth(db, query)
+		var query = "delete from ttrss_entries where feed_id=" + u.Tostr(f.ID) + " and content like '%" + e + "%'"
+		var stmt,err = u.Sth(db, query)
+		if err != nil {
+			glog.Errorf("u.Sth(db,%s): %s", query, err)
+			return
+		}
 		stmt.Exec()
 	}
 	f.ClearCache()
@@ -293,6 +305,7 @@ func (f Feed) DeleteExcludes() {
 func (f Feed)markEntriesRead(ids []string) (err error) {
     if len(ids) == 0 {
         err = fmt.Errorf("Ids is null")
+		return err
     } else {
 		// make sure they're all integers
 		var id_list []string
@@ -306,15 +319,19 @@ func (f Feed)markEntriesRead(ids []string) (err error) {
 			return err
 		}
         j := strings.Join(id_list,",")
-		sql := "update ttrss_entries set unread=0 where feed_id="+tostr(f.ID)+" and id in ("+j+")"
-        stmtUpdateMarkEntries := sth(db, sql)
+		sql := "update ttrss_entries set unread=0 where feed_id="+u.Tostr(f.ID)+" and id in ("+j+")"
+        stmtUpdateMarkEntries,err := u.Sth(db, sql)
+		if err != nil {
+			glog.Errorf("u.Sth(db,%s): %s",sql,err)
+			return err
+		}
         stmtUpdateMarkEntries.Exec()
-        mc.Decrement("Category"+tostr(f.CategoryID)+"_UnreadCount", uint64(len(ids)))
-        mc.Decrement("Feed"+tostr(f.ID)+"_UnreadCount", uint64(len(ids)))
-        mc.Delete("Category" + tostr(f.CategoryID) + "_unreadentries")
-        mc.Delete("Feed" + tostr(f.ID) + "_unreadentries")
-        mc.Delete("Category" + tostr(f.CategoryID) + "_readentries")
-        mc.Delete("Feed" + tostr(f.ID) + "_readentries")
+        mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", uint64(len(ids)))
+        mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", uint64(len(ids)))
+        mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
+        mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
+        mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
+        mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
     }
     return err
 }
@@ -348,17 +365,27 @@ var (
 	stmtDeleteFeed          *sql.Stmt
 )
 
-func init() {
+func feedinit() {
 	var selecttxt string = " id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
-	stmtInsertFeed = sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
-	stmtGetFeeds = sth(db, "select "+selecttxt+" from ttrss_feeds where user_name = ?")
-	stmtGetAllFeeds = sth(db, "select "+selecttxt+"	from ttrss_feeds")
-	stmtGetFeed = sth(db, "select "+selecttxt+"	from ttrss_feeds where id = ?")
-	stmtFeedUnread = sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
-	stmtGetFeedsWithoutCats = sth(db, "select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
-	stmtSaveFeed = sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
-	stmtDeleteFeedEntries = sth(db, "delete from ttrss_entries where feed_id=?")
-	stmtDeleteFeed = sth(db, "delete from ttrss_feeds where id=? limit 1")
+	var err error
+	stmtInsertFeed,err = u.Sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
+	if err!=nil{glog.Fatalf("stmtInsertFeed: %s",err);}
+	stmtGetFeeds,err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where user_name = ?")
+	if err!=nil{glog.Fatalf("stmtGetFeeds: %s",err);}
+	stmtGetAllFeeds,err = u.Sth(db, "select "+selecttxt+"	from ttrss_feeds")
+	if err!=nil{glog.Fatalf("stmtGetAllFeeds: %s",err);}
+	stmtGetFeed,err = u.Sth(db, "select "+selecttxt+"	from ttrss_feeds where id = ?")
+	if err!=nil{glog.Fatalf("stmtGetFeed: %s",err);}
+	stmtFeedUnread,err = u.Sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
+	if err!=nil{glog.Fatalf("stmtFeedUnread: %s",err);}
+	stmtGetFeedsWithoutCats,err = u.Sth(db, "select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
+	if err!=nil{glog.Fatalf("stmtGetFeedsWithoutCats: %s",err);}
+	stmtSaveFeed,err = u.Sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
+	if err!=nil{glog.Fatalf("stmtSaveFeed: %s",err);}
+	stmtDeleteFeedEntries,err = u.Sth(db, "delete from ttrss_entries where feed_id=?")
+	if err!=nil{glog.Fatalf("stmtDeleteFeedEntries: %s",err);}
+	stmtDeleteFeed,err = u.Sth(db, "delete from ttrss_feeds where id=? limit 1")
+	if err!=nil{glog.Fatalf("stmtDeleteFeed: %s",err);}
 }
 
 func getFeeds() (allFeeds []Feed) {
@@ -392,13 +419,13 @@ func getAllFeeds() []Feed {
 			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
-			mc.Set("Feed"+tostr(feed.ID), feed)
+			mc.Set("Feed"+u.Tostr(feed.ID), feed)
 		}
 		mc.Set("FeedList", feedids)
 	} else {
 		print("+FL<ALL>")
 		for i := range feedids {
-			f := getFeed(tostr(feedids[i]))
+			f := getFeed(u.Tostr(feedids[i]))
 			allFeeds = append(allFeeds, f)
 		}
 	}
@@ -442,4 +469,28 @@ func getFeed(id string) Feed {
 		feed.Title = html.UnescapeString(feed.Title)
 	})
 	return feed
+}
+
+func escape_guid(s string) string {
+    var htmlCodes = map[string]string{
+        "&#34;":   "\"",
+        "&#47;":   "/",
+        "&#39;":   "'",
+        "&#42;":   "*",
+        "&#63;":   "?",
+        "&#160;":  " ",
+        "&#8216;": "'",
+        "&#8220;": "'",
+        "&#8221;": "'",
+        "&#8211;": "-",
+        "&#8230;": "...",
+        "&#8594;": "->",
+        "&quot;":  "'",
+        "&amp;":   "&",
+        "&#37;":   "%",
+    }
+    for k, v := range htmlCodes {
+        s = strings.Replace(s, k, v, -1)
+    }
+    return s
 }

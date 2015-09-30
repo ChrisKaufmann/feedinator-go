@@ -1,20 +1,27 @@
 package main
 
 import (
+	"./auth"
 	"fmt"
+	"github.com/golang/glog"
 	"github.com/ChrisKaufmann/easymemcache"
+	u "github.com/ChrisKaufmann/goutils"
 	"github.com/msbranco/goconfig"
 	"html"
 	"html/template"
+	"flag"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
 	userName          string
+    db                        *sql.DB
 	cachefile         = "/dev/null"
 	indexHtml         = template.Must(template.ParseFiles("templates/index-nologin.html"))
 	mainHtml          = template.Must(template.ParseFiles("templates/main.html"))
@@ -40,6 +47,7 @@ const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo"
 
 func init() {
 	var err error
+	flag.Parse()
 	c, err := goconfig.ReadConfigFile("config")
 	if err != nil {
 		err.Error()
@@ -54,13 +62,39 @@ func init() {
 	}
 	cookieName = "feedinator_auth_" + environment
 	mc.Prefix = (environment)
+    db_name, err := c.GetString("DB", "db")
+    if err != nil {
+        glog.Fatalf("Config: %s",err)
+    }
+    db_host, err := c.GetString("DB", "host")
+    if err != nil {
+        glog.Fatalf("Config: %s",err)
+    }
+    db_user, err := c.GetString("DB", "user")
+    if err != nil {
+        glog.Fatalf("Config: %s",err)
+    }
+    db_pass, err := c.GetString("DB", "pass")
+    if err != nil {
+        glog.Fatalf("Config: %s",err)
+    }
+    db, err = sql.Open("mysql", db_user+":"+db_pass+"@"+db_host+"/"+db_name)
+    if err != nil {
+        glog.Fatalf("Config: %s",err)
+    }
+	categoryinit()
+	feedinit()
+	entryinit()
+	auth.DB(db)
 }
 
 func main() {
 	defer db.Close()
 	http.HandleFunc("/main", handleMain)
-	http.HandleFunc("/authorize", handleAuthorize)
-	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
+	http.HandleFunc("/demo", handleDemo)
+	http.HandleFunc("/logout", auth.HandleLogout)
+	http.HandleFunc("/authorize", auth.HandleAuthorize)
+	http.HandleFunc("/oauth2callback", auth.HandleOAuth2Callback)
 	http.HandleFunc("/categoryList/", handleCategoryList)
 	http.HandleFunc("/category/", handleCategory)
 	http.HandleFunc("/feed/list/", handleFeedList)
@@ -82,14 +116,17 @@ func main() {
 	http.ListenAndServe("127.0.0.1:"+port, nil)
 }
 func handleCategory(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	t0 := time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	var id string
 	var todo string
 	var val string
-	pathVars(r, "/category/", &id, &todo, &val)
+	u.PathVars(r, "/category/", &id, &todo, &val)
 	switch todo {
 	case "new":
 		var c Category
@@ -133,19 +170,25 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		c := getCat(id)
 		c.DeleteExcludes()
 	}
+	fmt.Printf("handleCategory %v\n", time.Now().Sub(t0))
 }
 func handleStats(w http.ResponseWriter, r *http.Request) {
+	var t0 = time.Now()
 	var todo string
-	pathVars(r, "/stats/", &todo)
+	u.PathVars(r, "/stats/", &todo)
 	var c string
 	switch todo {
 	case "entries":
 		c, _ = getEntriesCount()
 	}
 	fmt.Fprintf(w, c)
+	fmt.Printf("handleStats %v\n", time.Now().Sub(t0))
 }
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	var t0 = time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -157,16 +200,20 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	f.Title = purl.Host
 	f.Insert()
 	fmt.Fprintf(w, "Added")
+	fmt.Printf("handleNewFeed %v\n", time.Now().Sub(t0))
 }
 func handleFeed(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	var t0 = time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	var id string
 	var todo string
 	var val string
-	pathVars(r, "/feed/", &id, &todo, &val)
+	u.PathVars(r, "/feed/", &id, &todo, &val)
 	f := getFeed(id)
 	if f.UserName != userName {
 		fmt.Fprintf(w, "Auth err")
@@ -187,7 +234,7 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.Save()
 		fmt.Fprintf(w, "Expirey: "+val)
 	case "autoscroll":
-		f.AutoscrollPX = toint(val)
+		f.AutoscrollPX = u.Toint(val)
 		f.Save()
 		fmt.Fprintf(w, "Autoscroll: "+val)
 	case "exclude":
@@ -199,7 +246,7 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.Save()
 		fmt.Fprintf(w, "Exclude Data Saved")
 	case "category":
-		f.CategoryID = toint(val)
+		f.CategoryID = u.Toint(val)
 		f.Save()
 		fmt.Fprintf(w, "Category: "+f.Category().Name)
 	case "view_mode":
@@ -222,11 +269,13 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Cleared Cache")
 	}
 	return
+	fmt.Printf("handleFeed %v\n", time.Now().Sub(t0))
 }
 func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
-	print("handleMarkEntry")
-	if !loggedIn(w, r) {
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -235,11 +284,11 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	var retstr string
 	var id string
 	var tomark string
-	pathVars(r, "/entry/mark/",&feedOrCat, &fcid, &id, &tomark)
+	u.PathVars(r, "/entry/mark/",&feedOrCat, &fcid, &id, &tomark)
 	print("fc="+feedOrCat+"<=>fcid="+fcid+"<=>id="+id+"<=>tomark="+tomark)
 	b := strings.Split(id, ",")
 	// one thing can be marked whatever, but a list can only be marked read
-	print("\nlength: "+tostr(len(b))+"\n")
+	print("\nlength: "+u.Tostr(len(b))+"\n")
 	if len(b) == 1 {
 		print("Marking: "+tomark)
 		retstr = markEntry(b[0], tomark)
@@ -261,18 +310,21 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, retstr)
 	t1 := time.Now()
-	fmt.Printf("handleFeedList %v\n", t1.Sub(t0))
+	fmt.Printf("handleMarkEntry %v\n", t1.Sub(t0))
 }
 func handleEntry(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	t0 := time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	var id string
-	pathVars(r, "/entry/", &id)
+	u.PathVars(r, "/entry/", &id)
 
 	e := getEntry(id)
-	f := getFeed(tostr(e.FeedID))
+	f := getFeed(u.Tostr(e.FeedID))
 	e.FeedName = f.Title
 	if e.ViewMode() == "link" {
 		e.Link = html.UnescapeString(e.Link)
@@ -281,9 +333,13 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 		entryHtml.Execute(w, e)
 	}
 	markEntry(id, "read")
+	fmt.Printf("handleEntry %v\n", time.Now().Sub(t0))
 }
 func handleMenu(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	t0 := time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -292,7 +348,7 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	var mode string
 	var curID string
 	var modifier string
-	pathVars(r, "/menu/", &feedOrCat, &id, &mode, &curID, &modifier)
+	u.PathVars(r, "/menu/", &feedOrCat, &id, &mode, &curID, &modifier)
 
 	switch feedOrCat {
 	case "category":
@@ -309,19 +365,25 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 	case "marked":
 		fmt.Fprintf(w, "&nbsp;")
 	}
+	fmt.Printf("handleMenu %v\n", time.Now().Sub(t0))
 }
 func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	t0 := time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	var id string
-	pathVars(r, "/menu/select/", &id)
+	u.PathVars(r, "/menu/select/", &id)
 	f := getFeed(id)
 	setSelects(&f)
 	menuDropHtml.Execute(w, f)
+	fmt.Printf("handleSelectMenu %v\n", time.Now().Sub(t0))
 }
 func getSearchSelect(cur string) template.HTML {
+	t0 := time.Now()
 	l := []string{"Unread", "Read", "Marked", "All"}
 	var h string
 	for _, i := range l {
@@ -331,9 +393,11 @@ func getSearchSelect(cur string) template.HTML {
 		}
 		h = h + "<option value='" + strings.ToLower(i) + "'" + sel + ">" + i + "\n"
 	}
+	fmt.Printf("handleSearchSelect %v\n", time.Now().Sub(t0))
 	return template.HTML(h)
 }
 func setSelects(f *Feed) {
+	t0 := time.Now()
 	var catHtml string
 	var optionHtml string
 	for i := range viewModes {
@@ -354,12 +418,15 @@ func setSelects(f *Feed) {
 	}
 	f.ViewModeSelect = template.HTML(optionHtml)
 	f.CategorySelect = template.HTML(catHtml)
+	fmt.Printf("SetSelects %v\n", time.Now().Sub(t0))
 }
 
 //print the list of all feeds
 func handleFeedList(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
-	if !loggedIn(w, r) {
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -376,12 +443,15 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 //print the list of categories (possibly with feeds in that cat), then the uncategorized feeds
 func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
-	if !loggedIn(w, r) {
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	fmt.Printf("user: %s", userName)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	var currentCat string
-	pathVars(r, "/categoryList/", &currentCat)
+	u.PathVars(r, "/categoryList/", &currentCat)
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthecats := getCategories()
 	for i := range allthecats {
@@ -411,7 +481,9 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 //print the list of entries for the selected category, feed, or marked
 func handleEntries(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
-	if !loggedIn(w, r) {
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -421,7 +493,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var mode string
 	var curID string    //current entry id for next/previous or search term for search
 	var modifier string //secondary mode for next/previous/search (read/unread/marked/etc)
-	pathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID, &modifier)
+	u.PathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID, &modifier)
 	var el []Entry
 	switch feedOrCat {
 	case "feed":
@@ -484,23 +556,38 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	t1 := time.Now()
 	fmt.Printf("handleEntries %v\n", t1.Sub(t0))
 }
-
+func handleDemo(w http.ResponseWriter, r *http.Request) {
+    t0 := time.Now()
+    auth.DemoUser(w,r)
+    fmt.Printf("handleDemo %v\n", time.Now().Sub(t0))
+}
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	t0 := time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	if err := mainHtml.Execute(w, nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	fmt.Printf("handleMain %v\n", time.Now().Sub(t0))
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-	if !loggedIn(w, r) {
+	t0 := time.Now()
+	var loggedin bool
+	loggedin, userName = auth.LoggedIn(w, r)
+	if !loggedin {
 		if err := indexHtml.Execute(w, nil); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		if environment == "dev" || environment == "demo" || environment == "test" {
+			fmt.Fprintf(w, "<a href='/demo'>Demo</a>")
 		}
 	} else {
 		http.Redirect(w, r, "/main", http.StatusFound)
 	}
+	fmt.Printf("handleRoot %v\n", time.Now().Sub(t0))
 }

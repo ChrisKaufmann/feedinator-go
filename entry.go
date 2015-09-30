@@ -1,9 +1,12 @@
 package main
 
 import (
+	u "github.com/ChrisKaufmann/goutils"
+	"strings"
 	"database/sql"
 	"html"
 	"html/template"
+	"github.com/golang/glog"
 )
 
 var (
@@ -15,13 +18,15 @@ var (
 	entrySelectString   string
 )
 
-func init() {
+func entryinit() {
+	var err error
 	entrySelectString = " id,IFNULL(title,''),IFNULL(link,''),IFNULL(updated,''),marked,unread,feed_id,content,guid "
-	stmtAddEntry = sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
-	stmtUpdateMarkEntry = sth(db, "update ttrss_entries set marked=? where id=?")
-	stmtUpdateReadEntry = sth(db, "update ttrss_entries set unread=? where id=?")
-	stmtSaveEntry = sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
-	stmtGetEntryCount = sth(db, "select count(id) from ttrss_entries")
+	stmtAddEntry,err = u.Sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
+	if err != nil {glog.Fatalf("stmt: %s", err)}
+	stmtUpdateMarkEntry,err = u.Sth(db, "update ttrss_entries set marked=? where id=?")
+	stmtUpdateReadEntry,err = u.Sth(db, "update ttrss_entries set unread=? where id=?")
+	stmtSaveEntry,err = u.Sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
+	stmtGetEntryCount,err = u.Sth(db, "select count(id) from ttrss_entries")
 }
 
 type Entry struct {
@@ -62,7 +67,7 @@ func (e Entry) Normalize() Entry {
 }
 func getEntriesFromSql(s string) []Entry {
 	var el []Entry
-	var stmt = sth(db, s)
+	var stmt,err = u.Sth(db, s)
 	rows, err := stmt.Query()
 	if err != nil {
 		err.Error()
@@ -91,7 +96,7 @@ func allMarkedEntries() []Entry {
 	return el
 }
 func (e Entry) Print() {
-	print("ID:\t" + tostr(e.ID) + "\nTitle:\t" + e.Title + "\nLink:\t" + e.Link + "\nDate\t" + e.Date + "\nFeed_id:\t" + tostr(e.FeedID) + "\nMarked:\t" + e.Marked + "\nUnread:\t" + tostr(e.Unread) + "\nGuid:\t" + e.GUID + "\n")
+	print("ID:\t" + u.Tostr(e.ID) + "\nTitle:\t" + e.Title + "\nLink:\t" + e.Link + "\nDate\t" + e.Date + "\nFeed_id:\t" + u.Tostr(e.FeedID) + "\nMarked:\t" + e.Marked + "\nUnread:\t" + u.Tostr(e.Unread) + "\nGuid:\t" + e.GUID + "\n")
 }
 func (e Entry) ViewMode() string {
 	return e.Feed().ViewMode
@@ -104,14 +109,14 @@ func getEntriesCount() (c string, err error) {
 	return c, err
 }
 func (e Entry) Feed() (f Feed) {
-	f = getFeed(tostr(e.FeedID))
+	f = getFeed(u.Tostr(e.FeedID))
 	return f
 }
 func (e Entry) Save() {
 	if e.ID > 0 {
 		stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, e.Unread, e.ID)
 	} else {
-		_, err := stmtAddEntry.Exec(e.Title, e.Link, e.FeedID, e.Marked, tostr(e.Content), tostr(e.ContentHash), e.GUID, userName)
+		_, err := stmtAddEntry.Exec(e.Title, e.Link, e.FeedID, e.Marked, u.Tostr(e.Content), u.Tostr(e.ContentHash), e.GUID, userName)
 		if err != nil {
 			err.Error()
 		}
@@ -144,38 +149,55 @@ func markEntry(id string, m string) string {
 		stmtUpdateReadEntry.Exec("0", id)
 		e := getEntry(id)
 		f := e.Feed()
-		mc.Decrement("Category"+tostr(f.CategoryID)+"_UnreadCount", 1)
-		mc.Decrement("Feed"+tostr(f.ID)+"_UnreadCount", 1)
-		mc.Delete("Category" + tostr(f.CategoryID) + "_unreadentries")
-		mc.Delete("Feed" + tostr(f.ID) + "_unreadentries")
-		mc.Delete("Category" + tostr(f.CategoryID) + "_readentries")
-		mc.Delete("Feed" + tostr(f.ID) + "_readentries")
+		mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
+		mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
+		mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
+		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
 	case "unread":
 		stmtUpdateReadEntry.Exec("1", id)
 		e := getEntry(id)
 		f := e.Feed()
-		mc.Increment("Category"+tostr(f.CategoryID)+"_UnreadCount", 1)
-		mc.Increment("Feed"+tostr(f.ID)+"_UnreadCount", 1)
-		mc.Delete("Category" + tostr(f.CategoryID) + "_unreadentries")
-		mc.Delete("Feed" + tostr(f.ID) + "_unreadentries")
-		mc.Delete("Category" + tostr(f.CategoryID) + "_readentries")
-		mc.Delete("Feed" + tostr(f.ID) + "_readentries")
+		mc.Increment("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
+		mc.Increment("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
+		mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
+		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
 	case "marked":
 		e := getEntry(id)
 		f := e.Feed()
-		mc.Delete("Feed" + tostr(e.FeedID) + "_markedentries")
-		mc.Delete("Category" + tostr(f.CategoryID) + "_markedentries")
+		mc.Delete("Feed" + u.Tostr(e.FeedID) + "_markedentries")
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
 		stmtUpdateMarkEntry.Exec("1", id)
 	case "unmarked":
 		stmtUpdateMarkEntry.Exec("0", id)
 	case "togglemarked":
 		e := getEntry(id)
 		f := e.Feed()
-		stmtUpdateMarkEntry.Exec(toint(e.Marked)^1, id)
+		stmtUpdateMarkEntry.Exec(u.Toint(e.Marked)^1, id)
 		en := getEntry(id)
 		ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
-		mc.Delete("Feed" + tostr(e.FeedID) + "_markedentries")
-		mc.Delete("Category" + tostr(f.CategoryID) + "_markedentries")
+		mc.Delete("Feed" + u.Tostr(e.FeedID) + "_markedentries")
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
 	}
 	return ret
+}
+func unescape(s string) string {
+    var codes = map[string]string{
+        "&amp;":               "&",
+        "&nbsp;":              " ",
+        "&acirc;&#128;&#153;": "'",
+    }
+    for k, v := range codes {
+        s = strings.Replace(s, k, v, -1)
+    }
+    return s
+}
+func evenodd(i int) string {
+    if i%2 == 0 {
+        return "even"
+    }
+    return "odd"
 }
