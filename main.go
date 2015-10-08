@@ -2,6 +2,7 @@ package main
 
 import (
 	"./auth"
+	"./feed"
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/ChrisKaufmann/easymemcache"
@@ -82,9 +83,9 @@ func init() {
     if err != nil {
         glog.Fatalf("Config: %s",err)
     }
-	categoryinit()
-	feedinit()
-	entryinit()
+	feed.Categoryinit(db,&mc)
+	feed.Feedinit()
+	feed.Entryinit()
 	auth.DB(db)
 }
 
@@ -110,8 +111,8 @@ func main() {
 	http.Handle("/favicon.ico", http.StripPrefix("/favicon.ico", http.FileServer(http.Dir("./static/favicon.ico"))))
 	http.HandleFunc("/", handleRoot)
 
-	go cacheAllCats()  //create cache for categories at startup
-	go cacheAllFeeds() //create cache for feeds at startup
+	go feed.CacheAllCats()  //create cache for categories at startup
+	go feed.CacheAllFeeds() //create cache for feeds at startup
 	print("Listening on 127.0.0.1:" + port + "\n")
 	http.ListenAndServe("127.0.0.1:"+port, nil)
 }
@@ -129,45 +130,45 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 	u.PathVars(r, "/category/", &id, &todo, &val)
 	switch todo {
 	case "new":
-		var c Category
+		var c feed.Category
 		c.Name = val
-		c.Insert()
+		c.Insert(userName)
 		fmt.Fprintf(w, "Added")
 	case "name":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.Name = val
 		c.Save()
 		fmt.Fprintf(w, id+"Renamed: "+val)
 	case "desc":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.Description = val
 		c.Save()
 		fmt.Fprintf(w, "Desc: "+val)
 	case "delete":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.Delete()
 		fmt.Fprintf(w, "Deleted")
 	case "update":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.Update()
 		fmt.Fprintf(w, "Updated")
 	case "unread":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		print("in unread\n")
 		fmt.Fprintf(w, strconv.Itoa(c.Unread()))
 	case "exclude":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.Exclude = val
 		c.Save()
 		fmt.Fprintf(w, "Exclude:"+c.Exclude)
 	case "print":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		categoryPrintHtml.Execute(w, c)
 	case "clearcache":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.ClearCache()
 	case "deleteexcludes":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		c.DeleteExcludes()
 	}
 	fmt.Printf("handleCategory %v\n", time.Now().Sub(t0))
@@ -179,7 +180,7 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	var c string
 	switch todo {
 	case "entries":
-		c, _ = getEntriesCount()
+		c, _ = feed.GetEntriesCount()
 	}
 	fmt.Fprintf(w, c)
 	fmt.Printf("handleStats %v\n", time.Now().Sub(t0))
@@ -193,7 +194,7 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	formurl := r.FormValue("url")
-	var f Feed
+	var f feed.Feed
 	f.Url = formurl
 	f.UserName = userName
 	purl, _ := url.Parse(formurl)
@@ -214,7 +215,7 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	var todo string
 	var val string
 	u.PathVars(r, "/feed/", &id, &todo, &val)
-	f := getFeed(id)
+	f := feed.GetFeed(u.Toint(id))
 	if f.UserName != userName {
 		fmt.Fprintf(w, "Auth err")
 		return
@@ -291,18 +292,18 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	print("\nlength: "+u.Tostr(len(b))+"\n")
 	if len(b) == 1 {
 		print("Marking: "+tomark)
-		retstr = markEntry(b[0], tomark)
+		retstr = feed.MarkEntry(b[0], tomark,userName)
 	} else {
 	    switch feedOrCat {
 		    case "feed":
-				f := getFeed(fcid)
-				err := f.markEntriesRead(b)
+				f := feed.GetFeed(u.Toint(fcid))
+				err := f.MarkEntriesRead(b)
 				if err != nil {
 					print(err.Error())
 				}
 			case "category":
-				c := getCat(fcid)
-				err := c.markEntriesRead(b)
+				c := feed.GetCat(fcid)
+				err := c.MarkEntriesRead(b)
 				if err != nil {
 					print(err.Error())
 				}
@@ -323,8 +324,8 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	var id string
 	u.PathVars(r, "/entry/", &id)
 
-	e := getEntry(id)
-	f := getFeed(u.Tostr(e.FeedID))
+	e := feed.GetEntry(id,userName)
+	f := feed.GetFeed(e.FeedID)
 	e.FeedName = f.Title
 	if e.ViewMode() == "link" {
 		e.Link = html.UnescapeString(e.Link)
@@ -332,7 +333,7 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	} else {
 		entryHtml.Execute(w, e)
 	}
-	markEntry(id, "read")
+	feed.MarkEntry(id, "read", userName)
 	fmt.Printf("handleEntry %v\n", time.Now().Sub(t0))
 }
 func handleMenu(w http.ResponseWriter, r *http.Request) {
@@ -352,12 +353,12 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 
 	switch feedOrCat {
 	case "category":
-		cat := getCat(id)
+		cat := feed.GetCat(id)
 		cat.SearchSelect = getSearchSelect(modifier)
 		cat.Search = curID
 		catMenuHtml.Execute(w, cat)
 	case "feed":
-		f := getFeed(id)
+		f := feed.GetFeed(u.Toint(id))
 		f.SearchSelect = getSearchSelect(modifier)
 		f.Search = curID
 		setSelects(&f)
@@ -377,7 +378,7 @@ func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
 	}
 	var id string
 	u.PathVars(r, "/menu/select/", &id)
-	f := getFeed(id)
+	f := feed.GetFeed(u.Toint(id))
 	setSelects(&f)
 	menuDropHtml.Execute(w, f)
 	fmt.Printf("handleSelectMenu %v\n", time.Now().Sub(t0))
@@ -396,7 +397,7 @@ func getSearchSelect(cur string) template.HTML {
 	fmt.Printf("handleSearchSelect %v\n", time.Now().Sub(t0))
 	return template.HTML(h)
 }
-func setSelects(f *Feed) {
+func setSelects(f *feed.Feed) {
 	t0 := time.Now()
 	var catHtml string
 	var optionHtml string
@@ -408,7 +409,7 @@ func setSelects(f *Feed) {
 		}
 		optionHtml = optionHtml + "<option value='" + strings.ToLower(m) + "'>" + lbl + "\n"
 	}
-	allthecats := getCategories()
+	allthecats := feed.GetCategories(userName)
 	for i := range allthecats {
 		cat := allthecats[i]
 		if cat.ID == f.CategoryID {
@@ -431,7 +432,7 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
-	allthefeeds := getFeeds()
+	allthefeeds := feed.GetFeeds(userName)
 	for i := range allthefeeds {
 		f := allthefeeds[i]
 		feedHtml.Execute(w, f)
@@ -453,9 +454,8 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	var currentCat string
 	u.PathVars(r, "/categoryList/", &currentCat)
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
-	allthecats := getCategories()
-	for i := range allthecats {
-		cat := allthecats[i]
+	allthecats := feed.GetCategories(userName)
+	for _,cat := range allthecats {
 		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
 			categoryHtmlS.Execute(w, cat)
@@ -470,7 +470,7 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	fmt.Fprintf(w, "<hr>")
-	allFeeds := getFeedsWithoutCats()
+	allFeeds := feed.GetFeedsWithoutCats(userName)
 	for i := range allFeeds {
 		feedHtml.Execute(w, allFeeds[i])
 	}
@@ -494,10 +494,10 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var curID string    //current entry id for next/previous or search term for search
 	var modifier string //secondary mode for next/previous/search (read/unread/marked/etc)
 	u.PathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID, &modifier)
-	var el []Entry
+	var el []feed.Entry
 	switch feedOrCat {
 	case "feed":
-		f := getFeed(id)
+		f := feed.GetFeed(u.Toint(id))
 		switch mode {
 		case "read":
 			el = f.ReadEntries()
@@ -519,7 +519,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 			el = f.UnreadEntries()
 		}
 	case "category":
-		c := getCat(id)
+		c := feed.GetCat(id)
 		switch mode {
 		case "read":
 			el = c.ReadEntries()
@@ -541,7 +541,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 			el = c.UnreadEntries()
 		}
 	case "marked":
-		el = allMarkedEntries()
+		el = feed.AllMarkedEntries(userName)
 	}
 	//print header for list
 	fmt.Fprintf(w, "<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>\n")

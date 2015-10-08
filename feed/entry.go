@@ -1,4 +1,4 @@
-package main
+package feed
 
 import (
 	u "github.com/ChrisKaufmann/goutils"
@@ -18,7 +18,7 @@ var (
 	entrySelectString   string
 )
 
-func entryinit() {
+func Entryinit() {
 	var err error
 	entrySelectString = " id,IFNULL(title,''),IFNULL(link,''),IFNULL(updated,''),marked,unread,feed_id,content,guid "
 	stmtAddEntry,err = u.Sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
@@ -90,7 +90,7 @@ func getEntriesFromSql(s string) []Entry {
 	}
 	return el
 }
-func allMarkedEntries() []Entry {
+func AllMarkedEntries(userName string) []Entry {
 	sql := "select " + entrySelectString + " from ttrss_entries as e where e.user_name='" + userName + "' and e.marked=1"
 	el := getEntriesFromSql(sql)
 	return el
@@ -104,15 +104,15 @@ func (e Entry) ViewMode() string {
 func (e Entry) AutoscrollPX() int {
 	return e.Feed().AutoscrollPX
 }
-func getEntriesCount() (c string, err error) {
+func GetEntriesCount() (c string, err error) {
 	err = stmtGetEntryCount.QueryRow().Scan(&c)
 	return c, err
 }
 func (e Entry) Feed() (f Feed) {
-	f = getFeed(u.Tostr(e.FeedID))
+	f = GetFeed(e.FeedID)
 	return f
 }
-func (e Entry) Save() {
+func (e Entry) Save(userName string) {
 	if e.ID > 0 {
 		stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, e.Unread, e.ID)
 	} else {
@@ -123,7 +123,7 @@ func (e Entry) Save() {
 	}
 }
 
-func getEntry(id string) (e Entry) {
+func GetEntry(id string,userName string) (e Entry) {
 	if id == "" {
 		return e
 	}
@@ -139,7 +139,7 @@ func getEntry(id string) (e Entry) {
 	var badentry Entry
 	return badentry
 }
-func markEntry(id string, m string) string {
+func MarkEntry(id string, m string, userName string) string {
 	if id == "" {
 		return ""
 	}
@@ -147,7 +147,7 @@ func markEntry(id string, m string) string {
 	switch m {
 	case "read":
 		stmtUpdateReadEntry.Exec("0", id)
-		e := getEntry(id)
+		e := GetEntry(id,userName)
 		f := e.Feed()
 		mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
 		mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
@@ -157,7 +157,7 @@ func markEntry(id string, m string) string {
 		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
 	case "unread":
 		stmtUpdateReadEntry.Exec("1", id)
-		e := getEntry(id)
+		e := GetEntry(id,userName)
 		f := e.Feed()
 		mc.Increment("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
 		mc.Increment("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
@@ -166,7 +166,7 @@ func markEntry(id string, m string) string {
 		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
 		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
 	case "marked":
-		e := getEntry(id)
+		e := GetEntry(id,userName)
 		f := e.Feed()
 		mc.Delete("Feed" + u.Tostr(e.FeedID) + "_markedentries")
 		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
@@ -174,10 +174,10 @@ func markEntry(id string, m string) string {
 	case "unmarked":
 		stmtUpdateMarkEntry.Exec("0", id)
 	case "togglemarked":
-		e := getEntry(id)
+		e := GetEntry(id,userName)
 		f := e.Feed()
 		stmtUpdateMarkEntry.Exec(u.Toint(e.Marked)^1, id)
-		en := getEntry(id)
+		en := GetEntry(id,userName)
 		ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
 		mc.Delete("Feed" + u.Tostr(e.FeedID) + "_markedentries")
 		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")

@@ -1,8 +1,9 @@
-package main
+package feed
 
 import (
 	"github.com/golang/glog"
 	u "github.com/ChrisKaufmann/goutils"
+	"time"
 	"database/sql"
 	"strconv"
 	"fmt"
@@ -36,13 +37,14 @@ type Feed struct {
 }
 
 func (f Feed) Unread() (count int) {
+	t0 := time.Now()
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_UnreadCount", &count, func() {
-		print("fc" + u.Tostr(f.ID) + "-")
 		err := stmtFeedUnread.QueryRow(f.ID).Scan(&count)
 		if err != nil {
 			glog.Errorf("stmtFeedUnread.QueryRow(%s): %s", f.ID, err)
 		}
 	})
+	glog.Infof("feed(%v).Unread(): %v", f.ID, time.Now().Sub(t0))
 	return count
 }
 func (f Feed) UnreadEntries() (el []Entry) {
@@ -170,7 +172,7 @@ func (f Feed) Class() string {
 	return "odd"
 }
 func (f Feed) Category() (c Category) {
-	c = getCat(u.Tostr(f.CategoryID))
+	c = GetCat(u.Tostr(f.CategoryID))
 	return c
 }
 func (f Feed) Update() {
@@ -302,7 +304,7 @@ func (f Feed) DeleteExcludes() {
 	}
 	f.ClearCache()
 }
-func (f Feed)markEntriesRead(ids []string) (err error) {
+func (f Feed)MarkEntriesRead(ids []string) (err error) {
     if len(ids) == 0 {
         err = fmt.Errorf("Ids is null")
 		return err
@@ -363,9 +365,10 @@ var (
 	stmtInsertFeed          *sql.Stmt
 	stmtDeleteFeedEntries   *sql.Stmt
 	stmtDeleteFeed          *sql.Stmt
+	stmtGetFeedByCat		*sql.Stmt
 )
 
-func feedinit() {
+func Feedinit() {
 	var selecttxt string = " id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
 	var err error
 	stmtInsertFeed,err = u.Sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
@@ -386,13 +389,15 @@ func feedinit() {
 	if err!=nil{glog.Fatalf("stmtDeleteFeedEntries: %s",err);}
 	stmtDeleteFeed,err = u.Sth(db, "delete from ttrss_feeds where id=? limit 1")
 	if err!=nil{glog.Fatalf("stmtDeleteFeed: %s",err);}
+	stmtGetFeedByCat, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where category_id=?")
+	if err!=nil{glog.Fatalf("stmtGetFeedByCat: %s", err);}
 }
 
-func getFeeds() (allFeeds []Feed) {
+func GetFeeds(userName string) (allFeeds []Feed) {
 	mc.GetOr("AllFeeds"+userName+"_", &allFeeds, func() {
 		rows, err := stmtGetFeeds.Query(userName)
 		if err != nil {
-			print(err.Error())
+			glog.Errorf("stmtGetFeeds.Query(%s): %s", userName, err)
 			return
 		}
 		for rows.Next() {
@@ -403,7 +408,17 @@ func getFeeds() (allFeeds []Feed) {
 	})
 	return allFeeds
 }
-func getAllFeeds() []Feed {
+func GetCategoryFeeds(cid int) (cf []Feed) {
+	mc.GetOr("CategoryFeeds"+u.Tostr(cid)+"_", &cf, func() {
+		for _,f := range GetAllFeeds() {
+			if f.CategoryID == cid {
+				cf = append(cf, f)
+			}
+		}
+	})
+	return cf
+}
+func GetAllFeeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
 	err := mc.Get("FeedList", &feedids)
@@ -411,7 +426,7 @@ func getAllFeeds() []Feed {
 		print("-FL<ALL>")
 		rows, err := stmtGetAllFeeds.Query()
 		if err != nil {
-			err.Error()
+			glog.Errorf("stmtGetAllFeeds.Query(): %s", err)
 			return allFeeds
 		}
 		for rows.Next() {
@@ -425,28 +440,29 @@ func getAllFeeds() []Feed {
 	} else {
 		print("+FL<ALL>")
 		for i := range feedids {
-			f := getFeed(u.Tostr(feedids[i]))
+			f := GetFeed(feedids[i])
 			allFeeds = append(allFeeds, f)
 		}
 	}
 	return allFeeds
 }
-func cacheAllFeeds() {
-	_ = getAllFeeds()
+func CacheAllFeeds() {
+	_ = GetAllFeeds()
+	return
 }
 
-func getFeedsWithoutCats() (allFeeds []Feed) {
+func GetFeedsWithoutCats(userName string) (allFeeds []Feed) {
 	mc.GetOr("FeedsWithoutCats"+userName, &allFeeds, func() {
 		var feedids []int
 		print("-")
 		rows, err := stmtGetFeedsWithoutCats.Query(userName)
 		if err != nil {
-			print(err.Error())
+			glog.Errorf("stmtGetFeedsWithoutCats.Query(%s): %s", userName, err)
 		}
 		for rows.Next() {
-			var id string
+			var id int
 			rows.Scan(&id)
-			f := getFeed(id)
+			f := GetFeed(id)
 			allFeeds = append(allFeeds, f)
 			feedids = append(feedids, f.ID)
 		}
@@ -454,14 +470,18 @@ func getFeedsWithoutCats() (allFeeds []Feed) {
 	return allFeeds
 }
 
-func getFeed(id string) Feed {
+func GetFeed(id int) Feed {
 	var feed Feed
-	var fcn = "Feed" + id + "_"
+	var fcn = "Feed" + u.Tostr(id) + "_"
+	if id < 1 {
+		glog.Errorf("Non valid id passed to GetFeed")
+		return feed
+	}
 
 	mc.GetOr(fcn, &feed, func() {
 		err := stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 		if err != nil {
-			err.Error()
+			glog.Errorf("stmtGetFeed.QueryRow(%s).Scan(...): %s", id, err)
 		}
 		if feed.Title == "" {
 			feed.Title = "--untitled--"

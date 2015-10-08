@@ -1,13 +1,15 @@
-package main
+package feed
 
 import (
 	u "github.com/ChrisKaufmann/goutils"
 	"github.com/golang/glog"
+	"time"
 	"database/sql"
 	"html/template"
 	"fmt"
 	"strconv"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/ChrisKaufmann/easymemcache"
 	"html"
 	"strings"
 )
@@ -32,10 +34,17 @@ var (
 	stmtAddCat          *sql.Stmt
 	stmtResetCategories *sql.Stmt
 	stmtDeleteCategory  *sql.Stmt
+	db					*sql.DB
+	mc					*easymemcache.Client
 )
+func (c Category)String() string {
+    return fmt.Sprintf("ID: %s,Name: %s, Description: %s, UserName: %s, Exclude: %s", c.ID, c.Name, c.Description, c.UserName, c.Exclude)
+}
 
-func categoryinit() {
+func Categoryinit(dbh *sql.DB, mch *easymemcache.Client) {
 	var err error
+	db=dbh
+	mc=mch
 	stmtGetCatFeeds,err = u.Sth(db, "select id from ttrss_feeds where category_id = ?")
 	stmtGetCat,err = u.Sth(db, "select name,user_name,IFNULL(description,''),id, exclude from ttrss_categories where id = ?")
 	if err != nil {glog.Fatalf("sth(): %s", err)}
@@ -70,7 +79,7 @@ func (c Category) Print() {
 		"\tUser:\t" + c.UserName + "\n" +
 		"\tExclude:\t" + c.Exclude + "\n")
 }
-func (c Category) Insert() {
+func (c Category) Insert(userName string) {
 	stmtAddCat.Exec(userName, c.Name)
 }
 func (c Category) Delete() {
@@ -97,19 +106,13 @@ func (c Category) ClearCache() {
 	mc.Delete(mcl...)
 }
 func (c Category) Unread() (count int) {
+	t0 := time.Now()
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_UnreadCount", &count, func() {
-		print("cc" + u.Tostr(c.ID) + "-")
-		if len(c.FeedsStr()) < 1 {
-			count = 0
-			return
-		}
-		var query = "select count(*) from ttrss_entries where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and unread='1'"
-		var stmt,err = u.Sth(db, query)
-		err = stmt.QueryRow().Scan(&count)
-		if err != nil {
-			print(err.Error())
+		for _, f := range c.Feeds() {
+			count = count + f.Unread()
 		}
 	})
+	glog.Infof("Category(%v).Unread(): %s", c.ID, time.Now().Sub(t0))
 	return count
 }
 func (c Category) Class() string {
@@ -220,7 +223,7 @@ func (c Category) Previous(id string)(e Entry) {
 	return e
 }
 
-func getCat(id string) Category {
+func GetCat(id string) Category {
 	var cat Category
 	err := mc.Get("Category"+id, &cat)
 	if err != nil { //cache miss
@@ -234,6 +237,9 @@ func getCat(id string) Category {
 	return cat
 }
 func (c Category) Feeds() []Feed {
+	print("getting category feeds\n")
+	af := GetCategoryFeeds(c.ID)
+	return af
 	var allFeeds []Feed
 	var feedids []int
 	var cfl = "Category" + u.Tostr(c.ID) + "Feeds"
@@ -247,9 +253,9 @@ func (c Category) Feeds() []Feed {
 			return allFeeds
 		}
 		for rows.Next() {
-			var id string
+			var id int
 			rows.Scan(&id)
-			feed := getFeed(id)
+			feed := GetFeed(id)
 			allFeeds = append(allFeeds, feed)
 			feedids = append(feedids, feed.ID)
 		}
@@ -257,7 +263,7 @@ func (c Category) Feeds() []Feed {
 	} else {
 		print("+CFL_" + u.Tostr(c.ID))
 		for _, i := range feedids {
-			feed := getFeed(u.Tostr(i))
+			feed := GetFeed(i)
 			allFeeds = append(allFeeds, feed)
 		}
 	}
@@ -272,7 +278,7 @@ func (c Category) FeedsStr() []string {
 	return feedstr
 }
 
-func getCategories() []Category {
+func GetCategories(userName string) []Category {
 	var allCats []Category
 	var catids []int
 
@@ -296,14 +302,13 @@ func getCategories() []Category {
 	} else {
 		print("+CL" + userName)
 		for _, i := range catids {
-			cat := getCat(u.Tostr(i))
+			cat := GetCat(u.Tostr(i))
 			allCats = append(allCats, cat)
 		}
-
 	}
 	return allCats
 }
-func (c Category)markEntriesRead(ids []string) (err error) {
+func (c Category)MarkEntriesRead(ids []string) (err error) {
     if len(ids) == 0 {
         err = fmt.Errorf("Ids is null")
     } else {
@@ -330,7 +335,7 @@ func (c Category)markEntriesRead(ids []string) (err error) {
         mc.Delete("Category" + u.Tostr(c.ID) + "_unreadentries")
         mc.Delete("Category" + u.Tostr(c.ID) + "_readentries")
 		for fid := range c.Feeds() {
-			f := getFeed(u.Tostr(fid))
+			f := GetFeed(fid)
 			mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
 			mc.Delete("Feed"+u.Tostr(f.ID)+"_UnreadCount")
 			mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
@@ -358,12 +363,12 @@ func GetAllCategories() []Category {
 		mc.Set("CategoryList", allCats)
 	} else {
 		for _, i := range catids {
-			cat := getCat(u.Tostr(i))
+			cat := GetCat(u.Tostr(i))
 			allCats = append(allCats, cat)
 		}
 	}
 	return allCats
 }
-func cacheAllCats() {
+func CacheAllCats() {
 	_ = GetAllCategories()
 }
