@@ -30,13 +30,13 @@ var (
 	categoryHtmlS     = template.Must(template.ParseFiles("templates/category_selected.html"))
 	feedHtml          = template.Must(template.ParseFiles("templates/feed.html"))
 	feedHtmlSpaced    = template.Must(template.ParseFiles("templates/feed_spaced.html"))
-	listEntryHtml     = template.Must(template.ParseFiles("templates/listentry.html"))
 	feedMenuHtml      = template.Must(template.ParseFiles("templates/feed_menu.html"))
 	catMenuHtml       = template.Must(template.ParseFiles("templates/category_menu.html"))
 	entryLinkHtml     = template.Must(template.ParseFiles("templates/entry_link.html"))
 	entryHtml         = template.Must(template.ParseFiles("templates/entry.html"))
 	menuDropHtml      = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
 	categoryPrintHtml = template.Must(template.ParseFiles("templates/category_print.html"))
+	entriesListTmpl		=template.Must(template.ParseFiles("templates/entries_list.tmpl"))
 	cookieName        string
 	viewModes         = [...]string{"Default", "Link", "Extended", "Proxy"}
 	port              string
@@ -329,9 +329,13 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	e.FeedName = f.Title
 	if e.ViewMode() == "link" {
 		e.Link = html.UnescapeString(e.Link)
-		entryLinkHtml.Execute(w, e)
+		if err := entryLinkHtml.Execute(w, e); err != nil {
+			glog.Errorf("entryLinkHtml: %s", err)
+		}
 	} else {
-		entryHtml.Execute(w, e)
+		if err := entryHtml.Execute(w, e); err != nil {
+			glog.Errorf("entryHtml.Execute: %s", err)
+		}
 	}
 	feed.MarkEntry(id, "read", userName)
 	fmt.Printf("handleEntry %v\n", time.Now().Sub(t0))
@@ -452,6 +456,12 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var currentCat string
+	type CategoryList struct {
+		SelectedCat	int
+		CategoryList []feed.Category
+		SelectedFeeds []feed.Feed
+		OrphanFeeds	[]feed.Feed
+	}
 	u.PathVars(r, "/categoryList/", &currentCat)
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthecats := feed.GetCategories(userName)
@@ -543,16 +553,10 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	case "marked":
 		el = feed.AllMarkedEntries(userName)
 	}
-	//print header for list
-	fmt.Fprintf(w, "<form id='entries_form'><table class='headlinesList' id='headlinesList' width='100%'>\n")
 	if len(el) == 0 {
 		fmt.Fprintf(w, "No entries found")
 	}
-	for a := range el {
-		listEntryHtml.Execute(w, el[a])
-	}
-	//print footer for entries list
-	fmt.Fprintf(w, "</form>\n</table>\n")
+	entriesListTmpl.Execute(w,el)
 	t1 := time.Now()
 	fmt.Printf("handleEntries %v\n", t1.Sub(t0))
 }

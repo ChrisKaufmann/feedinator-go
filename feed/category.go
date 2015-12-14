@@ -61,16 +61,17 @@ func Categoryinit(dbh *sql.DB, mch *easymemcache.Client) {
 	stmtDeleteCategory,err = u.Sth(db, "delete from ttrss_categories where id=? limit 1")
 	if err != nil {glog.Fatalf("sth(): %s", err)}
 }
-func (c Category) Save() {
+func (c Category) Save() (err error){
 	if c.Description == "" {
 		c.Description = " "
 	}
 	c.Exclude = html.EscapeString(c.Exclude)
-	_, err := stmtSaveCat.Exec(c.Name, c.Description, c.Exclude, c.ID)
+	_, err = stmtSaveCat.Exec(c.Name, c.Description, c.Exclude, c.ID)
 	if err != nil {
-		err.Error()
+		glog.Errorf("stmtSaveCat.Exec(%s,%s,%s,%s): %s", c.Name, c.Description, c.Exclude, c.ID, err)
 	}
 	c.ClearCache()
+	return err
 }
 func (c Category) Print() {
 	print("Category: " + u.Tostr(c.ID) + "\n" +
@@ -79,13 +80,18 @@ func (c Category) Print() {
 		"\tUser:\t" + c.UserName + "\n" +
 		"\tExclude:\t" + c.Exclude + "\n")
 }
-func (c Category) Insert(userName string) {
-	stmtAddCat.Exec(userName, c.Name)
+func (c Category) Insert(userName string) (err error){
+	_, err = stmtAddCat.Exec(userName, c.Name)
+	if err != nil {glog.Errorf("stmtAddCat.Exec(%s,%s): %s", userName, c.Name, err)}
+	return err
 }
-func (c Category) Delete() {
-	stmtResetCategories.Exec(c.ID)
-	stmtDeleteCategory.Exec(c.ID)
+func (c Category) Delete() (err error){
+	_, err = stmtResetCategories.Exec(c.ID)
+	if err != nil {glog.Errorf("stmtResetCategories.Exec(%s): %s", c.ID, err);return err}
+	_,err = stmtDeleteCategory.Exec(c.ID)
+	if err != nil {glog.Errorf("stmtDeleteCategory.Exec(%s): %s", c.ID, err);return err}
 	c.ClearCache()
+	return err
 }
 func (c Category) Update() {
 	fl := c.Feeds()
