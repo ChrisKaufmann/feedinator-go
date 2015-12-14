@@ -29,6 +29,7 @@ var (
 	categoryHtml      = template.Must(template.ParseFiles("templates/category.html"))
 	categoryHtmlS     = template.Must(template.ParseFiles("templates/category_selected.html"))
 	feedHtml          = template.Must(template.ParseFiles("templates/feed.html"))
+	feedListHtml	  = template.Must(template.ParseFiles("templates/feed_list.html"))
 	feedHtmlSpaced    = template.Must(template.ParseFiles("templates/feed_spaced.html"))
 	feedMenuHtml      = template.Must(template.ParseFiles("templates/feed_menu.html"))
 	catMenuHtml       = template.Must(template.ParseFiles("templates/category_menu.html"))
@@ -163,7 +164,9 @@ func handleCategory(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Exclude:"+c.Exclude)
 	case "print":
 		c := feed.GetCat(id)
-		categoryPrintHtml.Execute(w, c)
+		if err := categoryPrintHtml.Execute(w, c); err != nil {
+			glog.Errorf("categoryPrintHtml.Execute: %s", err)
+		}
 	case "clearcache":
 		c := feed.GetCat(id)
 		c.ClearCache()
@@ -360,13 +363,17 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 		cat := feed.GetCat(id)
 		cat.SearchSelect = getSearchSelect(modifier)
 		cat.Search = curID
-		catMenuHtml.Execute(w, cat)
+		if err := catMenuHtml.Execute(w, cat); err != nil {
+			glog.Errorf("catMenuHtml: %s", err)
+		}
 	case "feed":
 		f := feed.GetFeed(u.Toint(id))
 		f.SearchSelect = getSearchSelect(modifier)
 		f.Search = curID
 		setSelects(&f)
-		feedMenuHtml.Execute(w, f)
+		if err := feedMenuHtml.Execute(w, f); err != nil {
+			glog.Errorf("feedMenuHtml.Execute: %s", err)
+		}
 	case "marked":
 		fmt.Fprintf(w, "&nbsp;")
 	}
@@ -384,7 +391,9 @@ func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
 	u.PathVars(r, "/menu/select/", &id)
 	f := feed.GetFeed(u.Toint(id))
 	setSelects(&f)
-	menuDropHtml.Execute(w, f)
+	if err := menuDropHtml.Execute(w, f); err != nil {
+		glog.Errorf("menuDropHtml.Execute: %s", err)
+	}
 	fmt.Printf("handleSelectMenu %v\n", time.Now().Sub(t0))
 }
 func getSearchSelect(cur string) template.HTML {
@@ -437,12 +446,17 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthefeeds := feed.GetFeeds(userName)
-	for i := range allthefeeds {
-		f := allthefeeds[i]
-		feedHtml.Execute(w, f)
+	if err := feedListHtml.Execute(w,allthefeeds); err != nil {
+		glog.Errorf("feedListHtml.Execute: %s", err)
 	}
-	t1 := time.Now()
-	fmt.Printf("handleFeedList %v\n", t1.Sub(t0))
+/*	for i := range allthefeeds {
+		f := allthefeeds[i]
+		if err := feedHtml.Execute(w, f); err != nil {
+			glog.Errorf("feedHtml.Execute: %s", err)
+		}
+	}
+*/
+	fmt.Printf("handleFeedList %v\n", time.Now().Sub(t0))
 }
 
 //print the list of categories (possibly with feeds in that cat), then the uncategorized feeds
@@ -468,21 +482,29 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	for _,cat := range allthecats {
 		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
-			categoryHtmlS.Execute(w, cat)
+			if err := categoryHtmlS.Execute(w, cat); err != nil {
+				glog.Errorf("categoryHtmlS.Execute: %s", err)
+			}
 			fmt.Fprintf(w, "<br>\n")
 			catFeeds := cat.Feeds()
 			for j := range catFeeds {
-				feedHtmlSpaced.Execute(w, catFeeds[j])
+				if err := feedHtmlSpaced.Execute(w, catFeeds[j]); err != nil{
+					glog.Errorf("feedHtmlSpaced.Execute: %s", err)
+				}
 			}
 		} else {
-			categoryHtml.Execute(w, cat)
+			if err := categoryHtml.Execute(w, cat); err != nil {
+				glog.Errorf("categoryHtml.Execute: %s", err)
+			}
 			fmt.Fprintf(w, "<br>\n")
 		}
 	}
 	fmt.Fprintf(w, "<hr>")
 	allFeeds := feed.GetFeedsWithoutCats(userName)
 	for i := range allFeeds {
-		feedHtml.Execute(w, allFeeds[i])
+		if err := feedHtml.Execute(w, allFeeds[i]); err != nil {
+			glog.Errorf("feedHtml.Execute: %s", err)
+		}
 	}
 	t1 := time.Now()
 	fmt.Printf("handleCategoryList %v\n", t1.Sub(t0))
@@ -556,7 +578,9 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	if len(el) == 0 {
 		fmt.Fprintf(w, "No entries found")
 	}
-	entriesListTmpl.Execute(w,el)
+	if err := entriesListTmpl.Execute(w,el); err != nil {
+		glog.Errorf("entriesListTmpl.Execute: %s", err)
+	}
 	t1 := time.Now()
 	fmt.Printf("handleEntries %v\n", t1.Sub(t0))
 }

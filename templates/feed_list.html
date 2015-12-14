@@ -1,0 +1,13 @@
+<ul class='feedList' id='feedList'>
+{{ range $index, $val := . }}
+	<li id='FEEDROW-{{.ID}}' class='{{.Class}}'><div id='FEEDN-{{.ID}}' style='width:240px;'>
+		<div id='LBL-{{.ID}}' style='float:left;'>
+			<a href="#" onClick="entries('feed',{{.ID}},'unread');">{{.Title}}</a></div>
+			<div style='float:left;'>(</div>
+			<div id="FEEDU-{{.ID}}" style='float:left;'>{{.Unread}}</div>
+			<div style='float:left;'>)</div>
+		</div>
+	</li>
+	<br>
+{{ end }}
+</ul>
