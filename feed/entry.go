@@ -24,9 +24,13 @@ func Entryinit() {
 	stmtAddEntry,err = u.Sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
 	if err != nil {glog.Fatalf("stmt: %s", err)}
 	stmtUpdateMarkEntry,err = u.Sth(db, "update ttrss_entries set marked=? where id=?")
+	if err != nil {glog.Fatalf("stmtUpdateMarkEntry: %s", err)}
 	stmtUpdateReadEntry,err = u.Sth(db, "update ttrss_entries set unread=? where id=?")
+	if err != nil {glog.Fatalf("stmtUpdateReadEntry: %s", err)}
 	stmtSaveEntry,err = u.Sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
+	if err != nil {glog.Fatalf("stmtSaveEntry: %s", err)}
 	stmtGetEntryCount,err = u.Sth(db, "select count(id) from ttrss_entries")
+	if err != nil {glog.Fatalf("stmtGetEntryCount: %s", err)}
 }
 
 type Entry struct {
@@ -121,6 +125,19 @@ func (e Entry) Save(userName string) {
 			err.Error()
 		}
 	}
+}
+func (e Entry) MarkRead() (err error) {
+		if _, err = stmtUpdateReadEntry.Exec("0", e.ID); err != nil {
+			glog.Errorf("stmtUpdateReadEntry.Exec(0,%v): %s", e.ID, err)
+		}
+		f := e.Feed()
+		mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
+		mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
+		mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
+		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
+		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
+		return err
 }
 
 func GetEntry(id string,userName string) (e Entry) {

@@ -330,6 +330,7 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	e := feed.GetEntry(id,userName)
 	f := feed.GetFeed(e.FeedID)
 	e.FeedName = f.Title
+	print("after getentry and getfeed\n")
 	if e.ViewMode() == "link" {
 		e.Link = html.UnescapeString(e.Link)
 		if err := entryLinkHtml.Execute(w, e); err != nil {
@@ -340,7 +341,11 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("entryHtml.Execute: %s", err)
 		}
 	}
-	feed.MarkEntry(id, "read", userName)
+	print("About to markentry\n")
+	if err := e.MarkRead(); err != nil {
+		glog.Errorf("e.MarkRead(): %s", err)
+	}
+	//feed.MarkEntry(id, "read", userName)
 	fmt.Printf("handleEntry %v\n", time.Now().Sub(t0))
 }
 func handleMenu(w http.ResponseWriter, r *http.Request) {
