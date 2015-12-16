@@ -127,17 +127,49 @@ func (e Entry) Save(userName string) {
 	}
 }
 func (e Entry) MarkRead() (err error) {
-		if _, err = stmtUpdateReadEntry.Exec("0", e.ID); err != nil {
-			glog.Errorf("stmtUpdateReadEntry.Exec(0,%v): %s", e.ID, err)
-		}
-		f := e.Feed()
-		mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
-		mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
-		mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
-		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
+	print("entry.MarkRead")
+	if _, err = stmtUpdateReadEntry.Exec("0", e.ID); err != nil {
+		glog.Errorf("stmtUpdateReadEntry.Exec(0,%v): %s", e.ID, err)
+	}
+	go e.Feed().DecrementUnread()
+	return err
+}
+func (e Entry) MarkUnread() (err error) {
+	print("e.MarkUnread()")
+	if _, err = stmtUpdateReadEntry.Exec("1", e.ID); err != nil {
+		glog.Errorf("stmtUpdateReadEntry.Exec(1,%v): %s", e.ID, err)
+	}
+	go e.Feed().IncrementUnread()
+	return err
+}
+func (e Entry) Mark() (err error) {
+	print("e.Mark()")
+	if _, err = stmtUpdateMarkEntry.Exec("1", e.ID); err != nil {
+		glog.Errorf("stmtUpdateMarkEntry.Exec(1,%v): %s", e.ID, err)
 		return err
+	}
+	e.Feed().ClearMarked()
+	e.MarkSet="set"
+	e.Marked="1"
+	return err
+}
+func (e Entry) UnMark() (err error) {
+	print("e.UnMark()")
+	if _, err = stmtUpdateMarkEntry.Exec("0", e.ID); err != nil {
+		glog.Errorf("stmtUpdateMarkEntry.Exec(0,%v): %s", e.ID, err)
+		return err
+	}
+	e.Feed().ClearMarked()
+	e.MarkSet="unset"
+	e.Marked="0"
+	return err
+}
+func (e Entry) ToggleMark() (retstr string, err error) {
+	print("e.ToggleMark()")
+	if e.Marked == "1" {
+		return "unset",e.UnMark()
+	}
+	return "set",e.Mark()
 }
 
 func GetEntry(id string,userName string) (e Entry) {
@@ -156,40 +188,14 @@ func GetEntry(id string,userName string) (e Entry) {
 	var badentry Entry
 	return badentry
 }
+/*
 func MarkEntry(id string, m string, userName string) string {
 	if id == "" {
 		return ""
 	}
+	print("MarkEntry( %v, %s %s)", id, m, userName)
 	var ret string
 	switch m {
-	case "read":
-		stmtUpdateReadEntry.Exec("0", id)
-		e := GetEntry(id,userName)
-		f := e.Feed()
-		mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
-		mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
-		mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
-		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
-	case "unread":
-		stmtUpdateReadEntry.Exec("1", id)
-		e := GetEntry(id,userName)
-		f := e.Feed()
-		mc.Increment("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
-		mc.Increment("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
-		mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
-		mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
-	case "marked":
-		e := GetEntry(id,userName)
-		f := e.Feed()
-		mc.Delete("Feed" + u.Tostr(e.FeedID) + "_markedentries")
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
-		stmtUpdateMarkEntry.Exec("1", id)
-	case "unmarked":
-		stmtUpdateMarkEntry.Exec("0", id)
 	case "togglemarked":
 		e := GetEntry(id,userName)
 		f := e.Feed()
@@ -201,6 +207,7 @@ func MarkEntry(id string, m string, userName string) string {
 	}
 	return ret
 }
+*/
 func unescape(s string) string {
     var codes = map[string]string{
         "&amp;":               "&",

@@ -289,13 +289,37 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	var id string
 	var tomark string
 	u.PathVars(r, "/entry/mark/",&feedOrCat, &fcid, &id, &tomark)
-	print("fc="+feedOrCat+"<=>fcid="+fcid+"<=>id="+id+"<=>tomark="+tomark)
+	fmt.Printf("feedOrCat: %s, fcid: %s, id: %s, tomark: %s", feedOrCat, fcid, id, tomark)
 	b := strings.Split(id, ",")
 	// one thing can be marked whatever, but a list can only be marked read
-	print("\nlength: "+u.Tostr(len(b))+"\n")
 	if len(b) == 1 {
-		print("Marking: "+tomark)
-		retstr = feed.MarkEntry(b[0], tomark,userName)
+		e := feed.GetEntry(id, userName)
+		switch tomark {
+		case "read" :
+			if err := e.MarkRead(); err != nil {
+				glog.Errorf("e.MarkRead(): %s", err)
+			}
+		case "unread" :
+			if err := e.MarkUnread(); err != nil {
+				glog.Errorf("e.MarkUnread(): %s", err)
+			}
+		case "marked":
+			if err := e.Mark(); err != nil {
+				glog.Errorf("e.Mark(): %s", err)
+			}
+			retstr = "<img src='static/mark_set.png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
+		case "unmarked":
+			if err := e.UnMark(); err != nil {
+				glog.Errorf("e.UnMark(): %s", err)
+			}
+			retstr = "<img src='static/mark_unset.png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
+		case "togglemarked":
+			rsv, err := e.ToggleMark()
+			if err != nil {
+				glog.Errorf("e.ToggleMarked(): %s", err)
+			}
+			retstr = "<img src='static/mark_" + rsv + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
+		}
 	} else {
 	    switch feedOrCat {
 		    case "feed":
@@ -333,11 +357,11 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	print("after getentry and getfeed\n")
 	if e.ViewMode() == "link" {
 		e.Link = html.UnescapeString(e.Link)
-		if err := entryLinkHtml.Execute(w, e); err != nil {
+		if err := entryLinkHtml.Execute(w, &e); err != nil {
 			glog.Errorf("entryLinkHtml: %s", err)
 		}
 	} else {
-		if err := entryHtml.Execute(w, e); err != nil {
+		if err := entryHtml.Execute(w, &e); err != nil {
 			glog.Errorf("entryHtml.Execute: %s", err)
 		}
 	}
@@ -583,7 +607,7 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	if len(el) == 0 {
 		fmt.Fprintf(w, "No entries found")
 	}
-	if err := entriesListTmpl.Execute(w,el); err != nil {
+	if err := entriesListTmpl.Execute(w,&el); err != nil {
 		glog.Errorf("entriesListTmpl.Execute: %s", err)
 	}
 	t1 := time.Now()

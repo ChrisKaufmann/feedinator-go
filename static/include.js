@@ -88,7 +88,7 @@ function remove_entry(id)
 	oldEl = document.getElementById('RROW-'+id);
 	parentEl = oldEl.parentNode;
 	parentEl.removeChild(oldEl);	
-	$.ajax({type: "GET",url: '/entry/mark/'+id+'/read', success:function(html){$('#status_div').html(html);}})
+	$.ajax({type: "GET",url: '/entry/mark/_/_/'+id+'/read', success:function(html){$('#status_div').html(html);}})
 	if(oldEl.className.match(/unread/) == 'unread'){decrement_count();}
 }
 // Toggles the marked/unmarked for a given id, and replaces the div with the src for the appropriate image.

@@ -36,6 +36,18 @@ type Feed struct {
 	Search		   string
 }
 
+func (f Feed) DecrementUnread() {
+	mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
+	mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
+	f.ClearEntries()
+	return
+}
+func (f Feed) IncrementUnread() {
+	mc.Increment("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
+	mc.Increment("Feed"+u.Tostr(f.ID)+"_UnreadCount", 1)
+	f.ClearEntries()
+	return
+}
 func (f Feed) Unread() (count int) {
 	t0 := time.Now()
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_UnreadCount", &count, func() {
@@ -255,6 +267,17 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 	}
 }
 */
+func (f Feed) ClearEntries() {
+	mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
+	mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
+	mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
+	mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
+}
+func (f Feed) ClearMarked() {
+	mc.Delete("Feed" + u.Tostr(f.ID) + "_markedentries")
+	mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
+	f.ClearEntries()
+}
 func (f Feed) ClearCache() {
 	mc.DeleteLike("Feed" + u.Tostr(f.ID) + "_")
 	cl := []string{"Feed" + u.Tostr(f.ID) + "_",
