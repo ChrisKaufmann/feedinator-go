@@ -186,7 +186,7 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	if len(c.FeedsStr()) < 1 {
 		return el
 	}
-	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC;"
+	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC limit 500;"
 	el = getEntriesFromSql(query)
     mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
@@ -210,14 +210,16 @@ func (c Category) Next(id string)(e Entry) {
 	return e
 }
 func (c Category) Previous(id string)(e Entry) {
-	var el []Entry
-	var CategoryCurrentList []Entry
-	mc.GetOr("CategoryCurrent", &el, func() {
-		el = c.GetEntriesByParam("id < "+id)
-	})
+//	var el []Entry
 	if id == "" {
-		return CategoryCurrentList[0]
+		var e Entry
+		glog.Errorf("No id passed to c.Previous")
+		return e
 	}
+	var CategoryCurrentList []Entry
+	mc.GetOr("CategoryCurrent"+c.UserName, &CategoryCurrentList, func() {
+		CategoryCurrentList = c.GetEntriesByParam("id <= "+id)
+	})
 	for i,p := range CategoryCurrentList {
 		if u.Tostr(p.ID) == id {	//prevent underflow if current is the last one in the array
 			if i == 0 {

@@ -369,7 +369,6 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	if err := e.MarkRead(); err != nil {
 		glog.Errorf("e.MarkRead(): %s", err)
 	}
-	//feed.MarkEntry(id, "read", userName)
 	fmt.Printf("handleEntry %v\n", time.Now().Sub(t0))
 }
 func handleMenu(w http.ResponseWriter, r *http.Request) {
@@ -473,18 +472,10 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthefeeds := feed.GetFeeds(userName)
-	if err := feedListHtml.Execute(w,allthefeeds); err != nil {
+	if err := feedListHtml.Execute(w, &allthefeeds); err != nil {
 		glog.Errorf("feedListHtml.Execute: %s", err)
 	}
-/*	for i := range allthefeeds {
-		f := allthefeeds[i]
-		if err := feedHtml.Execute(w, f); err != nil {
-			glog.Errorf("feedHtml.Execute: %s", err)
-		}
-	}
-*/
 	fmt.Printf("handleFeedList %v\n", time.Now().Sub(t0))
 }
 

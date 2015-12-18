@@ -35,6 +35,9 @@ type Feed struct {
 	SearchSelect   template.HTML
 	Search		   string
 }
+func (f Feed) String() string {
+	return fmt.Sprintf("ID: %v, Title: %s, UserName: %s, Evenodd: %s, Url: %s, CategoryID: %v, Unread: %v", f.ID, f.Title, f.UserName, f.Evenodd, f.Url, f.CategoryID, f.Unread())
+}
 
 func (f Feed) DecrementUnread() {
 	mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", 1)
@@ -404,7 +407,7 @@ func Feedinit() {
 	if err!=nil{glog.Fatalf("stmtGetFeed: %s",err);}
 	stmtFeedUnread,err = u.Sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
 	if err!=nil{glog.Fatalf("stmtFeedUnread: %s",err);}
-	stmtGetFeedsWithoutCats,err = u.Sth(db, "select id from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
+	stmtGetFeedsWithoutCats,err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
 	if err!=nil{glog.Fatalf("stmtGetFeedsWithoutCats: %s",err);}
 	stmtSaveFeed,err = u.Sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
 	if err!=nil{glog.Fatalf("stmtSaveFeed: %s",err);}
@@ -425,8 +428,9 @@ func GetFeeds(userName string) (allFeeds []Feed) {
 		}
 		for rows.Next() {
 			var feed Feed
-			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ErrorString, &feed.Expirey)
+			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 			allFeeds = append(allFeeds, feed)
+			mc.Set("Feed"+u.Tostr(feed.ID), feed)
 		}
 	})
 	return allFeeds
@@ -445,7 +449,7 @@ func GetAllFeeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
 	err := mc.Get("FeedList", &feedids)
-	if err != nil {
+	if err != nil { // not cached
 		print("-FL<ALL>")
 		rows, err := stmtGetAllFeeds.Query()
 		if err != nil {
@@ -476,18 +480,16 @@ func CacheAllFeeds() {
 
 func GetFeedsWithoutCats(userName string) (allFeeds []Feed) {
 	mc.GetOr("FeedsWithoutCats"+userName, &allFeeds, func() {
-		var feedids []int
 		print("-")
 		rows, err := stmtGetFeedsWithoutCats.Query(userName)
 		if err != nil {
 			glog.Errorf("stmtGetFeedsWithoutCats.Query(%s): %s", userName, err)
 		}
 		for rows.Next() {
-			var id int
-			rows.Scan(&id)
-			f := GetFeed(id)
-			allFeeds = append(allFeeds, f)
-			feedids = append(feedids, f.ID)
+			var feed Feed
+			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+			allFeeds = append(allFeeds, feed)
+			mc.Set("Feed"+u.Tostr(feed.ID), feed) //cache the feed, because why not
 		}
 	})
 	return allFeeds
@@ -510,6 +512,7 @@ func GetFeed(id int) Feed {
 			feed.Title = "--untitled--"
 		}
 		feed.Title = html.UnescapeString(feed.Title)
+		mc.Set("Feed"+u.Tostr(feed.ID), feed)
 	})
 	return feed
 }
