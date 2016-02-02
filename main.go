@@ -190,6 +190,7 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 }
 func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	var t0 = time.Now()
+	fmt.Printf("handleNewFeed\n")
 	var loggedin bool
 	loggedin, userName = auth.LoggedIn(w, r)
 	if !loggedin {

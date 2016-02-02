@@ -177,7 +177,9 @@ func (feed Feed) Print() {
 
 func (f Feed) Save() {
 	f.Exclude = html.EscapeString(f.Exclude)
-	stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID)
+	if _,err := stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID); err != nil {
+		glog.Errorf("stmtSaveFeed.Exec(%s,%s,%s,%s,%s,%s,%s,%s,%s,%v): %s", f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID, err)
+	}
 	f.ClearCache()
 }
 func (f Feed) Class() string {
@@ -312,7 +314,9 @@ func (f Feed) DeleteExcludes() {
 			glog.Errorf("u.Sth(db,%s): %s", query, err)
 			return
 		}
-		stmt.Exec()
+		 if _, err := stmt.Exec(); err != nil {
+			glog.Errorf("DeleteExcludes.stmt.Exec: %s", err)
+		 }
 	}
 	ed := f.ExcludesData()
 	for _, e := range ed {
@@ -326,7 +330,9 @@ func (f Feed) DeleteExcludes() {
 			glog.Errorf("u.Sth(db,%s): %s", query, err)
 			return
 		}
-		stmt.Exec()
+		if _, err := stmt.Exec(); err != nil {
+			glog.Errorf("stmt.Exec: %s", err)
+		}
 	}
 	f.ClearCache()
 }
@@ -353,7 +359,9 @@ func (f Feed)MarkEntriesRead(ids []string) (err error) {
 			glog.Errorf("u.Sth(db,%s): %s",sql,err)
 			return err
 		}
-        stmtUpdateMarkEntries.Exec()
+        if _, err = stmtUpdateMarkEntries.Exec(); err != nil {
+			glog.Errorf("stmtUpdateMarkEntries.Exec(): %s", err)
+		}
         mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", uint64(len(ids)))
         mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", uint64(len(ids)))
         mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
@@ -370,14 +378,23 @@ func (f Feed) Insert() {
 	if f.UserName == "" {
 		panic("username is blank fornew feed")
 	}
-	stmtInsertFeed.Exec(f.Url, f.UserName, f.Title)
+	_,err := stmtInsertFeed.Exec(f.Url, f.UserName, f.Title)
+	if err != nil {
+		glog.Errorf("stmtInsertFeed.Exec(%s,%s,%s): %s", f.Url, f.UserName, f.Title, err)
+	}
+	mc.Delete("FeedsWithoutCats"+f.UserName)
 	f.ClearCache()
 }
 func (f Feed) Delete() {
 	//first, delete all of the entries that aren't starred
-	stmtDeleteFeedEntries.Exec(f.ID)
+	if _,err := stmtDeleteFeedEntries.Exec(f.ID); err != nil { 
+		glog.Errorf("stmtDeleteFeedEntries.Exec(%v): %s", f.ID, err)
+	}
+
 	//then delete the feed from the feeds table
-	stmtDeleteFeed.Exec(f.ID)
+	if _,err := stmtDeleteFeed.Exec(f.ID); err != nil {
+		glog.Errorf("stmtDeleteFeed.Exec(%v): %s", f.ID, err)
+	}
 	f.ClearCache()
 }
 
