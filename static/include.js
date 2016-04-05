@@ -33,27 +33,43 @@ var status_div='left_notify'; //  id of the status div
 
 function showPreviousEntry(id)
 {
-	document.getElementById('menu_status').innerHTML='Getting previous id';
-	$.ajax({type: "GET",url: '/entries/'+current_view+"/"+current_view_id+"/previous/"+id, success:function(html){
-		if(html == "0"){
-			$('#menu_status').html("No previous entries");
-			return;
-		}
-		$('#menu_status').html(html);
-		show_entry(html);
-	}});
+	vals = PrevNextTable(id);
+	if(vals==null){return;}
+	show_entry(vals.prev);
 }
 function showNextEntry(id)
 {
-	document.getElementById('menu_status').innerHTML='Getting next id';
-	$.ajax({type: "GET",url: "/entries/"+current_view+"/"+current_view_id+"/next/"+id, success:function(html){
-		if(html == "0"){
-			$('#menu_status').html("No new entries");
-			return;
+	vals = PrevNextTable(id);
+	if(vals==null){return;}
+	show_entry(vals.next);
+}
+function PrevNextTable(id)
+{
+	var prev=0;
+	var curr=0;
+	var next=0;
+	var table=document.getElementById('headlinesList')
+	if(table == null){return;}
+	var rowLength= table.rows.length;
+	var prevrow = null;
+	var nextrow = null;
+	for(var i=0;i<rowLength;i++) {
+		var row=table.rows[i];
+		if(id=="") {
+			nextrow=row.id;
+			prevrow=table.rows[rowLength-1].id;
+			break;
 		}
-		$('#menu_status').html(html);
-		show_entry(html);
-	}});
+		if(row.id== "RROW-"+id) {
+			if(table.rows[i-1] != null) { prevrow=table.rows[i-1].id;}
+			if(table.rows[i+1] != null) { nextrow=table.rows[i+1].id;}
+			curr=row.id.replace("RROW-","");
+			break;
+		}
+	}
+	if(prevrow != null) {prev=prevrow.replace("RROW-","");}
+	if(nextrow != null) {next=nextrow.replace("RROW-","");}
+	return{prev:prev,curr:curr,next:next}
 }
 // Update the link for a given feed, this isn't update because it needs to POST the url
 function update_link(fc,id,form)

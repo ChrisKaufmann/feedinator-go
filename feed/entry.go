@@ -72,6 +72,9 @@ func (e Entry) Normalize() Entry {
 func getEntriesFromSql(s string) []Entry {
 	var el []Entry
 	var stmt,err = u.Sth(db, s)
+	if err != nil {
+		glog.Errorf("Error preparing statment '%s': %s", s, err)
+	}
 	rows, err := stmt.Query()
 	if err != nil {
 		err.Error()
@@ -127,23 +130,20 @@ func (e Entry) Save(userName string) {
 	}
 }
 func (e Entry) MarkRead() (err error) {
-	print("entry.MarkRead")
 	if _, err = stmtUpdateReadEntry.Exec("0", e.ID); err != nil {
 		glog.Errorf("stmtUpdateReadEntry.Exec(0,%v): %s", e.ID, err)
 	}
-	go e.Feed().DecrementUnread()
+	e.Feed().DecrementUnread()
 	return err
 }
 func (e Entry) MarkUnread() (err error) {
-	print("e.MarkUnread()")
 	if _, err = stmtUpdateReadEntry.Exec("1", e.ID); err != nil {
 		glog.Errorf("stmtUpdateReadEntry.Exec(1,%v): %s", e.ID, err)
 	}
-	go e.Feed().IncrementUnread()
+	e.Feed().IncrementUnread()
 	return err
 }
 func (e Entry) Mark() (err error) {
-	print("e.Mark()")
 	if _, err = stmtUpdateMarkEntry.Exec("1", e.ID); err != nil {
 		glog.Errorf("stmtUpdateMarkEntry.Exec(1,%v): %s", e.ID, err)
 		return err
@@ -154,7 +154,6 @@ func (e Entry) Mark() (err error) {
 	return err
 }
 func (e Entry) UnMark() (err error) {
-	print("e.UnMark()")
 	if _, err = stmtUpdateMarkEntry.Exec("0", e.ID); err != nil {
 		glog.Errorf("stmtUpdateMarkEntry.Exec(0,%v): %s", e.ID, err)
 		return err
@@ -165,7 +164,6 @@ func (e Entry) UnMark() (err error) {
 	return err
 }
 func (e Entry) ToggleMark() (retstr string, err error) {
-	print("e.ToggleMark()")
 	if e.Marked == "1" {
 		return "unset",e.UnMark()
 	}
@@ -183,6 +181,8 @@ func GetEntry(id string,userName string) (e Entry) {
 		f := e.Feed()
 		if f.UserName == userName {
 			return e
+		} else {
+			glog.Errorf("f.Username(%s) does not match passed username(%s)", f.UserName, userName)
 		}
 	}
 	var badentry Entry

@@ -106,7 +106,6 @@ func (c Category) ClearCache() {
 	mc.Delete(cl...)
 	mcl := []string{"Category" + u.Tostr(c.ID), "Category" + u.Tostr(c.ID) + "_UnreadCount", "Category" + u.Tostr(c.ID) + "_Feeds"}
 	for _, k := range mcl {
-		print("Deleting " + k + "\n")
 		mc.Delete(k)
 	}
 	mc.Delete(mcl...)
@@ -131,23 +130,38 @@ func (c Category) Excludes() []string {
 	return strings.Split(strings.ToLower(c.Exclude), ",")
 }
 func (c Category) DeleteExcludes() {
+	//Go through the included feeds and delete their excludes first
 	for _, f := range c.Feeds() {
-		f.DeleteExcludes()
+		//There are weird things with caching of feeds if it has recently been updated.
+		fd := GetFeed(f.ID)
+		fd.DeleteExcludes()
 	}
+	for _,excstr := range c.Excludes() {
+		if len(excstr) < 1 {
+			continue
+		}
+		var query= fmt.Sprintf("delete from ttrss_entries where feed_id in (%s) and title like '%%%s%%'", strings.Join(c.FeedsStr(), ","), excstr)
+		if _,err := db.Query(query); err != nil {
+			glog.Errorf("Category(%v).DeleteExcludes.delete(%s): %s", c.ID,excstr,err)
+		}
+	}
+	c.ClearCache()
 }
 func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search string, m=modifier (read/unread/marked/all)
 	var ul []Entry
+	var ss string
 	switch m {
 	case "marked":
-		ul = c.MarkedEntries()
+		ss = fmt.Sprintf(" title like '%%%s%%' and marked = '1'",s)
 	case "read":
-		ul = c.ReadEntries()
+		ss = fmt.Sprintf(" title like '%%%s%%' and unread='0'", s)
 	case "all":
-		ul = c.AllEntries()
+		ss= fmt.Sprintf(" title like '%%%s%%' ", s)
 	default: //yeah, default to unread
-		ul = c.UnreadEntries()
+		ss = fmt.Sprintf(" title like '%%%s%%' and unread=1", s)
 	}
 	if s == "" {return ul}
+	ul = c.GetEntriesByParam(ss)
 	if len(ul) != 0 {
 		for _, e := range ul {
 			if strings.Contains(strings.ToLower(e.Title), strings.ToLower(s)) {
@@ -173,7 +187,6 @@ func (c Category) UnreadEntries() (el []Entry) {
 }
 func (c Category) ReadEntries() (el []Entry) {
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_readentries", &el, func() {
-		print(".")
 		el = c.GetEntriesByParam("unread = '0'")
 	})
 	return el
@@ -239,13 +252,11 @@ func GetCat(id string) Category {
 		if err != nil {
 			err.Error()
 		}
-		print("-cat" + u.Tostr(cat.ID))
 		mc.Set("Category"+id, cat)
 	}
 	return cat
 }
 func (c Category) Feeds() []Feed {
-	print("getting category feeds\n")
 	af := GetCategoryFeeds(c.ID)
 	return af
 	var allFeeds []Feed
@@ -269,7 +280,6 @@ func (c Category) Feeds() []Feed {
 		}
 		mc.Set(cfl, feedids)
 	} else {
-		print("+CFL_" + u.Tostr(c.ID))
 		for _, i := range feedids {
 			feed := GetFeed(i)
 			allFeeds = append(allFeeds, feed)
@@ -293,7 +303,6 @@ func GetCategories(userName string) []Category {
 	//Try getting a category list from cache
 	err := mc.Get("CategoryList_"+userName, &catids)
 	if err != nil {
-		print("-CL" + userName)
 		rows, err := stmtGetCats.Query(userName)
 		if err != nil {
 			err.Error()
@@ -308,7 +317,6 @@ func GetCategories(userName string) []Category {
 		}
 		mc.Set("CategoryList_"+userName, catids)
 	} else {
-		print("+CL" + userName)
 		for _, i := range catids {
 			cat := GetCat(u.Tostr(i))
 			allCats = append(allCats, cat)
@@ -358,7 +366,7 @@ func GetAllCategories() []Category {
 	if err != nil {
 		rows, err := stmtGetAllCats.Query()
 		if err != nil {
-			err.Error()
+			glog.Errorf("stmtGetAllCats: %s", err)
 			return allCats
 		}
 		for rows.Next() {

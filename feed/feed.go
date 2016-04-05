@@ -84,17 +84,21 @@ func (f Feed) ReadEntries() (el []Entry) {
 	return el
 }
 func (f Feed) SearchTitles(s string,m string) (el []Entry) {
+	var t0=time.Now()
 	var ul []Entry
+	var ss string
 	switch m {
 		case "marked":
-			ul = f.MarkedEntries()
+			ss = fmt.Sprintf(" title like '%%%s%%' and marked = '1'", s)
 		case "read":
-			ul = f.ReadEntries()
+			ss = fmt.Sprintf(" title like '%%%s%%' and unread='0'", s)
 		case "all":
-			ul = f.AllEntries()
+			ss= fmt.Sprintf(" title like '%%%s%%' ", s)
 		default: //default to unread
-			ul = f.UnreadEntries()
+			ss = fmt.Sprintf(" title like '%%%s%%' and unread='1'", s)
 	}
+	fmt.Printf("s: %s", ss)
+	ul = f.GetEntriesByParam(ss)
 	if s == "" {return ul}
 	if len(ul) != 0 {
 		for _,e := range ul {
@@ -103,6 +107,7 @@ func (f Feed) SearchTitles(s string,m string) (el []Entry) {
 			}
 		}
 	}
+	fmt.Printf("SearchTitles: %v\n", time.Now().Sub(t0))
 	return el
 }
 func (f Feed) AllEntries() (el []Entry) {
@@ -115,42 +120,6 @@ func (f Feed) Excludes() []string {
 }
 func (f Feed) ExcludesData() []string {
 	return strings.Split(strings.ToLower(f.ExcludeData), ",")
-}
-func (f Feed) Next(id string) (e Entry) {
-	var el []Entry
-	mc.GetOr("FeedCurrent"+f.UserName, &el, func() {
-		el = f.GetEntriesByParam("id > "+id)
-	})
-	if id == "" {
-		return el[0]
-	}
-	for i,p := range el{
-		if u.Tostr(p.ID) == id {
-			if i == len(el)-1 {
-				return e
-			}
-			return el[i+1]
-		}
-	}
-	return e
-}
-func (f Feed) Previous(id string)(e Entry) {
-	var el []Entry
-	mc.GetOr("FeedCurrent"+f.UserName, &el, func() {
-		el = f.GetEntriesByParam("id < "+id)
-	})
-	if id == "" {
-		return el[0]
-	}
-	for i,p := range el{
-		if u.Tostr(p.ID) == id {
-			if i == 0 {
-				return e
-			}
-			return el[i-1]
-		}
-	}
-	return e
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
 	var query = "select " + entrySelectString + " from ttrss_entries e where e.feed_id = " + u.Tostr(f.ID) + " and " + p + " order by e.id ASC;"
@@ -296,10 +265,11 @@ func (f Feed) ClearCache() {
 	for _, i := range cl {
 		err := mc.Delete(i)
 		if err != nil {
-			glog.Errorf("mc.Delete(%s): %s",i,err)
+			glog.Infof("mc.Delete(%s): %s",i,err)
 			return
 		}
 	}
+	f.Category().ClearCache()
 }
 func (f Feed) DeleteExcludes() {
 	el := f.Excludes()
@@ -467,7 +437,6 @@ func GetAllFeeds() []Feed {
 	var feedids []int
 	err := mc.Get("FeedList", &feedids)
 	if err != nil { // not cached
-		print("-FL<ALL>")
 		rows, err := stmtGetAllFeeds.Query()
 		if err != nil {
 			glog.Errorf("stmtGetAllFeeds.Query(): %s", err)
@@ -482,7 +451,6 @@ func GetAllFeeds() []Feed {
 		}
 		mc.Set("FeedList", feedids)
 	} else {
-		print("+FL<ALL>")
 		for i := range feedids {
 			f := GetFeed(feedids[i])
 			allFeeds = append(allFeeds, f)
@@ -516,7 +484,7 @@ func GetFeed(id int) Feed {
 	var feed Feed
 	var fcn = "Feed" + u.Tostr(id) + "_"
 	if id < 1 {
-		glog.Errorf("Non valid id passed to GetFeed")
+		glog.Errorf("Non valid id passed to GetFeed %s",id)
 		return feed
 	}
 

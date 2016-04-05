@@ -25,7 +25,7 @@ var (
     db                        *sql.DB
 	cachefile         = "/dev/null"
 	indexHtml         = template.Must(template.ParseFiles("templates/index-nologin.html"))
-	mainHtml          = template.Must(template.ParseFiles("templates/main.html"))
+	mainHtml          = template.Must(template.ParseFiles("templates/main.html", "templates/category_list.html"))
 	categoryHtml      = template.Must(template.ParseFiles("templates/category.html"))
 	categoryHtmlS     = template.Must(template.ParseFiles("templates/category_selected.html"))
 	feedHtml          = template.Must(template.ParseFiles("templates/feed.html"))
@@ -618,7 +618,16 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	if err := mainHtml.Execute(w, nil); err != nil {
+	type Printcat struct {
+		Categories []feed.Category
+		FeedsWithoutCats []feed.Feed
+	}
+    allthecats := feed.GetCategories(userName)
+
+	var a Printcat
+	a.Categories=allthecats
+	a.FeedsWithoutCats = feed.GetFeedsWithoutCats(userName)
+	if err := mainHtml.Execute(w, a); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	fmt.Printf("handleMain %v\n", time.Now().Sub(t0))
