@@ -560,14 +560,6 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 			el = f.AllEntries()
 		case "search":
 			el = f.SearchTitles(curID, modifier)
-		case "next":
-			nid := strconv.Itoa(f.Next(curID).ID)
-			fmt.Fprintf(w, nid)
-			return
-		case "previous":
-			nid := strconv.Itoa(f.Previous(curID).ID)
-			fmt.Fprintf(w, nid)
-			return
 		default:
 			el = f.UnreadEntries()
 		}
@@ -582,14 +574,6 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 			el = c.AllEntries()
 		case "search":
 			el = c.SearchTitles(curID, modifier)
-		case "previous":
-			nid := strconv.Itoa(c.Previous(curID).ID)
-			fmt.Fprintf(w, nid)
-			return
-		case "next":
-			nid := strconv.Itoa(c.Next(curID).ID)
-			fmt.Fprintf(w, nid)
-			return
 		default:
 			el = c.UnreadEntries()
 		}

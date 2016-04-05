@@ -204,49 +204,10 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
     mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
-func (c Category) Next(id string)(e Entry) {
-	var el []Entry
-	mc.GetOr("CategoryCurrent"+c.UserName, &el, func() {
-		el = c.GetEntriesByParam("id > "+id)
-	})
-	if id == "" {
-		return el[0]
-	}
-	for i,p := range el {
-		if u.Tostr(p.ID) == id {
-			if i == len(el)-1 { // prevent overflow if current is the last one in the array
-				return e
-			}
-			return el[i+1]
-		}
-	}
-	return e
-}
-func (c Category) Previous(id string)(e Entry) {
-//	var el []Entry
-	if id == "" {
-		var e Entry
-		glog.Errorf("No id passed to c.Previous")
-		return e
-	}
-	var CategoryCurrentList []Entry
-	mc.GetOr("CategoryCurrent"+c.UserName, &CategoryCurrentList, func() {
-		CategoryCurrentList = c.GetEntriesByParam("id <= "+id)
-	})
-	for i,p := range CategoryCurrentList {
-		if u.Tostr(p.ID) == id {	//prevent underflow if current is the last one in the array
-			if i == 0 {
-				return e
-			}
-			return CategoryCurrentList[i-1]
-		}
-	}
-	return e
-}
 
 func GetCat(id string) Category {
 	var cat Category
-	err := mc.Get("Category"+id, &cat)
+	err := mc.Get("Category"+id+"_", &cat)
 	if err != nil { //cache miss
 		err := stmtGetCat.QueryRow(id).Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
 		if err != nil {
@@ -259,33 +220,6 @@ func GetCat(id string) Category {
 func (c Category) Feeds() []Feed {
 	af := GetCategoryFeeds(c.ID)
 	return af
-	var allFeeds []Feed
-	var feedids []int
-	var cfl = "Category" + u.Tostr(c.ID) + "Feeds"
-
-	//Try getting from cache first
-	err := mc.Get(cfl, &feedids)
-	if err != nil {
-		rows, err := stmtGetCatFeeds.Query(u.Tostr(c.ID))
-		if err != nil {
-			err.Error()
-			return allFeeds
-		}
-		for rows.Next() {
-			var id int
-			rows.Scan(&id)
-			feed := GetFeed(id)
-			allFeeds = append(allFeeds, feed)
-			feedids = append(feedids, feed.ID)
-		}
-		mc.Set(cfl, feedids)
-	} else {
-		for _, i := range feedids {
-			feed := GetFeed(i)
-			allFeeds = append(allFeeds, feed)
-		}
-	}
-	return allFeeds
 }
 func (c Category) FeedsStr() []string {
 	f := c.Feeds()

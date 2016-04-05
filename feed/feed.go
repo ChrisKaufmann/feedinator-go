@@ -423,13 +423,11 @@ func GetFeeds(userName string) (allFeeds []Feed) {
 	return allFeeds
 }
 func GetCategoryFeeds(cid int) (cf []Feed) {
-	mc.GetOr("CategoryFeeds"+u.Tostr(cid)+"_", &cf, func() {
-		for _,f := range GetAllFeeds() {
-			if f.CategoryID == cid {
-				cf = append(cf, f)
-			}
+	for _,f := range GetAllFeeds() {
+		if f.CategoryID == cid {
+			cf = append(cf, f)
 		}
-	})
+	}
 	return cf
 }
 func GetAllFeeds() []Feed {
