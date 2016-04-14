@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"html"
 	"html/template"
+	"fmt"
 	"github.com/golang/glog"
 )
 
@@ -15,22 +16,25 @@ var (
 	stmtUpdateReadEntry *sql.Stmt
 	stmtSaveEntry       *sql.Stmt
 	stmtGetEntryCount   *sql.Stmt
+	stmtGetEntry	    *sql.Stmt
 	entrySelectString   string
 )
 
 func Entryinit() {
 	var err error
-	entrySelectString = " id,IFNULL(title,''),IFNULL(link,''),IFNULL(updated,''),marked,unread,feed_id,content,guid "
+	entrySelectString = " id,IFNULL(title,''),IFNULL(link,''),IFNULL(updated,''),IFNULL(marked,0),IFNULL(unread,1),feed_id,content,guid "
 	stmtAddEntry,err = u.Sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
 	if err != nil {glog.Fatalf("stmt: %s", err)}
 	stmtUpdateMarkEntry,err = u.Sth(db, "update ttrss_entries set marked=? where id=?")
 	if err != nil {glog.Fatalf("stmtUpdateMarkEntry: %s", err)}
 	stmtUpdateReadEntry,err = u.Sth(db, "update ttrss_entries set unread=? where id=?")
 	if err != nil {glog.Fatalf("stmtUpdateReadEntry: %s", err)}
-	stmtSaveEntry,err = u.Sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=? where id=? limit 1")
+	stmtSaveEntry,err = u.Sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=?,content=? where id=? limit 1")
 	if err != nil {glog.Fatalf("stmtSaveEntry: %s", err)}
 	stmtGetEntryCount,err = u.Sth(db, "select count(id) from ttrss_entries")
 	if err != nil {glog.Fatalf("stmtGetEntryCount: %s", err)}
+	stmtGetEntry, err = u.Sth(db,"select " + entrySelectString + "from ttrss_entries where id=?")
+	if err != nil {glog.Fatalf("stmtGetEntry: %s", err)}
 }
 
 type Entry struct {
@@ -74,12 +78,37 @@ func getEntriesFromSql(s string) []Entry {
 	var stmt,err = u.Sth(db, s)
 	if err != nil {
 		glog.Errorf("Error preparing statment '%s': %s", s, err)
-	}
-	rows, err := stmt.Query()
-	if err != nil {
-		err.Error()
 		return el
 	}
+	el, err = getEntriesFromSth(stmt)
+	return el
+}
+func getEntriesFromSthP(stmt *sql.Stmt, p string) (el []Entry, err error) {
+	rows, err := stmt.Query(p)
+	if err != nil {
+		glog.Errorf("getEntriesFromSthP.Query(%s): %s", p, err)
+		return el, err
+	}
+	return getEntriesFromRows(rows)
+}
+func getEntriesFromSthPP(stmt *sql.Stmt, p string, p2 string) (el []Entry, err error) {
+	rows, err := stmt.Query(p,p2)
+	if err != nil {
+		glog.Errorf("getEntriesFromSthP.Query(%s,%s): %s", p,p2, err)
+		return el, err
+	}
+	return getEntriesFromRows(rows)
+}
+
+func getEntriesFromSth(stmt *sql.Stmt) (el []Entry,err error){
+	rows, err := stmt.Query()
+	if err != nil {
+		glog.Errorf("stmt.Query() %s", err)
+		return el, err
+	}
+	return getEntriesFromRows(rows)
+}
+func getEntriesFromRows(rows *sql.Rows) (el []Entry, err error) {
 	var count int
 	for rows.Next() {
 		var e Entry
@@ -95,15 +124,18 @@ func getEntriesFromSql(s string) []Entry {
 		el = append(el, e)
 		count = count + 1
 	}
-	return el
+	return el,err
 }
 func AllMarkedEntries(userName string) []Entry {
 	sql := "select " + entrySelectString + " from ttrss_entries as e where e.user_name='" + userName + "' and e.marked=1"
 	el := getEntriesFromSql(sql)
 	return el
 }
+func (e Entry) String()( string) {
+	return fmt.Sprintf("ID: %v\nTitle: %s\nLink: %s\nDate: %s\nMarked: %s\nMarkSet: %s\nFeedID: %v\nContent: %s\n Unread: %t\n",e.ID,e.Title,e.Link,e.Date,e.Marked,e.MarkSet,e.FeedID,e.Content,e.Unread)
+}
 func (e Entry) Print() {
-	print("ID:\t" + u.Tostr(e.ID) + "\nTitle:\t" + e.Title + "\nLink:\t" + e.Link + "\nDate\t" + e.Date + "\nFeed_id:\t" + u.Tostr(e.FeedID) + "\nMarked:\t" + e.Marked + "\nUnread:\t" + u.Tostr(e.Unread) + "\nGuid:\t" + e.GUID + "\n")
+	fmt.Printf("ID: %v\nFeed ID: %s\nTitle: %s\nLink: %s\nDate: %s\nMarked: %t\nUnread: %t\nGUID: %s\nContent: %s\n",e.ID,e.FeedID,e.Title,e.Link,e.Date, e.Marked,e.Unread,e.GUID,e.Content)
 }
 func (e Entry) ViewMode() string {
 	return e.Feed().ViewMode
@@ -116,18 +148,38 @@ func GetEntriesCount() (c string, err error) {
 	return c, err
 }
 func (e Entry) Feed() (f Feed) {
-	f = GetFeed(e.FeedID)
+	if e.FeedID <1 {
+		return f
+	}
+	f,err := GetFeed(e.FeedID)
+	if err != nil {
+		glog.Errorf("GetFeed(%v): %s", e.FeedID, err)
+	}
 	return f
 }
-func (e Entry) Save(userName string) {
+func (e Entry) Save(userName string)(err error) {
 	if e.ID > 0 {
-		stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, e.Unread, e.ID)
+		if e.Title == "" {e.Title="&nbsp"}
+		if e.Link == "" {e.Link=""}
+		if e.Date == "" {e.Date=""}
+		if e.FeedID == 0 {e.FeedID=0}
+		if e.Marked == "" {e.Marked="0"}
+		if u.Tostr(e.Content) == ""  {e.Content=template.HTML("")}
+		var unread string = "1"
+		if e.Unread == false {unread="0"}
+		_,err = stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID)
+		if err != nil {
+			glog.Errorf("stmtSaveEntry.Exec(%s,%s,%s,%s,%s,%s,%s,%s): %s",e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID, err)
+			return err
+		}
 	} else {
 		_, err := stmtAddEntry.Exec(e.Title, e.Link, e.FeedID, e.Marked, u.Tostr(e.Content), u.Tostr(e.ContentHash), e.GUID, userName)
 		if err != nil {
-			err.Error()
+			glog.Errorf("stmtAddEntry: %s", err)
+			return err
 		}
 	}
+	return err
 }
 func (e Entry) MarkRead() (err error) {
 	if _, err = stmtUpdateReadEntry.Exec("0", e.ID); err != nil {
@@ -171,11 +223,18 @@ func (e Entry) ToggleMark() (retstr string, err error) {
 }
 
 func GetEntry(id string,userName string) (e Entry) {
-	if id == "" {
+	if id == ""  || userName == ""{
+		glog.Errorf("No id(%s) or userName(%s) passed to GetEntry",id,userName)
 		return e
 	}
-	sql := "select " + entrySelectString + "from ttrss_entries where id='" + id + "'"
-	el := getEntriesFromSql(sql)
+	el, err := getEntriesFromSthP(stmtGetEntry, id)
+	if err != nil {
+		glog.Errorf("getEntriesFromSthP(%s): %s", id, err)
+		var e Entry
+		return e
+	}
+	return el[0]
+
 	if len(el) > 0 {
 		e = el[0]
 		f := e.Feed()

@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"errors"
 	"github.com/golang/glog"
 	u "github.com/ChrisKaufmann/goutils"
 	"time"
@@ -36,7 +37,7 @@ type Feed struct {
 	Search		   string
 }
 func (f Feed) String() string {
-	return fmt.Sprintf("ID: %v, Title: %s, UserName: %s, Evenodd: %s, Url: %s, CategoryID: %v, Unread: %v", f.ID, f.Title, f.UserName, f.Evenodd, f.Url, f.CategoryID, f.Unread())
+	return fmt.Sprintf("ID: %v\n, Title: %s\n, UserName: %s\n, Evenodd: %s\n, Url: %s\n, CategoryID: %v\n, Unread: %v\n,ViewMode: %s\nAutoScrollPx: %v\nExclude: %s\nExclude Data: %s\n Expirey: %s\n", f.ID, f.Title, f.UserName, f.Evenodd, f.Url, f.CategoryID, f.Unread(),f.ViewMode,f.AutoscrollPX,f.Exclude,f.ExcludeData,f.Expirey)
 }
 
 func (f Feed) DecrementUnread() {
@@ -63,21 +64,18 @@ func (f Feed) Unread() (count int) {
 	return count
 }
 func (f Feed) UnreadEntries() (el []Entry) {
-	print("f.unreadentries")
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_unreadentries", &el, func() {
 		el = f.GetEntriesByParam("unread = 1")
 	})
 	return el
 }
 func (f Feed) MarkedEntries() (el []Entry) {
-	print("f.markedentries")
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_markedentries", &el, func() {
 		el = f.GetEntriesByParam("marked = 1")
 	})
 	return el
 }
 func (f Feed) ReadEntries() (el []Entry) {
-	print("f.ReadEntries")
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_readentries", &el, func() {
 		el = f.GetEntriesByParam("unread = '0'")
 	})
@@ -97,7 +95,6 @@ func (f Feed) SearchTitles(s string,m string) (el []Entry) {
 		default: //default to unread
 			ss = fmt.Sprintf(" title like '%%%s%%' and unread='1'", s)
 	}
-	fmt.Printf("s: %s", ss)
 	ul = f.GetEntriesByParam(ss)
 	if s == "" {return ul}
 	if len(ul) != 0 {
@@ -111,15 +108,20 @@ func (f Feed) SearchTitles(s string,m string) (el []Entry) {
 	return el
 }
 func (f Feed) AllEntries() (el []Entry) {
-	print("f.allEntries")
 	el = f.GetEntriesByParam("1=1")
 	return el
 }
-func (f Feed) Excludes() []string {
-	return strings.Split(strings.ToLower(f.Exclude), ",")
+func (f Feed) Excludes() (rl []string) {
+	for _,s := range strings.Split(strings.ToLower(f.Exclude), ",") {
+		if len(s)>0 { rl=append(rl,s) }
+	}
+	return rl
 }
-func (f Feed) ExcludesData() []string {
-	return strings.Split(strings.ToLower(f.ExcludeData), ",")
+func (f Feed) ExcludesData()(rl []string) {
+	for _,s := range strings.Split(strings.ToLower(f.ExcludeData), ",") {
+		if len(s)>0 {rl=append(rl,s) }
+	}
+	return rl
 }
 func (f Feed) GetEntriesByParam(p string) []Entry {
 	var query = "select " + entrySelectString + " from ttrss_entries e where e.feed_id = " + u.Tostr(f.ID) + " and " + p + " order by e.id ASC;"
@@ -127,29 +129,17 @@ func (f Feed) GetEntriesByParam(p string) []Entry {
 	mc.Set("FeedCurrent"+f.UserName,el)
 	return el
 }
-func (feed Feed) Print() {
-	print("\nFeed:\n" +
-		"\tID: " + u.Tostr(feed.ID) +
-		"\n\tTitle: " + feed.Title +
-		"\n\tURL: " + feed.Url +
-		"\n\tUserName: " + feed.UserName +
-		"\n\tPublic: " + feed.Public +
-		"\n\tCategoryID: " + u.Tostr(feed.CategoryID) +
-		"\n\tViewMode: " + feed.ViewMode +
-		"\n\tAutoscrollPX: " + u.Tostr(feed.AutoscrollPX) +
-		"\n\tExclude: " + feed.Exclude +
-		"\n\tExclude Data: " + feed.ExcludeData +
-		"\n\tErrorstring: " + feed.ErrorString +
-		"\n\tExpirey: " + feed.Expirey +
-		"\n\tUnread:" + u.Tostr(feed.Unread()) + "\n")
+func (f Feed) Print() {
+	fmt.Printf("%s",f)
 }
-
-func (f Feed) Save() {
+func (f Feed) Save() (err error){
 	f.Exclude = html.EscapeString(f.Exclude)
-	if _,err := stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID); err != nil {
+	if _,err = stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID); err != nil {
 		glog.Errorf("stmtSaveFeed.Exec(%s,%s,%s,%s,%s,%s,%s,%s,%s,%v): %s", f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID, err)
+		return err
 	}
 	f.ClearCache()
+	return err
 }
 func (f Feed) Class() string {
 	if f.Unread() > 0 {
@@ -242,14 +232,45 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 }
 */
 func (f Feed) ClearEntries() {
-	mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
-	mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
-	mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
-	mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
+	var err error
+	err = mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
+	if err != nil {
+		if err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(Category" + u.Tostr(f.CategoryID) + "_unreadentries: %s", err)
+		}
+	}
+	err = mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
+	if err != nil {
+		if err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(Feed" + u.Tostr(f.CategoryID) + "_unreadentries: %s", err)
+		}
+	}
+	err = mc.Delete("Category" + u.Tostr(f.CategoryID) + "_readentries")
+	if err != nil {
+		if err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(Category" + u.Tostr(f.CategoryID) + "_readentries: %s", err)
+		}
+	}
+	err = mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
+	if err != nil {
+		if err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(Feed" + u.Tostr(f.CategoryID) + "_readentries: %s", err)
+		}
+	}
 }
 func (f Feed) ClearMarked() {
-	mc.Delete("Feed" + u.Tostr(f.ID) + "_markedentries")
-	mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
+	err := mc.Delete("Feed" + u.Tostr(f.ID) + "_markedentries")
+	if err != nil {
+		if err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(feed%v_markedentries): %s",f.ID, err)
+		}
+	}
+	err = mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
+	if err != nil {
+		if err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(Category%v_markedentries): %s",f.ID, err)
+		}
+	}
 	f.ClearEntries()
 }
 func (f Feed) ClearCache() {
@@ -264,8 +285,8 @@ func (f Feed) ClearCache() {
 	}
 	for _, i := range cl {
 		err := mc.Delete(i)
-		if err != nil {
-			glog.Infof("mc.Delete(%s): %s",i,err)
+		if err != nil && err.Error() != "memcache: cache miss" {
+			glog.Errorf("mc.Delete(%s): %s",i,err)
 			return
 		}
 	}
@@ -306,7 +327,7 @@ func (f Feed) DeleteExcludes() {
 	}
 	f.ClearCache()
 }
-func (f Feed)MarkEntriesRead(ids []string) (err error) {
+func (f Feed) MarkEntriesRead(ids []string) (err error) {
     if len(ids) == 0 {
         err = fmt.Errorf("Ids is null")
 		return err
@@ -319,8 +340,7 @@ func (f Feed)MarkEntriesRead(ids []string) (err error) {
             }
         }
 		if len(id_list) < 1 {
-			err = fmt.Errorf("Not enough valid ids passed")
-			return err
+			return fmt.Errorf("Not enough valid ids passed")
 		}
         j := strings.Join(id_list,",")
 		sql := "update ttrss_entries set unread=0 where feed_id="+u.Tostr(f.ID)+" and id in ("+j+")"
@@ -341,31 +361,23 @@ func (f Feed)MarkEntriesRead(ids []string) (err error) {
     }
     return err
 }
-func (f Feed) Insert() {
-	if f.Url == "" {
-		panic("URL is blank for new feed")
-	}
-	if f.UserName == "" {
-		panic("username is blank fornew feed")
-	}
-	_,err := stmtInsertFeed.Exec(f.Url, f.UserName, f.Title)
-	if err != nil {
-		glog.Errorf("stmtInsertFeed.Exec(%s,%s,%s): %s", f.Url, f.UserName, f.Title, err)
-	}
-	mc.Delete("FeedsWithoutCats"+f.UserName)
-	f.ClearCache()
-}
-func (f Feed) Delete() {
+func (f Feed) Delete() (err error){
 	//first, delete all of the entries that aren't starred
-	if _,err := stmtDeleteFeedEntries.Exec(f.ID); err != nil { 
+	_,err = stmtDeleteFeedEntries.Exec(f.ID)
+	if err != nil {
 		glog.Errorf("stmtDeleteFeedEntries.Exec(%v): %s", f.ID, err)
+		return err
 	}
 
 	//then delete the feed from the feeds table
-	if _,err := stmtDeleteFeed.Exec(f.ID); err != nil {
+	_,err = stmtDeleteFeed.Exec(f.ID)
+	if err != nil {
 		glog.Errorf("stmtDeleteFeed.Exec(%v): %s", f.ID, err)
+		return err
 	}
+	mc.Delete("FeedList")
 	f.ClearCache()
+	return err
 }
 
 var (
@@ -434,26 +446,19 @@ func GetAllFeeds() []Feed {
 	var allFeeds []Feed
 	var feedids []int
 	err := mc.Get("FeedList", &feedids)
-	if err != nil { // not cached
-		rows, err := stmtGetAllFeeds.Query()
-		if err != nil {
-			glog.Errorf("stmtGetAllFeeds.Query(): %s", err)
-			return allFeeds
-		}
-		for rows.Next() {
-			var feed Feed
-			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
-			allFeeds = append(allFeeds, feed)
-			feedids = append(feedids, feed.ID)
-			mc.Set("Feed"+u.Tostr(feed.ID), feed)
-		}
-		mc.Set("FeedList", feedids)
-	} else {
-		for i := range feedids {
-			f := GetFeed(feedids[i])
-			allFeeds = append(allFeeds, f)
-		}
+	rows, err := stmtGetAllFeeds.Query()
+	if err != nil {
+		glog.Errorf("stmtGetAllFeeds.Query(): %s", err)
+		return allFeeds
 	}
+	for rows.Next() {
+		var feed Feed
+		rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+		allFeeds = append(allFeeds, feed)
+		feedids = append(feedids, feed.ID)
+		mc.Set("Feed"+u.Tostr(feed.ID), feed)
+	}
+	mc.Set("FeedList", feedids)
 	return allFeeds
 }
 func CacheAllFeeds() {
@@ -478,16 +483,15 @@ func GetFeedsWithoutCats(userName string) (allFeeds []Feed) {
 	return allFeeds
 }
 
-func GetFeed(id int) Feed {
-	var feed Feed
+func GetFeed(id int)(feed Feed,err error) {
 	var fcn = "Feed" + u.Tostr(id) + "_"
 	if id < 1 {
 		glog.Errorf("Non valid id passed to GetFeed %s",id)
-		return feed
+		return feed, errors.New("feed Invalid ID")
 	}
 
 	mc.GetOr(fcn, &feed, func() {
-		err := stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+		err = stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 		if err != nil {
 			glog.Errorf("stmtGetFeed.QueryRow(%s).Scan(...): %s", id, err)
 		}
@@ -497,7 +501,7 @@ func GetFeed(id int) Feed {
 		feed.Title = html.UnescapeString(feed.Title)
 		mc.Set("Feed"+u.Tostr(feed.ID), feed)
 	})
-	return feed
+	return feed,err
 }
 
 func escape_guid(s string) string {

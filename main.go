@@ -203,7 +203,8 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	f.UserName = userName
 	purl, _ := url.Parse(formurl)
 	f.Title = purl.Host
-	f.Insert()
+	err := f.Save()
+	if err != nil {glog.Errorf("f.Save(): %s", err)}
 	fmt.Fprintf(w, "Added")
 	fmt.Printf("handleNewFeed %v\n", time.Now().Sub(t0))
 }
@@ -219,7 +220,8 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	var todo string
 	var val string
 	u.PathVars(r, "/feed/", &id, &todo, &val)
-	f := feed.GetFeed(u.Toint(id))
+	f,err := feed.GetFeed(u.Toint(id))
+	if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
 	if f.UserName != userName {
 		fmt.Fprintf(w, "Auth err")
 		return
@@ -324,17 +326,14 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	} else {
 	    switch feedOrCat {
 		    case "feed":
-				f := feed.GetFeed(u.Toint(fcid))
-				err := f.MarkEntriesRead(b)
-				if err != nil {
-					print(err.Error())
-				}
+				f, err := feed.GetFeed(u.Toint(fcid))
+			    	if err != nil {glog.Errorf("getFeed(%s): %s", fcid, err)}
+				err = f.MarkEntriesRead(b)
+				if err != nil {glog.Errorf("f.MarkEntriesread(): %s", err) }
 			case "category":
 				c := feed.GetCat(fcid)
 				err := c.MarkEntriesRead(b)
-				if err != nil {
-					print(err.Error())
-				}
+				if err != nil { glog.Errorf("c.MarkEntriesRead(): %s", err) }
 		}
 	}
 	fmt.Fprintf(w, retstr)
@@ -353,7 +352,8 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	u.PathVars(r, "/entry/", &id)
 
 	e := feed.GetEntry(id,userName)
-	f := feed.GetFeed(e.FeedID)
+	f,err := feed.GetFeed(e.FeedID)
+	if err != nil {glog.Errorf("feed.GetFeed(%s): %s",e.FeedID, err)}
 	e.FeedName = f.Title
 	print("after getentry and getfeed\n")
 	if e.ViewMode() == "link" {
@@ -396,7 +396,8 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("catMenuHtml: %s", err)
 		}
 	case "feed":
-		f := feed.GetFeed(u.Toint(id))
+		f,err := feed.GetFeed(u.Toint(id))
+		if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
 		f.SearchSelect = getSearchSelect(modifier)
 		f.Search = curID
 		setSelects(&f)
@@ -418,7 +419,8 @@ func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
 	}
 	var id string
 	u.PathVars(r, "/menu/select/", &id)
-	f := feed.GetFeed(u.Toint(id))
+	f,err := feed.GetFeed(u.Toint(id))
+	if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
 	setSelects(&f)
 	if err := menuDropHtml.Execute(w, f); err != nil {
 		glog.Errorf("menuDropHtml.Execute: %s", err)
@@ -550,7 +552,8 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var el []feed.Entry
 	switch feedOrCat {
 	case "feed":
-		f := feed.GetFeed(u.Toint(id))
+		f,err := feed.GetFeed(u.Toint(id))
+		if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
 		switch mode {
 		case "read":
 			el = f.ReadEntries()

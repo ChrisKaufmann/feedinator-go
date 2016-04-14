@@ -83,6 +83,8 @@ func (c Category) Print() {
 func (c Category) Insert(userName string) (err error){
 	_, err = stmtAddCat.Exec(userName, c.Name)
 	if err != nil {glog.Errorf("stmtAddCat.Exec(%s,%s): %s", userName, c.Name, err)}
+	mc.Delete("CategoryList_"+userName)
+	mc.Delete("CategoryList")
 	return err
 }
 func (c Category) Delete() (err error){
@@ -90,6 +92,8 @@ func (c Category) Delete() (err error){
 	if err != nil {glog.Errorf("stmtResetCategories.Exec(%s): %s", c.ID, err);return err}
 	_,err = stmtDeleteCategory.Exec(c.ID)
 	if err != nil {glog.Errorf("stmtDeleteCategory.Exec(%s): %s", c.ID, err);return err}
+	mc.Delete("CategoryList_"+c.UserName)
+	mc.Delete("CategoryList")
 	c.ClearCache()
 	return err
 }
@@ -126,14 +130,21 @@ func (c Category) Class() string {
 	}
 	return "odd"
 }
-func (c Category) Excludes() []string {
-	return strings.Split(strings.ToLower(c.Exclude), ",")
+func (c Category) Excludes()(rl []string) {
+	for _,e := range strings.Split(strings.ToLower(c.Exclude), ",") {
+		if len(e)>0 { rl = append(rl, e) }
+	}
+	return rl
 }
 func (c Category) DeleteExcludes() {
 	//Go through the included feeds and delete their excludes first
 	for _, f := range c.Feeds() {
 		//There are weird things with caching of feeds if it has recently been updated.
-		fd := GetFeed(f.ID)
+		fd,err := GetFeed(f.ID)
+		if err != nil {
+			glog.Errorf("GetFeed(%v): %s", f.ID, err)
+			continue
+		}
 		fd.DeleteExcludes()
 	}
 	for _,excstr := range c.Excludes() {
@@ -280,12 +291,12 @@ func (c Category)MarkEntriesRead(ids []string) (err error) {
         sql := "update ttrss_entries set unread=0 where id in ("+j+")"
         stmtUpdateMarkEntries,err := u.Sth(db, sql)
 		if err != nil {glog.Errorf("Sth(db, %s): %s", sql, err);return err}
-        stmtUpdateMarkEntries.Exec()
+        _,err = stmtUpdateMarkEntries.Exec()
+		if err != nil {glog.Errorf("stmtUpdateMarkEntries.Exec: %s", err);return err}
         mc.Decrement("Category"+u.Tostr(c.ID)+"_UnreadCount", uint64(len(ids)))
         mc.Delete("Category" + u.Tostr(c.ID) + "_unreadentries")
         mc.Delete("Category" + u.Tostr(c.ID) + "_readentries")
-		for fid := range c.Feeds() {
-			f := GetFeed(fid)
+		for _,f := range c.Feeds() {
 			mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
 			mc.Delete("Feed"+u.Tostr(f.ID)+"_UnreadCount")
 			mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
