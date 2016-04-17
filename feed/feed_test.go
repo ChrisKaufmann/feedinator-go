@@ -463,7 +463,13 @@ func TestGetFeedsWithoutCats(t *testing.T) {
 		t.Errorf("len(GetFeedsWithoutCats(test): 1 <=> %v", wc)
 	}
 }
-
+func TestGetFeeds(t *testing.T) {
+	print("\tGetFeeds\n")
+	fl := len(GetFeeds("test"))
+	if fl != 4 {
+		t.Errorf("len(GetFeeds(test)) 4 <=> %v", fl)
+	}
+}
 func popcache(f Feed, t *testing.T) {
 	var icul []Entry
 	var icl []Entry

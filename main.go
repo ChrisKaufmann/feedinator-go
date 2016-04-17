@@ -507,9 +507,7 @@ func handleFeedList(w http.ResponseWriter, r *http.Request) {
 //print the list of categories (possibly with feeds in that cat), then the uncategorized feeds
 func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
-	var loggedin bool
-	loggedin, userName = auth.LoggedIn(w, r)
-	fmt.Printf("user: %s", userName)
+	loggedin, userName := auth.LoggedIn(w, r)
 	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return

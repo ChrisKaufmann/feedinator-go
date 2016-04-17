@@ -1,17 +1,17 @@
 package feed
 
 import (
-	u "github.com/ChrisKaufmann/goutils"
-	"github.com/golang/glog"
-	"time"
 	"database/sql"
-	"html/template"
 	"fmt"
-	"strconv"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/ChrisKaufmann/easymemcache"
+	u "github.com/ChrisKaufmann/goutils"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang/glog"
 	"html"
+	"html/template"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Category struct {
@@ -22,7 +22,7 @@ type Category struct {
 	Evenodd      string
 	Exclude      string
 	SearchSelect template.HTML
-	Search		 string
+	Search       string
 }
 
 var (
@@ -34,34 +34,49 @@ var (
 	stmtAddCat          *sql.Stmt
 	stmtResetCategories *sql.Stmt
 	stmtDeleteCategory  *sql.Stmt
-	db					*sql.DB
-	mc					*easymemcache.Client
+	db                  *sql.DB
+	mc                  *easymemcache.Client
 )
-func (c Category)String() string {
-    return fmt.Sprintf("ID: %s,Name: %s, Description: %s, UserName: %s, Exclude: %s", c.ID, c.Name, c.Description, c.UserName, c.Exclude)
+
+func (c Category) String() string {
+	return fmt.Sprintf("ID: %s,Name: %s, Description: %s, UserName: %s, Exclude: %s", c.ID, c.Name, c.Description, c.UserName, c.Exclude)
 }
 
 func Categoryinit(dbh *sql.DB, mch *easymemcache.Client) {
 	var err error
-	db=dbh
-	mc=mch
-	stmtGetCatFeeds,err = u.Sth(db, "select id from ttrss_feeds where category_id = ?")
-	stmtGetCat,err = u.Sth(db, "select name,user_name,IFNULL(description,''),id, exclude from ttrss_categories where id = ?")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
-	stmtGetCats,err = u.Sth(db, "select name,user_name,IFNULL(description,''),id,exclude from ttrss_categories where user_name= ?")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
-	stmtGetAllCats,err = u.Sth(db, "select name,user_name,IFNULL(description,''),id,exclude from ttrss_categories")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
-	stmtSaveCat,err = u.Sth(db, "update ttrss_categories set name=?,description=?, exclude=? where id=? limit 1")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
-	stmtAddCat,err = u.Sth(db, "insert into ttrss_categories (user_name,name) values (?,?)")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
-	stmtResetCategories,err = u.Sth(db, "update ttrss_feeds set category_id=NULL where category_id= ?")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
-	stmtDeleteCategory,err = u.Sth(db, "delete from ttrss_categories where id=? limit 1")
-	if err != nil {glog.Fatalf("sth(): %s", err)}
+	db = dbh
+	mc = mch
+	stmtGetCatFeeds, err = u.Sth(db, "select id from ttrss_feeds where category_id = ?")
+	stmtGetCat, err = u.Sth(db, "select name,user_name,IFNULL(description,''),id, exclude from ttrss_categories where id = ?")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
+	stmtGetCats, err = u.Sth(db, "select name,user_name,IFNULL(description,''),id,exclude from ttrss_categories where user_name= ?")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
+	stmtGetAllCats, err = u.Sth(db, "select name,user_name,IFNULL(description,''),id,exclude from ttrss_categories")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
+	stmtSaveCat, err = u.Sth(db, "update ttrss_categories set name=?,description=?, exclude=? where id=? limit 1")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
+	stmtAddCat, err = u.Sth(db, "insert into ttrss_categories (user_name,name) values (?,?)")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
+	stmtResetCategories, err = u.Sth(db, "update ttrss_feeds set category_id=NULL where category_id= ?")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
+	stmtDeleteCategory, err = u.Sth(db, "delete from ttrss_categories where id=? limit 1")
+	if err != nil {
+		glog.Fatalf("sth(): %s", err)
+	}
 }
-func (c Category) Save() (err error){
+func (c Category) Save() (err error) {
 	if c.Description == "" {
 		c.Description = " "
 	}
@@ -80,19 +95,27 @@ func (c Category) Print() {
 		"\tUser:\t" + c.UserName + "\n" +
 		"\tExclude:\t" + c.Exclude + "\n")
 }
-func (c Category) Insert(userName string) (err error){
+func (c Category) Insert(userName string) (err error) {
 	_, err = stmtAddCat.Exec(userName, c.Name)
-	if err != nil {glog.Errorf("stmtAddCat.Exec(%s,%s): %s", userName, c.Name, err)}
-	mc.Delete("CategoryList_"+userName)
+	if err != nil {
+		glog.Errorf("stmtAddCat.Exec(%s,%s): %s", userName, c.Name, err)
+	}
+	mc.Delete("CategoryList_" + userName)
 	mc.Delete("CategoryList")
 	return err
 }
-func (c Category) Delete() (err error){
+func (c Category) Delete() (err error) {
 	_, err = stmtResetCategories.Exec(c.ID)
-	if err != nil {glog.Errorf("stmtResetCategories.Exec(%s): %s", c.ID, err);return err}
-	_,err = stmtDeleteCategory.Exec(c.ID)
-	if err != nil {glog.Errorf("stmtDeleteCategory.Exec(%s): %s", c.ID, err);return err}
-	mc.Delete("CategoryList_"+c.UserName)
+	if err != nil {
+		glog.Errorf("stmtResetCategories.Exec(%s): %s", c.ID, err)
+		return err
+	}
+	_, err = stmtDeleteCategory.Exec(c.ID)
+	if err != nil {
+		glog.Errorf("stmtDeleteCategory.Exec(%s): %s", c.ID, err)
+		return err
+	}
+	mc.Delete("CategoryList_" + c.UserName)
 	mc.Delete("CategoryList")
 	c.ClearCache()
 	return err
@@ -121,7 +144,7 @@ func (c Category) Unread() (count int) {
 			count = count + f.Unread()
 		}
 	})
-	glog.Infof("Category(%v).Unread(): %s", c.ID, time.Now().Sub(t0))
+	fmt.Printf("Category(%v).Unread(): %s", c.ID, time.Now().Sub(t0))
 	return count
 }
 func (c Category) Class() string {
@@ -130,9 +153,11 @@ func (c Category) Class() string {
 	}
 	return "odd"
 }
-func (c Category) Excludes()(rl []string) {
-	for _,e := range strings.Split(strings.ToLower(c.Exclude), ",") {
-		if len(e)>0 { rl = append(rl, e) }
+func (c Category) Excludes() (rl []string) {
+	for _, e := range strings.Split(strings.ToLower(c.Exclude), ",") {
+		if len(e) > 0 {
+			rl = append(rl, e)
+		}
 	}
 	return rl
 }
@@ -140,20 +165,20 @@ func (c Category) DeleteExcludes() {
 	//Go through the included feeds and delete their excludes first
 	for _, f := range c.Feeds() {
 		//There are weird things with caching of feeds if it has recently been updated.
-		fd,err := GetFeed(f.ID)
+		fd, err := GetFeed(f.ID)
 		if err != nil {
 			glog.Errorf("GetFeed(%v): %s", f.ID, err)
 			continue
 		}
 		fd.DeleteExcludes()
 	}
-	for _,excstr := range c.Excludes() {
+	for _, excstr := range c.Excludes() {
 		if len(excstr) < 1 {
 			continue
 		}
-		var query= fmt.Sprintf("delete from ttrss_entries where feed_id in (%s) and title like '%%%s%%'", strings.Join(c.FeedsStr(), ","), excstr)
-		if _,err := db.Query(query); err != nil {
-			glog.Errorf("Category(%v).DeleteExcludes.delete(%s): %s", c.ID,excstr,err)
+		var query = fmt.Sprintf("delete from ttrss_entries where feed_id in (%s) and title like '%%%s%%'", strings.Join(c.FeedsStr(), ","), excstr)
+		if _, err := db.Query(query); err != nil {
+			glog.Errorf("Category(%v).DeleteExcludes.delete(%s): %s", c.ID, excstr, err)
 		}
 	}
 	c.ClearCache()
@@ -163,15 +188,17 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 	var ss string
 	switch m {
 	case "marked":
-		ss = fmt.Sprintf(" title like '%%%s%%' and marked = '1'",s)
+		ss = fmt.Sprintf(" title like '%%%s%%' and marked = '1'", s)
 	case "read":
 		ss = fmt.Sprintf(" title like '%%%s%%' and unread='0'", s)
 	case "all":
-		ss= fmt.Sprintf(" title like '%%%s%%' ", s)
+		ss = fmt.Sprintf(" title like '%%%s%%' ", s)
 	default: //yeah, default to unread
 		ss = fmt.Sprintf(" title like '%%%s%%' and unread=1", s)
 	}
-	if s == "" {return ul}
+	if s == "" {
+		return ul
+	}
 	ul = c.GetEntriesByParam(ss)
 	if len(ul) != 0 {
 		for _, e := range ul {
@@ -193,7 +220,7 @@ func (c Category) UnreadEntries() (el []Entry) {
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_unreadentries", &el, func() {
 		el = c.GetEntriesByParam("unread = 1")
 	})
-	mc.SetTime("Category"+u.Tostr(c.ID)+"_UnreadCount", len(el),60)
+	mc.SetTime("Category"+u.Tostr(c.ID)+"_UnreadCount", len(el), 60)
 	return el
 }
 func (c Category) ReadEntries() (el []Entry) {
@@ -212,7 +239,7 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC limit 500;"
 	el = getEntriesFromSql(query)
-    mc.Set("CategoryCurrent"+c.UserName, el)
+	mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
 
@@ -242,6 +269,7 @@ func (c Category) FeedsStr() []string {
 }
 
 func GetCategories(userName string) []Category {
+	t0 := time.Now()
 	var allCats []Category
 	var catids []int
 
@@ -267,42 +295,49 @@ func GetCategories(userName string) []Category {
 			allCats = append(allCats, cat)
 		}
 	}
+	fmt.Printf("GetCategories: %v\n", time.Now().Sub(t0))
 	return allCats
 }
-func (c Category)MarkEntriesRead(ids []string) (err error) {
-    if len(ids) == 0 {
-        err = fmt.Errorf("Ids is null")
-    } else {
-        // make sure they're all integers
-        var id_list []string
-        for _,i := range(ids) {
-            _, err := strconv.Atoi(i)
+func (c Category) MarkEntriesRead(ids []string) (err error) {
+	if len(ids) == 0 {
+		err = fmt.Errorf("Ids is null")
+	} else {
+		// make sure they're all integers
+		var id_list []string
+		for _, i := range ids {
+			_, err := strconv.Atoi(i)
 			if err != nil {
 				glog.Errorf("Non int passed to markEntriesRead: %s", err)
 			} else {
-                id_list = append(id_list, i)
-            }
-        }
-        if len(id_list) < 1 {
-            err = fmt.Errorf("Not enough valid ids passed")
-            return err
-        }
-        j := strings.Join(id_list,",")
-        sql := "update ttrss_entries set unread=0 where id in ("+j+")"
-        stmtUpdateMarkEntries,err := u.Sth(db, sql)
-		if err != nil {glog.Errorf("Sth(db, %s): %s", sql, err);return err}
-        _,err = stmtUpdateMarkEntries.Exec()
-		if err != nil {glog.Errorf("stmtUpdateMarkEntries.Exec: %s", err);return err}
-        mc.Decrement("Category"+u.Tostr(c.ID)+"_UnreadCount", uint64(len(ids)))
-        mc.Delete("Category" + u.Tostr(c.ID) + "_unreadentries")
-        mc.Delete("Category" + u.Tostr(c.ID) + "_readentries")
-		for _,f := range c.Feeds() {
+				id_list = append(id_list, i)
+			}
+		}
+		if len(id_list) < 1 {
+			err = fmt.Errorf("Not enough valid ids passed")
+			return err
+		}
+		j := strings.Join(id_list, ",")
+		sql := "update ttrss_entries set unread=0 where id in (" + j + ")"
+		stmtUpdateMarkEntries, err := u.Sth(db, sql)
+		if err != nil {
+			glog.Errorf("Sth(db, %s): %s", sql, err)
+			return err
+		}
+		_, err = stmtUpdateMarkEntries.Exec()
+		if err != nil {
+			glog.Errorf("stmtUpdateMarkEntries.Exec: %s", err)
+			return err
+		}
+		mc.Decrement("Category"+u.Tostr(c.ID)+"_UnreadCount", uint64(len(ids)))
+		mc.Delete("Category" + u.Tostr(c.ID) + "_unreadentries")
+		mc.Delete("Category" + u.Tostr(c.ID) + "_readentries")
+		for _, f := range c.Feeds() {
 			mc.Delete("Feed" + u.Tostr(f.ID) + "_readentries")
-			mc.Delete("Feed"+u.Tostr(f.ID)+"_UnreadCount")
+			mc.Delete("Feed" + u.Tostr(f.ID) + "_UnreadCount")
 			mc.Delete("Feed" + u.Tostr(f.ID) + "_unreadentries")
 		}
-    }
-    return err
+	}
+	return err
 }
 func GetAllCategories() []Category {
 	var allCats []Category

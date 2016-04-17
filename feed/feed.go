@@ -37,6 +37,64 @@ type Feed struct {
 	Search         string
 }
 
+var (
+	stmtFeedUnread          *sql.Stmt
+	stmtGetFeedsWithoutCats *sql.Stmt
+	stmtGetFeed             *sql.Stmt
+	stmtGetFeeds            *sql.Stmt
+	stmtGetAllFeeds         *sql.Stmt
+	stmtSaveFeed            *sql.Stmt
+	stmtInsertFeed          *sql.Stmt
+	stmtDeleteFeedEntries   *sql.Stmt
+	stmtDeleteFeed          *sql.Stmt
+	stmtGetFeedByCat        *sql.Stmt
+)
+
+func Feedinit() {
+	var selecttxt string = " id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
+	var err error
+	stmtInsertFeed, err = u.Sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
+	if err != nil {
+		glog.Fatalf("stmtInsertFeed: %s", err)
+	}
+	stmtGetFeeds, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where user_name = ?")
+	if err != nil {
+		glog.Fatalf("stmtGetFeeds: %s", err)
+	}
+	stmtGetAllFeeds, err = u.Sth(db, "select "+selecttxt+"	from ttrss_feeds")
+	if err != nil {
+		glog.Fatalf("stmtGetAllFeeds: %s", err)
+	}
+	stmtGetFeed, err = u.Sth(db, "select "+selecttxt+"	from ttrss_feeds where id = ?")
+	if err != nil {
+		glog.Fatalf("stmtGetFeed: %s", err)
+	}
+	stmtFeedUnread, err = u.Sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
+	if err != nil {
+		glog.Fatalf("stmtFeedUnread: %s", err)
+	}
+	stmtGetFeedsWithoutCats, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
+	if err != nil {
+		glog.Fatalf("stmtGetFeedsWithoutCats: %s", err)
+	}
+	stmtSaveFeed, err = u.Sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
+	if err != nil {
+		glog.Fatalf("stmtSaveFeed: %s", err)
+	}
+	stmtDeleteFeedEntries, err = u.Sth(db, "delete from ttrss_entries where feed_id=?")
+	if err != nil {
+		glog.Fatalf("stmtDeleteFeedEntries: %s", err)
+	}
+	stmtDeleteFeed, err = u.Sth(db, "delete from ttrss_feeds where id=? limit 1")
+	if err != nil {
+		glog.Fatalf("stmtDeleteFeed: %s", err)
+	}
+	stmtGetFeedByCat, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where category_id=?")
+	if err != nil {
+		glog.Fatalf("stmtGetFeedByCat: %s", err)
+	}
+}
+
 func (f Feed) String() string {
 	return fmt.Sprintf("ID: %v\n, Title: %s\n, UserName: %s\n, Evenodd: %s\n, Url: %s\n, CategoryID: %v\n, Unread: %v\n,ViewMode: %s\nAutoScrollPx: %v\nExclude: %s\nExclude Data: %s\n Expirey: %s\n", f.ID, f.Title, f.UserName, f.Evenodd, f.Url, f.CategoryID, f.Unread(), f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey)
 }
@@ -61,7 +119,7 @@ func (f Feed) Unread() (count int) {
 			glog.Errorf("stmtFeedUnread.QueryRow(%s): %s", f.ID, err)
 		}
 	})
-	glog.Infof("feed(%v).Unread(): %v", f.ID, time.Now().Sub(t0))
+	fmt.Printf("feed(%v).Unread(): %v\n", f.ID, time.Now().Sub(t0))
 	return count
 }
 func (f Feed) UnreadEntries() (el []Entry) {
@@ -185,66 +243,7 @@ func (f Feed) Update() {
 	//	}
 
 }
-func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
-	//println(len(newchannels), "new channel(s) in", feed.Url)
-	//We're currently ignoring channels
-}
 
-/*
-func makeItemHandler(f Feed) rss.ItemHandler {
-	return func(feed *rss.Feed, ch *rss.Channel, newitems []*rss.Item) {
-		println(len(newitems), "new item(s) in", ch.Title)
-		var guid_cache []string
-		excludes := f.Excludes()
-		for _, i := range newitems {
-			// access f as feed here
-			guid_cache = append(guid_cache, escape_guid(i.Links[0].Href))
-		}
-		existing_entries := make(map[string]Entry)
-		for _, e := range f.GetEntriesByParam(" guid in ('" + strings.Join(guid_cache, "', '") + "')") {
-			existing_entries[e.GUID] = e
-		}
-		for _, i := range newitems {
-			// Check for existing entries in the guid cache and if so, skip
-			guid := escape_guid(i.Links[0].Href)
-			if _, ok := existing_entries[guid]; ok {
-				print(".")
-				continue
-			}
-			var e Entry
-			e.Title = html.EscapeString(i.Title)
-			skip := false
-			for _, ex := range excludes {
-				if strings.Contains(strings.ToLower(e.Title), ex) {
-					skip = true
-					print("s")
-					break
-				}
-			}
-			if skip {
-				continue
-			}
-			e.Link = i.Links[0].Href
-			e.Date = i.PubDate
-			e.Marked = "0"
-			e.FeedID = f.ID
-			if i.Content != nil {
-				e.Content = template.HTML(html.EscapeString(i.Content.Text))
-				e.ContentHash = getHash(i.Content.Text)
-			} else {
-				e.Content = template.HTML(html.EscapeString(i.Description))
-				e.ContentHash = getHash(i.Description)
-			}
-			e.GUID = guid
-			e.Unread = true
-			e.Normalize()
-			e.Save()
-			print("+")
-		}
-		f.ClearCache()
-	}
-}
-*/
 func (f Feed) ClearEntries() {
 	var err error
 	err = mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")
@@ -394,64 +393,6 @@ func (f Feed) Delete() (err error) {
 	return err
 }
 
-var (
-	stmtFeedUnread          *sql.Stmt
-	stmtGetFeedsWithoutCats *sql.Stmt
-	stmtGetFeed             *sql.Stmt
-	stmtGetFeeds            *sql.Stmt
-	stmtGetAllFeeds         *sql.Stmt
-	stmtSaveFeed            *sql.Stmt
-	stmtInsertFeed          *sql.Stmt
-	stmtDeleteFeedEntries   *sql.Stmt
-	stmtDeleteFeed          *sql.Stmt
-	stmtGetFeedByCat        *sql.Stmt
-)
-
-func Feedinit() {
-	var selecttxt string = " id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
-	var err error
-	stmtInsertFeed, err = u.Sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
-	if err != nil {
-		glog.Fatalf("stmtInsertFeed: %s", err)
-	}
-	stmtGetFeeds, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where user_name = ?")
-	if err != nil {
-		glog.Fatalf("stmtGetFeeds: %s", err)
-	}
-	stmtGetAllFeeds, err = u.Sth(db, "select "+selecttxt+"	from ttrss_feeds")
-	if err != nil {
-		glog.Fatalf("stmtGetAllFeeds: %s", err)
-	}
-	stmtGetFeed, err = u.Sth(db, "select "+selecttxt+"	from ttrss_feeds where id = ?")
-	if err != nil {
-		glog.Fatalf("stmtGetFeed: %s", err)
-	}
-	stmtFeedUnread, err = u.Sth(db, "select count(ttrss_entries.id) as unread from ttrss_entries where ttrss_entries.feed_id=? and ttrss_entries.unread='1'")
-	if err != nil {
-		glog.Fatalf("stmtFeedUnread: %s", err)
-	}
-	stmtGetFeedsWithoutCats, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where user_name=? and (category_id is NULL or category_id=0) order by id ASC")
-	if err != nil {
-		glog.Fatalf("stmtGetFeedsWithoutCats: %s", err)
-	}
-	stmtSaveFeed, err = u.Sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
-	if err != nil {
-		glog.Fatalf("stmtSaveFeed: %s", err)
-	}
-	stmtDeleteFeedEntries, err = u.Sth(db, "delete from ttrss_entries where feed_id=?")
-	if err != nil {
-		glog.Fatalf("stmtDeleteFeedEntries: %s", err)
-	}
-	stmtDeleteFeed, err = u.Sth(db, "delete from ttrss_feeds where id=? limit 1")
-	if err != nil {
-		glog.Fatalf("stmtDeleteFeed: %s", err)
-	}
-	stmtGetFeedByCat, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where category_id=?")
-	if err != nil {
-		glog.Fatalf("stmtGetFeedByCat: %s", err)
-	}
-}
-
 func GetFeeds(userName string) (allFeeds []Feed) {
 	mc.GetOr("AllFeeds"+userName+"_", &allFeeds, func() {
 		rows, err := stmtGetFeeds.Query(userName)
@@ -496,7 +437,9 @@ func GetAllFeeds() []Feed {
 	return allFeeds
 }
 func CacheAllFeeds() {
-	_ = GetAllFeeds()
+	for _, f := range GetAllFeeds() {
+		mc.Set("Feed"+u.Tostr(f.ID)+"_UnreadCount", f.Unread())
+	}
 	return
 }
 
@@ -561,3 +504,63 @@ func escape_guid(s string) string {
 	}
 	return s
 }
+func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
+	//println(len(newchannels), "new channel(s) in", feed.Url)
+	//We're currently ignoring channels
+}
+
+/*
+func makeItemHandler(f Feed) rss.ItemHandler {
+	return func(feed *rss.Feed, ch *rss.Channel, newitems []*rss.Item) {
+		println(len(newitems), "new item(s) in", ch.Title)
+		var guid_cache []string
+		excludes := f.Excludes()
+		for _, i := range newitems {
+			// access f as feed here
+			guid_cache = append(guid_cache, escape_guid(i.Links[0].Href))
+		}
+		existing_entries := make(map[string]Entry)
+		for _, e := range f.GetEntriesByParam(" guid in ('" + strings.Join(guid_cache, "', '") + "')") {
+			existing_entries[e.GUID] = e
+		}
+		for _, i := range newitems {
+			// Check for existing entries in the guid cache and if so, skip
+			guid := escape_guid(i.Links[0].Href)
+			if _, ok := existing_entries[guid]; ok {
+				print(".")
+				continue
+			}
+			var e Entry
+			e.Title = html.EscapeString(i.Title)
+			skip := false
+			for _, ex := range excludes {
+				if strings.Contains(strings.ToLower(e.Title), ex) {
+					skip = true
+					print("s")
+					break
+				}
+			}
+			if skip {
+				continue
+			}
+			e.Link = i.Links[0].Href
+			e.Date = i.PubDate
+			e.Marked = "0"
+			e.FeedID = f.ID
+			if i.Content != nil {
+				e.Content = template.HTML(html.EscapeString(i.Content.Text))
+				e.ContentHash = getHash(i.Content.Text)
+			} else {
+				e.Content = template.HTML(html.EscapeString(i.Description))
+				e.ContentHash = getHash(i.Description)
+			}
+			e.GUID = guid
+			e.Unread = true
+			e.Normalize()
+			e.Save()
+			print("+")
+		}
+		f.ClearCache()
+	}
+}
+*/
