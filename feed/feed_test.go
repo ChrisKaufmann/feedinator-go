@@ -440,6 +440,29 @@ func TestFeed_ClearCache(t *testing.T) {
 	}
 
 }
+func TestGetFeedsWithoutCats(t *testing.T) {
+	print("\tGetFeedsWithoutCats\n")
+	seed()
+	print("\t\tInitial\n")
+	wc := len(GetFeedsWithoutCats("test"))
+	if wc != 2 {
+		t.Errorf("len(GetFeedsWithoutCats(test): 2 <=> %v", wc)
+	}
+	print("\t\tUpdating\n")
+	f, err := GetFeed(5)
+	if err != nil {
+		t.Errorf("GetFeed(5): %s", err)
+	}
+	f.CategoryID = 1
+	err = f.Save()
+	if err != nil {
+		t.Errorf("f.Save(): %s", err)
+	}
+	wc = len(GetFeedsWithoutCats("test"))
+	if wc != 1 {
+		t.Errorf("len(GetFeedsWithoutCats(test): 1 <=> %v", wc)
+	}
+}
 
 func popcache(f Feed, t *testing.T) {
 	var icul []Entry

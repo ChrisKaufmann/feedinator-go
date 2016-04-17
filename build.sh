@@ -6,7 +6,7 @@ if [ $? -ne 0 ]
   then
 	echo "Tests failed"
   else
+	popd
     sh -c 'go build -o feedinator main.go'
 fi
-popd
 

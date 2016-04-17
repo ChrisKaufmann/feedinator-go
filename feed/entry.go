@@ -70,6 +70,31 @@ type Entry struct {
 	GUID        string
 }
 
+func GetEntry(id string, userName string) (e Entry) {
+	if id == "" || userName == "" {
+		glog.Errorf("No id(%s) or userName(%s) passed to GetEntry", id, userName)
+		return e
+	}
+	el, err := getEntriesFromSthP(stmtGetEntry, id)
+	if err != nil {
+		glog.Errorf("getEntriesFromSthP(%s): %s", id, err)
+		var e Entry
+		return e
+	}
+	return el[0]
+
+	if len(el) > 0 {
+		e = el[0]
+		f := e.Feed()
+		if f.UserName == userName {
+			return e
+		} else {
+			glog.Errorf("f.Username(%s) does not match passed username(%s)", f.UserName, userName)
+		}
+	}
+	var badentry Entry
+	return badentry
+}
 func (e Entry) Normalize() Entry {
 	e.Link = unescape(e.Link)
 	e.Link = html.UnescapeString(e.Link)
@@ -89,64 +114,6 @@ func (e Entry) Normalize() Entry {
 	}
 	return e
 }
-func getEntriesFromSql(s string) []Entry {
-	var el []Entry
-	var stmt, err = u.Sth(db, s)
-	if err != nil {
-		glog.Errorf("Error preparing statment '%s': %s", s, err)
-		return el
-	}
-	el, err = getEntriesFromSth(stmt)
-	return el
-}
-func getEntriesFromSthP(stmt *sql.Stmt, p string) (el []Entry, err error) {
-	rows, err := stmt.Query(p)
-	if err != nil {
-		glog.Errorf("getEntriesFromSthP.Query(%s): %s", p, err)
-		return el, err
-	}
-	return getEntriesFromRows(rows)
-}
-func getEntriesFromSthPP(stmt *sql.Stmt, p string, p2 string) (el []Entry, err error) {
-	rows, err := stmt.Query(p, p2)
-	if err != nil {
-		glog.Errorf("getEntriesFromSthP.Query(%s,%s): %s", p, p2, err)
-		return el, err
-	}
-	return getEntriesFromRows(rows)
-}
-
-func getEntriesFromSth(stmt *sql.Stmt) (el []Entry, err error) {
-	rows, err := stmt.Query()
-	if err != nil {
-		glog.Errorf("stmt.Query() %s", err)
-		return el, err
-	}
-	return getEntriesFromRows(rows)
-}
-func getEntriesFromRows(rows *sql.Rows) (el []Entry, err error) {
-	var count int
-	for rows.Next() {
-		var e Entry
-		var c string
-		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID, &c, &e.GUID)
-		e.Evenodd = evenodd(count)
-		c = unescape(c)
-		e.Content = template.HTML(html.UnescapeString(c))
-		e.Link = html.UnescapeString(e.Link)
-		e.Title = html.UnescapeString(e.Title)
-		e.FeedName = e.Feed().Title
-		e = e.Normalize()
-		el = append(el, e)
-		count = count + 1
-	}
-	return el, err
-}
-func AllMarkedEntries(userName string) []Entry {
-	sql := "select " + entrySelectString + " from ttrss_entries as e where e.user_name='" + userName + "' and e.marked=1"
-	el := getEntriesFromSql(sql)
-	return el
-}
 func (e Entry) String() string {
 	return fmt.Sprintf("ID: %v\nTitle: %s\nLink: %s\nDate: %s\nMarked: %s\nMarkSet: %s\nFeedID: %v\nContent: %s\n Unread: %t\n", e.ID, e.Title, e.Link, e.Date, e.Marked, e.MarkSet, e.FeedID, e.Content, e.Unread)
 }
@@ -158,10 +125,6 @@ func (e Entry) ViewMode() string {
 }
 func (e Entry) AutoscrollPX() int {
 	return e.Feed().AutoscrollPX
-}
-func GetEntriesCount() (c string, err error) {
-	err = stmtGetEntryCount.QueryRow().Scan(&c)
-	return c, err
 }
 func (e Entry) Feed() (f Feed) {
 	if e.FeedID < 1 {
@@ -291,31 +254,61 @@ func (e Entry) ProxyLink() (h template.HTML, err error) {
 	return h, err
 }
 
-func GetEntry(id string, userName string) (e Entry) {
-	if id == "" || userName == "" {
-		glog.Errorf("No id(%s) or userName(%s) passed to GetEntry", id, userName)
-		return e
-	}
-	el, err := getEntriesFromSthP(stmtGetEntry, id)
+func getEntriesFromSql(s string) []Entry {
+	var el []Entry
+	var stmt, err = u.Sth(db, s)
 	if err != nil {
-		glog.Errorf("getEntriesFromSthP(%s): %s", id, err)
-		var e Entry
-		return e
+		glog.Errorf("Error preparing statment '%s': %s", s, err)
+		return el
 	}
-	return el[0]
-
-	if len(el) > 0 {
-		e = el[0]
-		f := e.Feed()
-		if f.UserName == userName {
-			return e
-		} else {
-			glog.Errorf("f.Username(%s) does not match passed username(%s)", f.UserName, userName)
-		}
-	}
-	var badentry Entry
-	return badentry
+	el, err = getEntriesFromSth(stmt)
+	return el
 }
+func getEntriesFromSthP(stmt *sql.Stmt, p string) (el []Entry, err error) {
+	rows, err := stmt.Query(p)
+	if err != nil {
+		glog.Errorf("getEntriesFromSthP.Query(%s): %s", p, err)
+		return el, err
+	}
+	return getEntriesFromRows(rows)
+}
+func getEntriesFromSth(stmt *sql.Stmt) (el []Entry, err error) {
+	rows, err := stmt.Query()
+	if err != nil {
+		glog.Errorf("stmt.Query() %s", err)
+		return el, err
+	}
+	return getEntriesFromRows(rows)
+}
+func getEntriesFromRows(rows *sql.Rows) (el []Entry, err error) {
+	var count int
+	for rows.Next() {
+		var e Entry
+		var c string
+		rows.Scan(&e.ID, &e.Title, &e.Link, &e.Date, &e.Marked, &e.Unread, &e.FeedID, &c, &e.GUID)
+		e.Evenodd = evenodd(count)
+		c = unescape(c)
+		e.Content = template.HTML(html.UnescapeString(c))
+		e.Link = html.UnescapeString(e.Link)
+		e.Title = html.UnescapeString(e.Title)
+		e.FeedName = e.Feed().Title
+		e = e.Normalize()
+		el = append(el, e)
+		count = count + 1
+	}
+	return el, err
+}
+
+func AllMarkedEntries(userName string) []Entry {
+	sql := "select " + entrySelectString + " from ttrss_entries as e where e.user_name='" + userName + "' and e.marked=1"
+	el := getEntriesFromSql(sql)
+	return el
+}
+func GetEntriesCount() (c string, err error) {
+	err = stmtGetEntryCount.QueryRow().Scan(&c)
+	return c, err
+}
+
 func unescape(s string) string {
 	var codes = map[string]string{
 		"&amp;":               "&",

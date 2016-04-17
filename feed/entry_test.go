@@ -3,7 +3,7 @@ package feed
 import (
 	"fmt"
 	"html/template"
-	"os"
+	//	"os"
 	"testing"
 )
 
@@ -239,7 +239,8 @@ func TestAllMarkedEntries(t *testing.T) {
 		t.Errorf("Len(allmarkedentries) != 1: %v", len(AllMarkedEntries("test")))
 	}
 }
-func TestEntry_ProxyLink(t *testing.T) {
+
+/*func TestEntry_ProxyLink(t *testing.T) {
 	e := ef()
 	e.Link = "http://127.0.0.1:9001/"
 	c, err := e.ProxyLink()
@@ -249,3 +250,4 @@ func TestEntry_ProxyLink(t *testing.T) {
 	fmt.Printf("content: %s", c)
 	os.Exit(1)
 }
+*/
