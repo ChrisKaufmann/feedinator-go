@@ -1,13 +1,17 @@
 package feed
 
 import (
-	u "github.com/ChrisKaufmann/goutils"
-	"strings"
 	"database/sql"
+	"fmt"
+	u "github.com/ChrisKaufmann/goutils"
+	"github.com/golang/glog"
 	"html"
 	"html/template"
-	"fmt"
-	"github.com/golang/glog"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
 )
 
 var (
@@ -16,25 +20,37 @@ var (
 	stmtUpdateReadEntry *sql.Stmt
 	stmtSaveEntry       *sql.Stmt
 	stmtGetEntryCount   *sql.Stmt
-	stmtGetEntry	    *sql.Stmt
+	stmtGetEntry        *sql.Stmt
 	entrySelectString   string
 )
 
 func Entryinit() {
 	var err error
 	entrySelectString = " id,IFNULL(title,''),IFNULL(link,''),IFNULL(updated,''),IFNULL(marked,0),IFNULL(unread,1),feed_id,content,guid "
-	stmtAddEntry,err = u.Sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
-	if err != nil {glog.Fatalf("stmt: %s", err)}
-	stmtUpdateMarkEntry,err = u.Sth(db, "update ttrss_entries set marked=? where id=?")
-	if err != nil {glog.Fatalf("stmtUpdateMarkEntry: %s", err)}
-	stmtUpdateReadEntry,err = u.Sth(db, "update ttrss_entries set unread=? where id=?")
-	if err != nil {glog.Fatalf("stmtUpdateReadEntry: %s", err)}
-	stmtSaveEntry,err = u.Sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=?,content=? where id=? limit 1")
-	if err != nil {glog.Fatalf("stmtSaveEntry: %s", err)}
-	stmtGetEntryCount,err = u.Sth(db, "select count(id) from ttrss_entries")
-	if err != nil {glog.Fatalf("stmtGetEntryCount: %s", err)}
-	stmtGetEntry, err = u.Sth(db,"select " + entrySelectString + "from ttrss_entries where id=?")
-	if err != nil {glog.Fatalf("stmtGetEntry: %s", err)}
+	stmtAddEntry, err = u.Sth(db, "insert into ttrss_entries (updated,title,link,feed_id,marked,content,content_hash,unread,guid,user_name) values (NOW(),?,?,?,?,?,?,1,?,?)")
+	if err != nil {
+		glog.Fatalf("stmt: %s", err)
+	}
+	stmtUpdateMarkEntry, err = u.Sth(db, "update ttrss_entries set marked=? where id=?")
+	if err != nil {
+		glog.Fatalf("stmtUpdateMarkEntry: %s", err)
+	}
+	stmtUpdateReadEntry, err = u.Sth(db, "update ttrss_entries set unread=? where id=?")
+	if err != nil {
+		glog.Fatalf("stmtUpdateReadEntry: %s", err)
+	}
+	stmtSaveEntry, err = u.Sth(db, "update ttrss_entries set title=?,link=?,updated=?,feed_id=?,marked=?,unread=?,content=? where id=? limit 1")
+	if err != nil {
+		glog.Fatalf("stmtSaveEntry: %s", err)
+	}
+	stmtGetEntryCount, err = u.Sth(db, "select count(id) from ttrss_entries")
+	if err != nil {
+		glog.Fatalf("stmtGetEntryCount: %s", err)
+	}
+	stmtGetEntry, err = u.Sth(db, "select "+entrySelectString+"from ttrss_entries where id=?")
+	if err != nil {
+		glog.Fatalf("stmtGetEntry: %s", err)
+	}
 }
 
 type Entry struct {
@@ -75,7 +91,7 @@ func (e Entry) Normalize() Entry {
 }
 func getEntriesFromSql(s string) []Entry {
 	var el []Entry
-	var stmt,err = u.Sth(db, s)
+	var stmt, err = u.Sth(db, s)
 	if err != nil {
 		glog.Errorf("Error preparing statment '%s': %s", s, err)
 		return el
@@ -92,15 +108,15 @@ func getEntriesFromSthP(stmt *sql.Stmt, p string) (el []Entry, err error) {
 	return getEntriesFromRows(rows)
 }
 func getEntriesFromSthPP(stmt *sql.Stmt, p string, p2 string) (el []Entry, err error) {
-	rows, err := stmt.Query(p,p2)
+	rows, err := stmt.Query(p, p2)
 	if err != nil {
-		glog.Errorf("getEntriesFromSthP.Query(%s,%s): %s", p,p2, err)
+		glog.Errorf("getEntriesFromSthP.Query(%s,%s): %s", p, p2, err)
 		return el, err
 	}
 	return getEntriesFromRows(rows)
 }
 
-func getEntriesFromSth(stmt *sql.Stmt) (el []Entry,err error){
+func getEntriesFromSth(stmt *sql.Stmt) (el []Entry, err error) {
 	rows, err := stmt.Query()
 	if err != nil {
 		glog.Errorf("stmt.Query() %s", err)
@@ -124,18 +140,18 @@ func getEntriesFromRows(rows *sql.Rows) (el []Entry, err error) {
 		el = append(el, e)
 		count = count + 1
 	}
-	return el,err
+	return el, err
 }
 func AllMarkedEntries(userName string) []Entry {
 	sql := "select " + entrySelectString + " from ttrss_entries as e where e.user_name='" + userName + "' and e.marked=1"
 	el := getEntriesFromSql(sql)
 	return el
 }
-func (e Entry) String()( string) {
-	return fmt.Sprintf("ID: %v\nTitle: %s\nLink: %s\nDate: %s\nMarked: %s\nMarkSet: %s\nFeedID: %v\nContent: %s\n Unread: %t\n",e.ID,e.Title,e.Link,e.Date,e.Marked,e.MarkSet,e.FeedID,e.Content,e.Unread)
+func (e Entry) String() string {
+	return fmt.Sprintf("ID: %v\nTitle: %s\nLink: %s\nDate: %s\nMarked: %s\nMarkSet: %s\nFeedID: %v\nContent: %s\n Unread: %t\n", e.ID, e.Title, e.Link, e.Date, e.Marked, e.MarkSet, e.FeedID, e.Content, e.Unread)
 }
 func (e Entry) Print() {
-	fmt.Printf("ID: %v\nFeed ID: %s\nTitle: %s\nLink: %s\nDate: %s\nMarked: %t\nUnread: %t\nGUID: %s\nContent: %s\n",e.ID,e.FeedID,e.Title,e.Link,e.Date, e.Marked,e.Unread,e.GUID,e.Content)
+	fmt.Printf("ID: %v\nFeed ID: %s\nTitle: %s\nLink: %s\nDate: %s\nMarked: %t\nUnread: %t\nGUID: %s\nContent: %s\n", e.ID, e.FeedID, e.Title, e.Link, e.Date, e.Marked, e.Unread, e.GUID, e.Content)
 }
 func (e Entry) ViewMode() string {
 	return e.Feed().ViewMode
@@ -148,28 +164,42 @@ func GetEntriesCount() (c string, err error) {
 	return c, err
 }
 func (e Entry) Feed() (f Feed) {
-	if e.FeedID <1 {
+	if e.FeedID < 1 {
 		return f
 	}
-	f,err := GetFeed(e.FeedID)
+	f, err := GetFeed(e.FeedID)
 	if err != nil {
 		glog.Errorf("GetFeed(%v): %s", e.FeedID, err)
 	}
 	return f
 }
-func (e Entry) Save(userName string)(err error) {
+func (e Entry) Save(userName string) (err error) {
 	if e.ID > 0 {
-		if e.Title == "" {e.Title="&nbsp"}
-		if e.Link == "" {e.Link=""}
-		if e.Date == "" {e.Date=""}
-		if e.FeedID == 0 {e.FeedID=0}
-		if e.Marked == "" {e.Marked="0"}
-		if u.Tostr(e.Content) == ""  {e.Content=template.HTML("")}
+		if e.Title == "" {
+			e.Title = "&nbsp"
+		}
+		if e.Link == "" {
+			e.Link = ""
+		}
+		if e.Date == "" {
+			e.Date = ""
+		}
+		if e.FeedID == 0 {
+			e.FeedID = 0
+		}
+		if e.Marked == "" {
+			e.Marked = "0"
+		}
+		if u.Tostr(e.Content) == "" {
+			e.Content = template.HTML("")
+		}
 		var unread string = "1"
-		if e.Unread == false {unread="0"}
-		_,err = stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID)
+		if e.Unread == false {
+			unread = "0"
+		}
+		_, err = stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID)
 		if err != nil {
-			glog.Errorf("stmtSaveEntry.Exec(%s,%s,%s,%s,%s,%s,%s,%s): %s",e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID, err)
+			glog.Errorf("stmtSaveEntry.Exec(%s,%s,%s,%s,%s,%s,%s,%s): %s", e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID, err)
 			return err
 		}
 	} else {
@@ -201,8 +231,8 @@ func (e Entry) Mark() (err error) {
 		return err
 	}
 	e.Feed().ClearMarked()
-	e.MarkSet="set"
-	e.Marked="1"
+	e.MarkSet = "set"
+	e.Marked = "1"
 	return err
 }
 func (e Entry) UnMark() (err error) {
@@ -211,20 +241,59 @@ func (e Entry) UnMark() (err error) {
 		return err
 	}
 	e.Feed().ClearMarked()
-	e.MarkSet="unset"
-	e.Marked="0"
+	e.MarkSet = "unset"
+	e.Marked = "0"
 	return err
 }
 func (e Entry) ToggleMark() (retstr string, err error) {
 	if e.Marked == "1" {
-		return "unset",e.UnMark()
+		return "unset", e.UnMark()
 	}
-	return "set",e.Mark()
+	return "set", e.Mark()
+}
+func (e Entry) ProxyLink() (h template.HTML, err error) {
+	//Retrieve url content
+	res, err := http.Get(html.UnescapeString(e.Link))
+	if err != nil {
+		glog.Errorf("htt.Get(%s): %s", e.Link, err)
+		return h, err
+	}
+	content, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		glog.Errorf("ioutil.ReadAll(): %s", err)
+		return h, err
+	}
+	res.Body.Close()
+	c := fmt.Sprintf("%s", content)
+	//Get the actual domain and attempt to replace any img links that are relative
+	url, err := url.Parse(e.Link)
+	if err != nil {
+		glog.Errorf("url.Parse(%s): %s", e.Link, err)
+	}
+	imgregex, err := regexp.Compile("img\\s+src\\s{0,}=\\s{0,}(['\"])/")
+	if err != nil {
+		glog.Errorf("regexp.compile(): %s")
+	}
+	fmt.Printf("host: %s", url.Host)
+	c = imgregex.ReplaceAllString(c, "img src=$1")
+
+	excludes := []string{"<head(.|\n)*?/head>", "<script(.|\n)*?/script>", "<noscript(.|\n)*?/noscript>"}
+	for _, e := range excludes {
+		reg, err := regexp.CompilePOSIX(e)
+		if err != nil {
+			glog.Errorf("rgexp.compile: %s", err)
+			return h, err
+		}
+		c = reg.ReplaceAllString(c, " ")
+	}
+	fmt.Printf("html: %s", fmt.Sprintf(" %s ", c))
+	h = template.HTML(c)
+	return h, err
 }
 
-func GetEntry(id string,userName string) (e Entry) {
-	if id == ""  || userName == ""{
-		glog.Errorf("No id(%s) or userName(%s) passed to GetEntry",id,userName)
+func GetEntry(id string, userName string) (e Entry) {
+	if id == "" || userName == "" {
+		glog.Errorf("No id(%s) or userName(%s) passed to GetEntry", id, userName)
 		return e
 	}
 	el, err := getEntriesFromSthP(stmtGetEntry, id)
@@ -247,40 +316,20 @@ func GetEntry(id string,userName string) (e Entry) {
 	var badentry Entry
 	return badentry
 }
-/*
-func MarkEntry(id string, m string, userName string) string {
-	if id == "" {
-		return ""
-	}
-	print("MarkEntry( %v, %s %s)", id, m, userName)
-	var ret string
-	switch m {
-	case "togglemarked":
-		e := GetEntry(id,userName)
-		f := e.Feed()
-		stmtUpdateMarkEntry.Exec(u.Toint(e.Marked)^1, id)
-		en := GetEntry(id,userName)
-		ret = "<img src='static/mark_" + en.MarkSet + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
-		mc.Delete("Feed" + u.Tostr(e.FeedID) + "_markedentries")
-		mc.Delete("Category" + u.Tostr(f.CategoryID) + "_markedentries")
-	}
-	return ret
-}
-*/
 func unescape(s string) string {
-    var codes = map[string]string{
-        "&amp;":               "&",
-        "&nbsp;":              " ",
-        "&acirc;&#128;&#153;": "'",
-    }
-    for k, v := range codes {
-        s = strings.Replace(s, k, v, -1)
-    }
-    return s
+	var codes = map[string]string{
+		"&amp;":               "&",
+		"&nbsp;":              " ",
+		"&acirc;&#128;&#153;": "'",
+	}
+	for k, v := range codes {
+		s = strings.Replace(s, k, v, -1)
+	}
+	return s
 }
 func evenodd(i int) string {
-    if i%2 == 0 {
-        return "even"
-    }
-    return "odd"
+	if i%2 == 0 {
+		return "even"
+	}
+	return "odd"
 }

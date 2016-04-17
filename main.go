@@ -3,33 +3,32 @@ package main
 import (
 	"./auth"
 	"./feed"
+	"database/sql"
+	"flag"
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/ChrisKaufmann/easymemcache"
 	u "github.com/ChrisKaufmann/goutils"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang/glog"
 	"github.com/msbranco/goconfig"
 	"html"
 	"html/template"
-	"flag"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
 	userName          string
-    db                        *sql.DB
-	cachefile         = "/dev/null"
+	db                *sql.DB
 	indexHtml         = template.Must(template.ParseFiles("templates/index-nologin.html"))
 	mainHtml          = template.Must(template.ParseFiles("templates/main.html", "templates/category_list.html"))
 	categoryHtml      = template.Must(template.ParseFiles("templates/category.html"))
 	categoryHtmlS     = template.Must(template.ParseFiles("templates/category_selected.html"))
 	feedHtml          = template.Must(template.ParseFiles("templates/feed.html"))
-	feedListHtml	  = template.Must(template.ParseFiles("templates/feed_list.html"))
+	feedListHtml      = template.Must(template.ParseFiles("templates/feed_list.html"))
 	feedHtmlSpaced    = template.Must(template.ParseFiles("templates/feed_spaced.html"))
 	feedMenuHtml      = template.Must(template.ParseFiles("templates/feed_menu.html"))
 	catMenuHtml       = template.Must(template.ParseFiles("templates/category_menu.html"))
@@ -37,7 +36,7 @@ var (
 	entryHtml         = template.Must(template.ParseFiles("templates/entry.html"))
 	menuDropHtml      = template.Must(template.ParseFiles("templates/menu_dropdown.html"))
 	categoryPrintHtml = template.Must(template.ParseFiles("templates/category_print.html"))
-	entriesListTmpl		=template.Must(template.ParseFiles("templates/entries_list.tmpl"))
+	entriesListTmpl   = template.Must(template.ParseFiles("templates/entries_list.tmpl"))
 	cookieName        string
 	viewModes         = [...]string{"Default", "Link", "Extended", "Proxy"}
 	port              string
@@ -64,27 +63,27 @@ func init() {
 	}
 	cookieName = "feedinator_auth_" + environment
 	mc.Prefix = (environment)
-    db_name, err := c.GetString("DB", "db")
-    if err != nil {
-        glog.Fatalf("Config: %s",err)
-    }
-    db_host, err := c.GetString("DB", "host")
-    if err != nil {
-        glog.Fatalf("Config: %s",err)
-    }
-    db_user, err := c.GetString("DB", "user")
-    if err != nil {
-        glog.Fatalf("Config: %s",err)
-    }
-    db_pass, err := c.GetString("DB", "pass")
-    if err != nil {
-        glog.Fatalf("Config: %s",err)
-    }
-    db, err = sql.Open("mysql", db_user+":"+db_pass+"@tcp("+db_host+")/"+db_name)
-    if err != nil {
-        glog.Fatalf("Config: %s",err)
-    }
-	feed.Categoryinit(db,&mc)
+	db_name, err := c.GetString("DB", "db")
+	if err != nil {
+		glog.Fatalf("Config: %s", err)
+	}
+	db_host, err := c.GetString("DB", "host")
+	if err != nil {
+		glog.Fatalf("Config: %s", err)
+	}
+	db_user, err := c.GetString("DB", "user")
+	if err != nil {
+		glog.Fatalf("Config: %s", err)
+	}
+	db_pass, err := c.GetString("DB", "pass")
+	if err != nil {
+		glog.Fatalf("Config: %s", err)
+	}
+	db, err = sql.Open("mysql", db_user+":"+db_pass+"@tcp("+db_host+")/"+db_name)
+	if err != nil {
+		glog.Fatalf("Config: %s", err)
+	}
+	feed.Categoryinit(db, &mc)
 	feed.Feedinit()
 	feed.Entryinit()
 	auth.DB(db)
@@ -204,7 +203,9 @@ func handleNewFeed(w http.ResponseWriter, r *http.Request) {
 	purl, _ := url.Parse(formurl)
 	f.Title = purl.Host
 	err := f.Save()
-	if err != nil {glog.Errorf("f.Save(): %s", err)}
+	if err != nil {
+		glog.Errorf("f.Save(): %s", err)
+	}
 	fmt.Fprintf(w, "Added")
 	fmt.Printf("handleNewFeed %v\n", time.Now().Sub(t0))
 }
@@ -220,8 +221,10 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	var todo string
 	var val string
 	u.PathVars(r, "/feed/", &id, &todo, &val)
-	f,err := feed.GetFeed(u.Toint(id))
-	if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
+	f, err := feed.GetFeed(u.Toint(id))
+	if err != nil {
+		glog.Errorf("feed.GetFeed(%s): %s", id, err)
+	}
 	if f.UserName != userName {
 		fmt.Fprintf(w, "Auth err")
 		return
@@ -291,18 +294,18 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	var retstr string
 	var id string
 	var tomark string
-	u.PathVars(r, "/entry/mark/",&feedOrCat, &fcid, &id, &tomark)
+	u.PathVars(r, "/entry/mark/", &feedOrCat, &fcid, &id, &tomark)
 	fmt.Printf("feedOrCat: %s, fcid: %s, id: %s, tomark: %s", feedOrCat, fcid, id, tomark)
 	b := strings.Split(id, ",")
 	// one thing can be marked whatever, but a list can only be marked read
 	if len(b) == 1 {
 		e := feed.GetEntry(id, userName)
 		switch tomark {
-		case "read" :
+		case "read":
 			if err := e.MarkRead(); err != nil {
 				glog.Errorf("e.MarkRead(): %s", err)
 			}
-		case "unread" :
+		case "unread":
 			if err := e.MarkUnread(); err != nil {
 				glog.Errorf("e.MarkUnread(): %s", err)
 			}
@@ -324,16 +327,22 @@ func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 			retstr = "<img src='static/mark_" + rsv + ".png' alt='Set mark' onclick='javascript:toggleMark(" + id + ");'>\n"
 		}
 	} else {
-	    switch feedOrCat {
-		    case "feed":
-				f, err := feed.GetFeed(u.Toint(fcid))
-			    	if err != nil {glog.Errorf("getFeed(%s): %s", fcid, err)}
-				err = f.MarkEntriesRead(b)
-				if err != nil {glog.Errorf("f.MarkEntriesread(): %s", err) }
-			case "category":
-				c := feed.GetCat(fcid)
-				err := c.MarkEntriesRead(b)
-				if err != nil { glog.Errorf("c.MarkEntriesRead(): %s", err) }
+		switch feedOrCat {
+		case "feed":
+			f, err := feed.GetFeed(u.Toint(fcid))
+			if err != nil {
+				glog.Errorf("getFeed(%s): %s", fcid, err)
+			}
+			err = f.MarkEntriesRead(b)
+			if err != nil {
+				glog.Errorf("f.MarkEntriesread(): %s", err)
+			}
+		case "category":
+			c := feed.GetCat(fcid)
+			err := c.MarkEntriesRead(b)
+			if err != nil {
+				glog.Errorf("c.MarkEntriesRead(): %s", err)
+			}
 		}
 	}
 	fmt.Fprintf(w, retstr)
@@ -351,17 +360,26 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 	var id string
 	u.PathVars(r, "/entry/", &id)
 
-	e := feed.GetEntry(id,userName)
-	f,err := feed.GetFeed(e.FeedID)
-	if err != nil {glog.Errorf("feed.GetFeed(%s): %s",e.FeedID, err)}
+	e := feed.GetEntry(id, userName)
+	f, err := feed.GetFeed(e.FeedID)
+	if err != nil {
+		glog.Errorf("feed.GetFeed(%s): %s", e.FeedID, err)
+	}
 	e.FeedName = f.Title
 	print("after getentry and getfeed\n")
-	if e.ViewMode() == "link" {
+	switch e.ViewMode() {
+	case "link":
 		e.Link = html.UnescapeString(e.Link)
 		if err := entryLinkHtml.Execute(w, &e); err != nil {
 			glog.Errorf("entryLinkHtml: %s", err)
 		}
-	} else {
+	case "proxy":
+		e.Content, err = e.ProxyLink()
+		if err := entryHtml.Execute(w, e); err != nil {
+			glog.Errorf("entryHtml.Execute: %s", err)
+		}
+
+	default:
 		if err := entryHtml.Execute(w, &e); err != nil {
 			glog.Errorf("entryHtml.Execute: %s", err)
 		}
@@ -396,8 +414,10 @@ func handleMenu(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("catMenuHtml: %s", err)
 		}
 	case "feed":
-		f,err := feed.GetFeed(u.Toint(id))
-		if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
+		f, err := feed.GetFeed(u.Toint(id))
+		if err != nil {
+			glog.Errorf("feed.GetFeed(%s): %s", id, err)
+		}
 		f.SearchSelect = getSearchSelect(modifier)
 		f.Search = curID
 		setSelects(&f)
@@ -419,8 +439,10 @@ func handleSelectMenu(w http.ResponseWriter, r *http.Request) {
 	}
 	var id string
 	u.PathVars(r, "/menu/select/", &id)
-	f,err := feed.GetFeed(u.Toint(id))
-	if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
+	f, err := feed.GetFeed(u.Toint(id))
+	if err != nil {
+		glog.Errorf("feed.GetFeed(%s): %s", id, err)
+	}
 	setSelects(&f)
 	if err := menuDropHtml.Execute(w, f); err != nil {
 		glog.Errorf("menuDropHtml.Execute: %s", err)
@@ -494,15 +516,15 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 	}
 	var currentCat string
 	type CategoryList struct {
-		SelectedCat	int
-		CategoryList []feed.Category
+		SelectedCat   int
+		CategoryList  []feed.Category
 		SelectedFeeds []feed.Feed
-		OrphanFeeds	[]feed.Feed
+		OrphanFeeds   []feed.Feed
 	}
 	u.PathVars(r, "/categoryList/", &currentCat)
 	fmt.Fprintf(w, "<ul class='feedList' id='feedList'>\n")
 	allthecats := feed.GetCategories(userName)
-	for _,cat := range allthecats {
+	for _, cat := range allthecats {
 		//print the feeds under the currently selected category
 		if strconv.Itoa(cat.ID) == currentCat {
 			if err := categoryHtmlS.Execute(w, cat); err != nil {
@@ -511,7 +533,7 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "<br>\n")
 			catFeeds := cat.Feeds()
 			for j := range catFeeds {
-				if err := feedHtmlSpaced.Execute(w, catFeeds[j]); err != nil{
+				if err := feedHtmlSpaced.Execute(w, catFeeds[j]); err != nil {
 					glog.Errorf("feedHtmlSpaced.Execute: %s", err)
 				}
 			}
@@ -552,8 +574,10 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	var el []feed.Entry
 	switch feedOrCat {
 	case "feed":
-		f,err := feed.GetFeed(u.Toint(id))
-		if err != nil {glog.Errorf("feed.GetFeed(%s): %s", id, err)}
+		f, err := feed.GetFeed(u.Toint(id))
+		if err != nil {
+			glog.Errorf("feed.GetFeed(%s): %s", id, err)
+		}
 		switch mode {
 		case "read":
 			el = f.ReadEntries()
@@ -586,16 +610,16 @@ func handleEntries(w http.ResponseWriter, r *http.Request) {
 	if len(el) == 0 {
 		fmt.Fprintf(w, "No entries found")
 	}
-	if err := entriesListTmpl.Execute(w,&el); err != nil {
+	if err := entriesListTmpl.Execute(w, &el); err != nil {
 		glog.Errorf("entriesListTmpl.Execute: %s", err)
 	}
 	t1 := time.Now()
 	fmt.Printf("handleEntries %v\n", t1.Sub(t0))
 }
 func handleDemo(w http.ResponseWriter, r *http.Request) {
-    t0 := time.Now()
-    auth.DemoUser(w,r)
-    fmt.Printf("handleDemo %v\n", time.Now().Sub(t0))
+	t0 := time.Now()
+	auth.DemoUser(w, r)
+	fmt.Printf("handleDemo %v\n", time.Now().Sub(t0))
 }
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
@@ -606,13 +630,13 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type Printcat struct {
-		Categories []feed.Category
+		Categories       []feed.Category
 		FeedsWithoutCats []feed.Feed
 	}
-    allthecats := feed.GetCategories(userName)
+	allthecats := feed.GetCategories(userName)
 
 	var a Printcat
-	a.Categories=allthecats
+	a.Categories = allthecats
 	a.FeedsWithoutCats = feed.GetFeedsWithoutCats(userName)
 	if err := mainHtml.Execute(w, a); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -130,9 +130,9 @@ function empty_count()
 	else
 		{name_div='CATROW-'+current_view_id;}
 	var unread_div='FEEDU-'+current_view_id;
-	// These are expected errors and should not print errors.  
+	// These are expected errors and should not print errors.
 	// expected because the div could have been hidden.
-	try{document.getElementById(unread_div).innerHTML='0';}catch (err){} 
+	try{document.getElementById(unread_div).innerHTML='0';}catch (err){}
 	try{document.getElementById(name_div).className='odd';}catch (err){}
 }
 function update_count(fc,id)
@@ -150,11 +150,12 @@ function update_count(fc,id)
 	}})
 }
 // Lowers the unread count for the current_view_id by one - if that zeroes, calls empty_count.
-function decrement_count()
+function decrement_count(dc)
 {
+    dc= dc || 1;
 	var cr_view_div='FEEDU-'+current_view_id;
 	var current_value=document.getElementById(cr_view_div).innerHTML;
-	current_value=current_value-1;
+	current_value=current_value-dc;
 	document.getElementById(cr_view_div).innerHTML=current_value;
 	if(current_value<=0){empty_count();}
 }
@@ -196,7 +197,18 @@ function mark_list_read(fc, id)
 	data=$("#entries_form").serialize();
 	ndata=data.replace(/id%5B%5D=/g,',')
 	data=ndata.replace(/&/g,'')
-	$.ajax({type: "GET",url: '/entry/mark/'+fc+'/'+id+'/'+data+'/read', success:function(html){$('#entries_list_div').html(html);$('#menu_status').html('');empty_count();}});
+	var table=document.getElementById('headlinesList')
+    if(table == null){return;}
+    var rowLength= table.rows.length;
+	$.ajax({
+	    type: "GET",
+	    url: '/entry/mark/'+fc+'/'+id+'/'+data+'/read',
+	    success:function(html){
+	        $('#entries_list_div').html(html);
+	        $('#menu_status').html('');
+	        decrement_count(rowLength);
+	    }
+	});
 }
 // Populates the feeds_div with a list of categories.
 // If id is given, shows the feeds inside that category
