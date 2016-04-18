@@ -470,6 +470,27 @@ func TestGetFeeds(t *testing.T) {
 		t.Errorf("len(GetFeeds(test)) 4 <=> %v", fl)
 	}
 }
+
+func TestCacheAllFeeds(t *testing.T) {
+	print("\tCacheAllFeeds()\n")
+	seed()
+	var f Feed
+	err := mc.Get("Feed1_", &f)
+	if err == nil {
+		t.Errorf("mc.Get(Feed1_) should have error")
+	}
+	CacheAllFeeds()
+	err = mc.Get("Feed1_", &f)
+	if err != nil {
+		t.Errorf("mc.Get(Feed1_): %s", err)
+	}
+	var uc int
+	err = mc.Get("Feed1_UnreadCount", &uc)
+	if err != nil {
+		t.Errorf("mc.Get(Feed1_UnreadCount)", err)
+	}
+}
+
 func popcache(f Feed, t *testing.T) {
 	var icul []Entry
 	var icl []Entry

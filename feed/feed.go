@@ -6,7 +6,7 @@ import (
 	"fmt"
 	u "github.com/ChrisKaufmann/goutils"
 	"github.com/golang/glog"
-	rss "github.com/jteeuwen/go-pkg-rss"
+	//	rss "github.com/jteeuwen/go-pkg-rss"
 	"html"
 	"html/template"
 	"os"
@@ -47,7 +47,6 @@ var (
 	stmtInsertFeed          *sql.Stmt
 	stmtDeleteFeedEntries   *sql.Stmt
 	stmtDeleteFeed          *sql.Stmt
-	stmtGetFeedByCat        *sql.Stmt
 )
 
 func Feedinit() {
@@ -88,10 +87,6 @@ func Feedinit() {
 	stmtDeleteFeed, err = u.Sth(db, "delete from ttrss_feeds where id=? limit 1")
 	if err != nil {
 		glog.Fatalf("stmtDeleteFeed: %s", err)
-	}
-	stmtGetFeedByCat, err = u.Sth(db, "select "+selecttxt+" from ttrss_feeds where category_id=?")
-	if err != nil {
-		glog.Fatalf("stmtGetFeedByCat: %s", err)
 	}
 }
 
@@ -431,14 +426,21 @@ func GetAllFeeds() []Feed {
 		rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
 		allFeeds = append(allFeeds, feed)
 		feedids = append(feedids, feed.ID)
-		mc.Set("Feed"+u.Tostr(feed.ID), feed)
+		mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
 	}
 	mc.Set("FeedList", feedids)
 	return allFeeds
 }
 func CacheAllFeeds() {
 	for _, f := range GetAllFeeds() {
-		mc.Set("Feed"+u.Tostr(f.ID)+"_UnreadCount", f.Unread())
+		err := mc.Set("Feed"+u.Tostr(f.ID)+"_", f)
+		if err != nil {
+			glog.Errorf("mc.Set(Feed%v): %s", f.ID, err)
+		}
+		err = mc.Set("Feed"+u.Tostr(f.ID)+"_UnreadCount", f.Unread())
+		if err != nil {
+			glog.Errorf("mc.Set(Feed %v _UnreadCount): %s", f.ID, err)
+		}
 	}
 	return
 }
@@ -461,11 +463,11 @@ func GetFeedsWithoutCats(userName string) (allFeeds []Feed) {
 }
 
 func GetFeed(id int) (feed Feed, err error) {
-	var fcn = "Feed" + u.Tostr(id) + "_"
 	if id < 1 {
 		glog.Errorf("Non valid id passed to GetFeed %s", id)
 		return feed, errors.New("feed Invalid ID")
 	}
+	var fcn = "Feed" + u.Tostr(id) + "_"
 
 	mc.GetOr(fcn, &feed, func() {
 		err = stmtGetFeed.QueryRow(id).Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
@@ -476,7 +478,10 @@ func GetFeed(id int) (feed Feed, err error) {
 			feed.Title = "--untitled--"
 		}
 		feed.Title = html.UnescapeString(feed.Title)
-		mc.Set("Feed"+u.Tostr(feed.ID), feed)
+		err := mc.Set(fcn, feed)
+		if err != nil {
+			glog.Errorf("mc.Set(feed%v): %s", feed.ID, err)
+		}
 	})
 	return feed, err
 }
@@ -504,10 +509,13 @@ func escape_guid(s string) string {
 	}
 	return s
 }
+
+/*
 func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
 	//println(len(newchannels), "new channel(s) in", feed.Url)
 	//We're currently ignoring channels
 }
+*/
 
 /*
 func makeItemHandler(f Feed) rss.ItemHandler {
