@@ -238,7 +238,6 @@ func (f Feed) Update() {
 	//	}
 
 }
-
 func (f Feed) ClearEntries() {
 	var err error
 	err = mc.Delete("Category" + u.Tostr(f.CategoryID) + "_unreadentries")

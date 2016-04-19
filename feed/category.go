@@ -29,7 +29,6 @@ var (
 	stmtGetCat          *sql.Stmt
 	stmtGetCats         *sql.Stmt
 	stmtGetAllCats      *sql.Stmt
-	stmtGetCatFeeds     *sql.Stmt
 	stmtSaveCat         *sql.Stmt
 	stmtAddCat          *sql.Stmt
 	stmtResetCategories *sql.Stmt
@@ -46,7 +45,6 @@ func Categoryinit(dbh *sql.DB, mch *easymemcache.Client) {
 	var err error
 	db = dbh
 	mc = mch
-	stmtGetCatFeeds, err = u.Sth(db, "select id from ttrss_feeds where category_id = ?")
 	stmtGetCat, err = u.Sth(db, "select name,user_name,IFNULL(description,''),id, exclude from ttrss_categories where id = ?")
 	if err != nil {
 		glog.Fatalf("sth(): %s", err)
@@ -242,62 +240,6 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
-
-func GetCat(id string) Category {
-	var cat Category
-	err := mc.Get("Category"+id+"_", &cat)
-	if err != nil { //cache miss
-		err := stmtGetCat.QueryRow(id).Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
-		if err != nil {
-			err.Error()
-		}
-		mc.Set("Category"+id, cat)
-	}
-	return cat
-}
-func (c Category) Feeds() []Feed {
-	af := GetCategoryFeeds(c.ID)
-	return af
-}
-func (c Category) FeedsStr() []string {
-	f := c.Feeds()
-	var feedstr []string
-	for _, i := range f {
-		feedstr = append(feedstr, u.Tostr(i.ID))
-	}
-	return feedstr
-}
-
-func GetCategories(userName string) []Category {
-	t0 := time.Now()
-	var allCats []Category
-	var catids []int
-
-	//Try getting a category list from cache
-	err := mc.Get("CategoryList_"+userName, &catids)
-	if err != nil {
-		rows, err := stmtGetCats.Query(userName)
-		if err != nil {
-			err.Error()
-			return allCats
-		}
-		for rows.Next() {
-			var cat Category
-			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
-			allCats = append(allCats, cat)
-			catids = append(catids, cat.ID)
-			mc.Set("Category"+u.Tostr(cat.ID), cat)
-		}
-		mc.Set("CategoryList_"+userName, catids)
-	} else {
-		for _, i := range catids {
-			cat := GetCat(u.Tostr(i))
-			allCats = append(allCats, cat)
-		}
-	}
-	fmt.Printf("GetCategories: %v\n", time.Now().Sub(t0))
-	return allCats
-}
 func (c Category) MarkEntriesRead(ids []string) (err error) {
 	if len(ids) == 0 {
 		err = fmt.Errorf("Ids is null")
@@ -339,6 +281,61 @@ func (c Category) MarkEntriesRead(ids []string) (err error) {
 	}
 	return err
 }
+func (c Category) Feeds() []Feed {
+	af := GetCategoryFeeds(c.ID)
+	return af
+}
+func (c Category) FeedsStr() []string {
+	f := c.Feeds()
+	var feedstr []string
+	for _, i := range f {
+		feedstr = append(feedstr, u.Tostr(i.ID))
+	}
+	return feedstr
+}
+
+func GetCat(id string) Category {
+	var cat Category
+	err := mc.Get("Category"+id+"_", &cat)
+	if err != nil { //cache miss
+		err := stmtGetCat.QueryRow(id).Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
+		if err != nil {
+			err.Error()
+		}
+		mc.Set("Category"+id+"_", cat)
+	}
+	return cat
+}
+func GetCategories(userName string) []Category {
+	t0 := time.Now()
+	var allCats []Category
+	var catids []int
+
+	//Try getting a category list from cache
+	err := mc.Get("CategoryList_"+userName, &catids)
+	if err != nil {
+		rows, err := stmtGetCats.Query(userName)
+		if err != nil {
+			err.Error()
+			return allCats
+		}
+		for rows.Next() {
+			var cat Category
+			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
+			allCats = append(allCats, cat)
+			catids = append(catids, cat.ID)
+			mc.Set("Category"+u.Tostr(cat.ID), cat)
+		}
+		mc.Set("CategoryList_"+userName, catids)
+	} else {
+		for _, i := range catids {
+			cat := GetCat(u.Tostr(i))
+			allCats = append(allCats, cat)
+		}
+	}
+	fmt.Printf("GetCategories: %v\n", time.Now().Sub(t0))
+	return allCats
+}
 func GetAllCategories() []Category {
 	var allCats []Category
 	var catids []int
@@ -366,5 +363,14 @@ func GetAllCategories() []Category {
 	return allCats
 }
 func CacheAllCats() {
-	_ = GetAllCategories()
+	for _, c := range GetAllCategories() {
+		err := mc.Set("Category"+u.Tostr(c.ID)+"_", c)
+		if err != nil {
+			glog.Errorf("mc.Set(Category %v _: %s", c.ID, err)
+		}
+		err = mc.Set("Category"+u.Tostr(c.ID)+"_UnreadCount", c.Unread())
+		if err != nil {
+			glog.Errorf("mc.Set(Category %v _UnreadCount): %s", c.ID, err)
+		}
+	}
 }

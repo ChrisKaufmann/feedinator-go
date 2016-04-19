@@ -60,7 +60,7 @@ func TestCategory_GetAllCategories(t *testing.T) {
 	}
 	print("\t\tAdding\n")
 	var cn Category
-	cn.Name="newcat"
+	cn.Name = "newcat"
 	cn.Insert("test")
 	il := cl()
 	if il != 9 {
@@ -265,7 +265,7 @@ func TestGetCat(t *testing.T) {
 	seed()
 	c1 := GetCat("1")
 	if c1.ID != 1 {
-		t.Errorf("GetCat(1).ID(%v) != 1)",c1.ID)
+		t.Errorf("GetCat(1).ID(%v) != 1)", c1.ID)
 	}
 }
 func TestCategory_Feeds(t *testing.T) {
@@ -278,11 +278,11 @@ func TestCategory_Feeds(t *testing.T) {
 		t.Errorf("c1.Feeds() len 2 <=> %v", lf)
 	}
 	print("\t\tAdding\n")
-	f4,err := GetFeed(4)
+	f4, err := GetFeed(4)
 	if err != nil {
 		t.Errorf("GetFeed: %s", err)
 	}
-	f4.CategoryID=1
+	f4.CategoryID = 1
 	f4.Save()
 	ls := len(c1.Feeds())
 	if ls != 3 {
@@ -299,11 +299,11 @@ func TestCategory_FeedsStr(t *testing.T) {
 		t.Errorf("c1.FeedsStr() len 2 <=> %v", lf)
 	}
 	print("\t\tAdding\n")
-	f4,err := GetFeed(4)
+	f4, err := GetFeed(4)
 	if err != nil {
 		t.Errorf("GetFeed: %s", err)
 	}
-	f4.CategoryID=1
+	f4.CategoryID = 1
 	f4.Save()
 	lf = len(c1.FeedsStr())
 	if lf != 3 {
@@ -319,8 +319,8 @@ func TestGetCategories(t *testing.T) {
 		t.Errorf("GetCategories(test) len 4 <=> %v", il)
 	}
 	var newcat Category
-	newcat.Name="newest!"
-	newcat.UserName="test"
+	newcat.Name = "newest!"
+	newcat.UserName = "test"
 	newcat.Insert("test")
 
 	print("\t\tAfterAddition\n")
@@ -333,7 +333,7 @@ func TestCategory_MarkEntriesRead(t *testing.T) {
 	print("\tCategory.MarkEntriesRead()\n")
 	seed()
 	c1 := GetCat("1")
-	el := []string{"1","2"}
+	el := []string{"1", "2"}
 	err := c1.MarkEntriesRead(el)
 	if err != nil {
 		t.Errorf("c1.markEntriesRead([1,2]): %s", err)
@@ -341,6 +341,74 @@ func TestCategory_MarkEntriesRead(t *testing.T) {
 	lue := len(c1.UnreadEntries())
 	if lue != 2 {
 		t.Errorf("c1.UnreadEntries() len 2 <=> %v", lue)
+	}
+}
+func TestCacheAllCats(t *testing.T) {
+	print("\tCacheAllCats\n")
+	seed()
+	var c Category
+	var cc int
+	print("\t\tInitial\n")
+	err := mc.Get("Category1_", &c)
+	if err == nil {
+		t.Errorf("mc.Get(Category1_) did not error")
+	}
+	err = mc.Get("Category1_UnreadCount", &cc)
+	if err == nil {
+		t.Errorf("mc.Get(Category1_UnreadCount) did not error")
+	}
+	print("\t\tAfterCaching\n")
+	CacheAllCats()
+	err = mc.Get("Category1_", &c)
+	if err != nil {
+		t.Errorf("mc.Get(Category1_): %s", err)
+	}
+	err = mc.Get("Category1_UnreadCount", &cc)
+	if err != nil {
+		t.Errorf("mc.Get(Category1_UnreadCount): %s", err)
+	}
+}
+func TestCategory_ClearCache(t *testing.T) {
+	seed()
+	var c Category
+	var cc int
+	print("\t\tInitial\n")
+	err := mc.Get("Category1_", &c)
+	if err == nil {
+		t.Errorf("mc.Get(Category1_) did not error")
+	}
+	err = mc.Get("Category1_UnreadCount", &cc)
+	if err == nil {
+		t.Errorf("mc.Get(Category1_UnreadCount) did not error")
+	}
+	print("\t\tAfterCaching\n")
+	CacheAllCats()
+	err = mc.Get("Category1_", &c)
+	if err != nil {
+		t.Errorf("mc.Get(Category1_): %s", err)
+	}
+	err = mc.Get("Category1_UnreadCount", &cc)
+	if err != nil {
+		t.Errorf("mc.Get(Category1_UnreadCount): %s", err)
+	}
+	c.ClearCache()
+	print("\t\tAfter Clearing Cache\n")
+	err = mc.Get("Category1_", &c)
+	if err == nil {
+		t.Errorf("mc.Get(Category1_) did not error")
+	}
+	err = mc.Get("Category1_UnreadCount", &cc)
+	if err == nil {
+		t.Errorf("mc.Get(Category1_UnreadCount) did not error")
+	}
+
+}
+func TestGetAllCategories(t *testing.T) {
+	print("\tGetAllCategories\n")
+	seed()
+	ael := len(GetAllCategories())
+	if ael != 8 {
+		t.Errorf("len(getallCategories()) 8 <=> %v", ael)
 	}
 }
 

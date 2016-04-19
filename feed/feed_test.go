@@ -470,7 +470,6 @@ func TestGetFeeds(t *testing.T) {
 		t.Errorf("len(GetFeeds(test)) 4 <=> %v", fl)
 	}
 }
-
 func TestCacheAllFeeds(t *testing.T) {
 	print("\tCacheAllFeeds()\n")
 	seed()
@@ -488,6 +487,33 @@ func TestCacheAllFeeds(t *testing.T) {
 	err = mc.Get("Feed1_UnreadCount", &uc)
 	if err != nil {
 		t.Errorf("mc.Get(Feed1_UnreadCount)", err)
+	}
+}
+func TestGetAllFeeds(t *testing.T) {
+	print("\tGetAllFeeds()\n")
+	seed()
+	afl := len(GetAllFeeds())
+	if afl != 8 {
+		t.Errorf("len(GetAllFeeds()) 8 <=> %v", afl)
+	}
+}
+func TestGetCategoryFeeds(t *testing.T) {
+	print("\tGetCategoryFeeds()\n")
+	seed()
+	cfl := len(GetCategoryFeeds(1))
+	if cfl != 2 {
+		t.Errorf("len(GetCategoryFeeds) 2 <=> %v", cfl)
+	}
+}
+func TestGetFeed(t *testing.T) {
+	print("\tGetFeed()\n")
+	seed()
+	f, err := GetFeed(1)
+	if err != nil {
+		t.Errorf("GetFeed(1): %s", err)
+	}
+	if f.Title != "test1" {
+		t.Errorf("GetFeed(1).Title test1 != %s", f.Title)
 	}
 }
 

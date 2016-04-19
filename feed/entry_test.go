@@ -15,7 +15,7 @@ func ge() Entry {
 	return GetEntry("1", "test")
 }
 
-func TestEntry_GetEntry(t *testing.T) {
+func TestGetEntry(t *testing.T) {
 	fmt.Print("\tGetEntry()\n")
 	e := ef()
 	if e.Title != "asdf" {
