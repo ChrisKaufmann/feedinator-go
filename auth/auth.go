@@ -33,7 +33,7 @@ var (
 	stmtInsertUser       *sql.Stmt
 	stmtGetUser          *sql.Stmt
 	stmtGetUserBySession *sql.Stmt
-	stmtGetUserByShared	 *sql.Stmt
+	stmtGetUserByShared  *sql.Stmt
 	stmtSessionExists    *sql.Stmt
 	stmtLogoutSession    *sql.Stmt
 )
@@ -58,10 +58,6 @@ func DB(d *sql.DB) {
 	stmtInsertUser, err = u.Sth(db, "insert into users (id,email) values (?,?) ")
 	if err != nil {
 		glog.Fatalf(" DB(): u.sth(stmtInsertUser) %s", err)
-	}
-	stmtGetUser, err = u.Sth(db, "select user_id from sessions as s where s.session_hash = ?")
-	if err != nil {
-		glog.Fatalf(" DB(): u.sth(stmtGetUser) %s", err)
 	}
 	stmtGetUserBySession, err = u.Sth(db, "select users.id, users.email from users, sessions where users.id=sessions.user_id and sessions.session_hash=?")
 	if err != nil {
@@ -118,6 +114,7 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/", http.StatusFound)
 }
+
 // Start the authorization process
 func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	//Get the Google URL which shows the Authentication page to the user
@@ -132,18 +129,27 @@ func DemoUser(w http.ResponseWriter, r *http.Request) {
 	demo_email := "chriskaufmann@gmail.com"
 	var us User
 	var err error
-	if ! UserExists(demo_email) {
-		us,err = AddUser(demo_email)
-		if err != nil { glog.Errorf("DemoUser(w,r)AddUser(%s): %s", demo_email, err);return }
+	if !UserExists(demo_email) {
+		us, err = AddUser(demo_email)
+		if err != nil {
+			glog.Errorf("DemoUser(w,r)AddUser(%s): %s", demo_email, err)
+			return
+		}
 	} else {
 		us, err = GetUserByEmail(demo_email)
-		if err != nil { glog.Errorf("DemoUser(w,r)GetUserByEmail(%s): %s", demo_email, err);return }
+		if err != nil {
+			glog.Errorf("DemoUser(w,r)GetUserByEmail(%s): %s", demo_email, err)
+			return
+		}
 	}
 	var authString = u.RandomString(64)
 	//set the cookie
 	err = us.AddSession(authString)
-	if err != nil {glog.Errorf("DemoUser(w,r)AddUser(%s): %s", authString, err);return }
-    expire := time.Now().AddDate(1, 0, 0) // year expirey seems reasonable
+	if err != nil {
+		glog.Errorf("DemoUser(w,r)AddUser(%s): %s", authString, err)
+		return
+	}
+	expire := time.Now().AddDate(1, 0, 0) // year expirey seems reasonable
 	cookie := http.Cookie{Name: cookieName, Value: authString, Expires: expire}
 	http.SetCookie(w, &cookie)
 	http.Redirect(w, r, "/main", http.StatusFound)
@@ -198,7 +204,6 @@ func HandleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-//	_, err = stmtCookieIns.Exec(us.ID, authString)
 	err = us.AddSession(authString)
 
 	if err != nil {
