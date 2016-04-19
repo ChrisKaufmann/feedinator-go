@@ -42,10 +42,12 @@ sub update_feed
 	return if $error_skips{$id};
 	print "Updating $id(".$feeds{$id}{'link'}."): ";
 	my $feed; #holds the parsed feed
+	my $category_id=$feeds{$id}{'category_id'};
 	my $ua=LWP::UserAgent->new;
 #	$ua->default_header('If-Modified-Since' => HTTP::Date::time2str(Date::Parse::str2time($feeds{$id}{'last_updated'})));
 	my $response=$ua->get($feeds{$id}{'link'});
 	my $time = strftime "%Y-%m-%d %H:%M:%S", localtime($response->headers->date);
+	my $new_entries=0;
 	if($response->code == 304)
 	{
 		print "\t304 (no update)\n";
@@ -91,9 +93,18 @@ sub update_feed
 		$insert_entry_sth->execute($title,$guid,$guid,$updated,$desc,$desc_hash,$id,$comments,'true',$feeds{$id}{'username'})
 			|| warn("Couldn't execute insert_entry_sth: $!");
 		print "+";
+		$new_entries++;
 	}
 	print "\n";
 	$memd->set("${prefix}Feed${id}ExistingHashes",\%existing_entries);
+	print("Deleting ${prefix}Feed${id}_unreadentries\n");
+	$memd->delete("${prefix}Feed${id}_unreadentries");
+    print("Incrementing ${prefix}Feed${id}_UnreadCount, $new_entries\n");
+	$memd->incr("${prefix}Feed${id}_UnreadCount", $new_entries);
+    print("Deleting ${prefix}Category${category_id}_unreadentries\n");
+	$memd->delete("${prefix}Category${category_id}_unreadentries");
+    print("Incrementing ${prefix}Category${category_id}_UnreadCount, $new_entries\n");
+	$memd->incr("${prefix}Category${category_id}_UnreadCount", $new_entries);
 	set_last_updated($id);
 }
 sub set_last_updated
@@ -128,12 +139,12 @@ sub get_feeds
 {
 	my %rethash=();
 	return data($feed_key) if hasdata($feed_key);
-	my $sql=qq{select id, feed_url,user_name,title,exclude,exclude_data,last_updated from ttrss_feeds where 1};
+	my $sql=qq{select id, feed_url,user_name,title,exclude,exclude_data,last_updated,category_id from ttrss_feeds where 1};
 	my $sth=$dbh->prepare($sql) || die("Couldn't prepare get_feeds sql: $!");
 	$sth->execute || die("Couldn't execute get_feeds sql ($sql): $!");
 	my $cat_sql=qq{select c.exclude from ttrss_feeds as f, ttrss_categories as c where f.category_id=c.id and f.id=?};
 	my $cat_sth=$dbh->prepare($cat_sql) || die ($!);
-	while(my ($id,$link,$username,$title,$exclude,$excludedata,$last_updated)=$sth->fetchrow_array)
+	while(my ($id,$link,$username,$title,$exclude,$excludedata,$last_updated,$category_id)=$sth->fetchrow_array)
 	{
 		$link=~s/http:\/\///;
 		$link='http://'.$link;
@@ -141,6 +152,7 @@ sub get_feeds
 		$rethash{$id}{'excludes'}=$exclude;
 		$rethash{$id}{'last_updated'}=$last_updated;
 		$rethash{$id}{'username'}=$username;
+		$rethash{$id}{'category_id'}=$category_id;
 		$cat_sth->execute($id)
 			|| die("Couldn't execute cat_sth: $!\n");
 		if($cat_sth->rows != 0)
@@ -166,9 +178,11 @@ sub hasdata
 	my $key=shift || die ("No key passed to hasdata");
 	print("C");
 	my $ref = $memd->get($key);
-	my $firstkey=(keys %{$ref})[0];
+	my $firstkey;
+	try {$firstkey=(keys %{$ref})[0]}
+	catch {return 0;}
 	return 1 if $firstkey;
-	return 0
+	return 0;
 }
 sub data
 {
@@ -210,4 +224,12 @@ sub escape
 {
 	my $in=shift;
 	return encode_entities($in);
+}
+sub try (&$) {
+   my($try, $catch) = @_;
+   eval { $try };
+   if ($@) {
+      local $_ = $@;
+      &$catch;
+   }
 }

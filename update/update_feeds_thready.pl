@@ -3,7 +3,8 @@ use strict;
 use DBI;
 use threadeach;
 use Config::Std;
-`killthe update_feeds`;
+use List::Util qw/shuffle/;
+`killthe update_feeds.pl`;
 
 my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
@@ -28,7 +29,7 @@ while(my ($id)=$sth->fetchrow_array)
 	push(@all_ids,$id);
 }
 
-threadeach my $id(@all_ids)
+threadeach my $id(shuffle(@all_ids))
 {
 	system("perl update_feeds.pl feed_id=$id");
 }

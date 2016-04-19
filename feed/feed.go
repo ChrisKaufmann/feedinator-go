@@ -121,6 +121,10 @@ func (f Feed) UnreadEntries() (el []Entry) {
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_unreadentries", &el, func() {
 		el = f.GetEntriesByParam("unread = 1")
 	})
+	err := mc.Set("Feed"+u.Tostr(f.ID)+"_UnreadCount", len(el))
+	if err != nil {
+		glog.Errorf("mc.Set(Feed %v _UnreadCount, %v): %s", f.ID, len(el), err)
+	}
 	return el
 }
 func (f Feed) MarkedEntries() (el []Entry) {
