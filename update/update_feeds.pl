@@ -30,8 +30,8 @@ my $insert_entry_sth=$dbh->prepare("insert into ttrss_entries (title,guid,link,u
 
 my %error_skips=();
 %error_skips = data($errors_key) if hasdata($errors_key);
-if($cgi->param('feed_id')){ update_feed($cgi->param('feed_id'));exit();}
-foreach my $id(sort keys %feeds)
+if($cgi->param('feed_id')){ update_feed(scalar $cgi->param('feed_id'));exit();}
+foreach my $id(keys %feeds)
 {
 	update_feed($id);
 }
