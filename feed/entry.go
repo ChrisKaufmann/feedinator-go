@@ -69,6 +69,11 @@ type Entry struct {
 	ReadUnread  string
 	GUID        string
 }
+type EntryList []Entry
+
+func (el EntryList) Len() int           { return len(el) }
+func (el EntryList) Less(i, j int) bool { return el[i].ID < el[j].ID }
+func (el EntryList) Swap(i, j int)      { el[i], el[j] = el[j], el[i] }
 
 func GetEntry(id string, userName string) (e Entry) {
 	if id == "" || userName == "" {

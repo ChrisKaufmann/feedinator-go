@@ -423,14 +423,12 @@ func initDB() {
 	if _, err := db.Query("CREATE TABLE `ttrss_categories` (  `name` varchar(64) DEFAULT NULL,  `user_name` varchar(64) DEFAULT NULL,  `description` varchar(255) DEFAULT NULL,  `id` int(11) NOT NULL AUTO_INCREMENT,  `order_num` int(11) DEFAULT NULL,  `exclude` text,  PRIMARY KEY (`id`),  KEY `idx_user_id` (`user_name`,`id`)) ENGINE=MyISAM"); err != nil {
 		glog.Fatalf("Creat table categories: %s", err)
 	}
-
 	if _, err := db.Query("drop table if exists ttrss_entries"); err != nil {
 		glog.Errorf("Drop table entries: %s", err)
 	}
 	if _, err := db.Query("CREATE TABLE `ttrss_entries` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `feed_id` int(11) NOT NULL DEFAULT '0',  `updated` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',  `title` text NOT NULL,  `guid` varchar(255) NOT NULL DEFAULT '',  `link` text NOT NULL,  `content` text NOT NULL,  `content_hash` varchar(250) NOT NULL DEFAULT '',  `last_read` datetime DEFAULT NULL,  `marked` tinyint(1) NOT NULL DEFAULT '0',  `date_entered` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',  `no_orig_date` tinyint(1) NOT NULL DEFAULT '0',  `comments` varchar(250) NOT NULL DEFAULT '',  `unread` enum('1','0') NOT NULL DEFAULT '1',  `extended_content` text,  `user_name` varchar(128) DEFAULT NULL,  PRIMARY KEY (`id`),  KEY `feed_id` (`feed_id`),  KEY `idx_user_guid` (`user_name`,`guid`),  KEY `idx_entries_marked_username_date` (`marked`,`user_name`,`date_entered`),  KEY `idx_entries_feedid_entered` (`feed_id`,`date_entered`),  KEY `idx_feedid_unread` (`feed_id`,`unread`),  KEY `feed_id_guid` (`feed_id`,`guid`(35)))"); err != nil {
 		glog.Fatalf("Create table entries: %s", err)
 	}
-
 	if _, err := db.Query("drop table if exists ttrss_feeds"); err != nil {
 		glog.Errorf("Drop table feeds: %s", err)
 	}

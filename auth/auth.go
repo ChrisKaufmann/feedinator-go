@@ -31,11 +31,10 @@ var (
 	stmtCookieIns        *sql.Stmt
 	stmtGetUserID        *sql.Stmt
 	stmtInsertUser       *sql.Stmt
-	stmtGetUser          *sql.Stmt
 	stmtGetUserBySession *sql.Stmt
-	stmtGetUserByShared  *sql.Stmt
 	stmtSessionExists    *sql.Stmt
 	stmtLogoutSession    *sql.Stmt
+	stmtGetAllUsers      *sql.Stmt
 )
 
 func CookieName(c string) {
@@ -63,10 +62,6 @@ func DB(d *sql.DB) {
 	if err != nil {
 		glog.Fatalf(" DB(): u.sth(stmtGetUserBySession) %s", err)
 	}
-	stmtGetUserByShared, err = u.Sth(db, "select users.id, users.email from users, sessions where users.id=sessions.user_id and sessions.session_hash=?")
-	if err != nil {
-		glog.Fatalf(" DB(): u.sth(stmtGetUserByShared) %s", err)
-	}
 	stmtSessionExists, err = u.Sth(db, "select user_id from sessions where session_hash=?")
 	if err != nil {
 		glog.Fatalf(" DB(): u.sth(stmtSessionExists) %s", err)
@@ -75,24 +70,33 @@ func DB(d *sql.DB) {
 	if err != nil {
 		glog.Fatalf(" DB(): u.sth(stmtLogoutSession) %s", err)
 	}
+	stmtGetAllUsers, err = u.Sth(db, "select id, email from users where 1")
+	if err != nil {
+		glog.Fatalf("sth(db, select id, email from users where 1): %s", err)
+	}
 }
 func init() {
 	c, err := goconfig.ReadConfigFile("config")
 	if err != nil {
-		glog.Fatalf("init(): readconfigfile(config)")
+		glog.Warningf("init(): readconfigfile(config)")
+		oauthCfg.ClientSecret = "a"
+		oauthCfg.ClientId = "b"
+		MyURL = "c"
+		oauthCfg.RedirectURL = "d"
+		return
 	}
 	oauthCfg.ClientId, err = c.GetString("Google", "ClientId")
 	if err != nil {
-		glog.Fatalf("init(): readconfigfile(Google.ClientId)")
+		glog.Fatal("init(): readconfigfile(Google.ClientId), using dummy")
 	}
 	oauthCfg.ClientSecret, err = c.GetString("Google", "ClientSecret")
 	if err != nil {
-		glog.Fatalf("init(): readconfigfile(Google.ClientSecret)")
+		glog.Fatal("init(): readconfigfile(Google.ClientSecret)")
 	}
 	url, err := c.GetString("Web", "url")
 	MyURL = url
 	if err != nil {
-		glog.Fatalf("init(): readconfigfile(Web.url)")
+		glog.Fatal("init(): readconfigfile(Web.url)")
 	}
 	oauthCfg.RedirectURL = url + "/oauth2callback"
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/golang/glog"
 	"html"
 	"html/template"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -210,20 +211,34 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 }
 func (c Category) MarkedEntries() (el []Entry) {
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_markedentries", &el, func() {
+		t0 := time.Now()
+		for _, f := range c.Feeds() {
+			el = append(el, f.MarkedEntries()...)
+		}
+		sort.Sort(EntryList(el))
+		fmt.Printf("Search Feeds: %v", time.Now().Sub(t0))
+		t0 = time.Now()
 		el = c.GetEntriesByParam("marked = 1")
+		fmt.Printf("By Category: %v", time.Now().Sub(t0))
 	})
 	return el
 }
 func (c Category) UnreadEntries() (el []Entry) {
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_unreadentries", &el, func() {
-		el = c.GetEntriesByParam("unread = 1")
+		for _, f := range c.Feeds() {
+			el = append(el, f.UnreadEntries()...)
+		}
+		sort.Sort(EntryList(el))
 	})
 	mc.SetTime("Category"+u.Tostr(c.ID)+"_UnreadCount", len(el), 60)
 	return el
 }
 func (c Category) ReadEntries() (el []Entry) {
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_readentries", &el, func() {
-		el = c.GetEntriesByParam("unread = '0'")
+		for _, f := range c.Feeds() {
+			el = append(el, f.ReadEntries()...)
+		}
+		sort.Sort(EntryList(el))
 	})
 	return el
 }
@@ -351,7 +366,7 @@ func GetAllCategories() []Category {
 			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
 			allCats = append(allCats, cat)
 			catids = append(catids, cat.ID)
-			mc.Set("Category"+u.Tostr(cat.ID), cat)
+			mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
 		}
 		mc.Set("CategoryList", allCats)
 	} else {
