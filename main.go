@@ -641,7 +641,6 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("handleMain %v\n", time.Now().Sub(t0))
 }
-
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
 	var loggedin bool

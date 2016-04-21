@@ -130,7 +130,7 @@ func (c Category) ClearCache() {
 	mc.DeleteLike("Category" + u.Tostr(c.ID) + "_")
 	cl := mc.Find("Category" + u.Tostr(c.ID))
 	mc.Delete(cl...)
-	mcl := []string{"Category" + u.Tostr(c.ID), "Category" + u.Tostr(c.ID) + "_UnreadCount", "Category" + u.Tostr(c.ID) + "_Feeds"}
+	mcl := []string{"Category" + u.Tostr(c.ID) + "_", "Category" + u.Tostr(c.ID) + "_UnreadCount", "Category" + u.Tostr(c.ID) + "_Feeds"}
 	for _, k := range mcl {
 		mc.Delete(k)
 	}
@@ -206,7 +206,6 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 			}
 		}
 	}
-	mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
 func (c Category) MarkedEntries() (el []Entry) {
@@ -252,7 +251,6 @@ func (c Category) GetEntriesByParam(p string) (el []Entry) {
 	}
 	var query = "select " + entrySelectString + " from ttrss_entries  where feed_id in (" + strings.Join(c.FeedsStr(), ", ") + ") and " + p + " order by id ASC limit 500;"
 	el = getEntriesFromSql(query)
-	mc.Set("CategoryCurrent"+c.UserName, el)
 	return el
 }
 func (c Category) MarkEntriesRead(ids []string) (err error) {
@@ -339,7 +337,7 @@ func GetCategories(userName string) []Category {
 			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
 			allCats = append(allCats, cat)
 			catids = append(catids, cat.ID)
-			mc.Set("Category"+u.Tostr(cat.ID), cat)
+			mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
 		}
 		mc.Set("CategoryList_"+userName, catids)
 	} else {

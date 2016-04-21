@@ -50,7 +50,7 @@ var (
 )
 
 func Feedinit() {
-	var selecttxt string = " id, IFNULL(title,''), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
+	var selecttxt string = " id, IFNULL(title,'--untitled--'), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
 	var err error
 	stmtInsertFeed, err = u.Sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
 	if err != nil {
@@ -401,8 +401,12 @@ func GetFeeds(userName string) (allFeeds []Feed) {
 		for rows.Next() {
 			var feed Feed
 			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+			if feed.Title == "" {
+				feed.Title = "--untitled--"
+			}
+			feed.Title = html.UnescapeString(feed.Title)
 			allFeeds = append(allFeeds, feed)
-			mc.Set("Feed"+u.Tostr(feed.ID), feed)
+			mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
 		}
 	})
 	return allFeeds
@@ -427,6 +431,10 @@ func GetAllFeeds() []Feed {
 	for rows.Next() {
 		var feed Feed
 		rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+		if feed.Title == "" {
+			feed.Title = "--untitled--"
+		}
+		feed.Title = html.UnescapeString(feed.Title)
 		allFeeds = append(allFeeds, feed)
 		feedids = append(feedids, feed.ID)
 		mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
@@ -458,8 +466,12 @@ func GetFeedsWithoutCats(userName string) (allFeeds []Feed) {
 		for rows.Next() {
 			var feed Feed
 			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+			if feed.Title == "" {
+				feed.Title = "--untitled--"
+			}
+			feed.Title = html.UnescapeString(feed.Title)
 			allFeeds = append(allFeeds, feed)
-			mc.Set("Feed"+u.Tostr(feed.ID), feed) //cache the feed, because why not
+			mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed) //cache the feed, because why not
 		}
 	})
 	return allFeeds

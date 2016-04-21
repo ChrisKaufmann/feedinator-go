@@ -139,7 +139,6 @@ function all_entry_ids() {
         var ri=row.id.replace("RROW-","");
         all_entries.push(ri);
     }
-    console.log(all_entries);
     return all_entries;
 }
 // Lowers the unread count for the current_view_id by one.
@@ -148,6 +147,7 @@ function decrement_count(dc) {
 	var cr_view_div='FEEDU-'+current_view_id;
 	var current_value=document.getElementById(cr_view_div).innerHTML;
 	current_value=current_value-dc;
+	if (current_value < 1) { current_value=0;}
     set_unread_count(current_view,current_view_id,current_value);
 }
 //Set the height of the content and entry divs 
@@ -186,14 +186,13 @@ function mark_list_read(fc, id) {
         var temparr = ids.slice(0,500);
         ids=ids.slice(500);
         data=temparr.join();
-        console.log("marking"+data)
+        decrement_count(ids.length);
         $.ajax({
             type: "GET",
             url: '/entry/mark/'+fc+'/'+id+'/'+data+'/read',
             success:function(html){
                 $('#entries_list_div').html(html);
                 $('#menu_status').html('');
-                decrement_count(entries_length());
             }
         });
     }
