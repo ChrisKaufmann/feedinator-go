@@ -4,7 +4,7 @@ var current_view_id='';		//  id of the category or feed currently being viewed.
 var current_entry_id='';	//  id of current entry being viewed
 var status_div='left_notify'; //  id of the status div
 //Stuff for the arrow navigation, from http://api.jquery.com/keydown/
-	$(window).keydown(function (e) {
+$(window).keydown(function (e) {
 		// test for in an input box so as not to forward when moving around
 		if( document.activeElement instanceof HTMLInputElement ) 
 		{
@@ -31,26 +31,22 @@ var status_div='left_notify'; //  id of the status div
 		}
 	});
 
-function showPreviousEntry(id)
-{
+function showPreviousEntry(id) {
 	vals = PrevNextTable(id);
 	if(vals==null){return;}
 	show_entry(vals.prev);
 }
-function showNextEntry(id)
-{
+function showNextEntry(id) {
 	vals = PrevNextTable(id);
 	if(vals==null){return;}
 	show_entry(vals.next);
 }
-function PrevNextTable(id)
-{
+function PrevNextTable(id) {
 	var prev=0;
 	var curr=0;
 	var next=0;
-	var table=document.getElementById('headlinesList')
-	if(table == null){return;}
-	var rowLength= table.rows.length;
+	var table=document.getElementById('headlinesList');
+	var rowLength= entries_length();
 	var prevrow = null;
 	var nextrow = null;
 	for(var i=0;i<rowLength;i++) {
@@ -72,16 +68,14 @@ function PrevNextTable(id)
 	return{prev:prev,curr:curr,next:next}
 }
 // Update the link for a given feed, this isn't update because it needs to POST the url
-function update_link(fc,id,form)
-{
+function update_link(fc,id,form){
 	document.getElementById('menu_status').innerHTML='Updating...';
 	var link        =form.update_link_text.value;
 	link            =encodeURIComponent(link);
 	url                     ="url="+link
 	$.ajax({type: "POST",url: '/'+fc+'/'+id+'/link/', data: url,success:function(html){$('#menu_status').html(html);}})
 }
-function update(fc,id,todo,form)
-{
+function update(fc,id,todo,form) {
 	document.getElementById('menu_status').innerHTML='Updating...';
 	try{val = form.val.value;}catch(err){}
 	try{val = encodeURIComponent(val);}catch(err){}
@@ -92,15 +86,13 @@ function update(fc,id,todo,form)
 }
 
 //toggle the visibility of a given passed div id
-function toggle_visible(id)
-{
+function toggle_visible(id) {
 	$('#'+id).toggle();
 	set_entryview();
 }
 
 // Hides the table row of a given id, and makes an ajax call to mark read in the backend.
-function remove_entry(id)
-{
+function remove_entry(id) {
 	oldEl = document.getElementById('RROW-'+id);
 	parentEl = oldEl.parentNode;
 	parentEl.removeChild(oldEl);	
@@ -108,8 +100,7 @@ function remove_entry(id)
 	if(oldEl.className.match(/unread/) == 'unread'){decrement_count();}
 }
 // Toggles the marked/unmarked for a given id, and replaces the div with the src for the appropriate image.
-function toggleMark(id) 
-{
+function toggleMark(id)  {
 	var mark_div='FMARKPIC-' +id;
 	var page_mark_div='EMARKPIC-' +id;
 	$.ajax({type: "GET",url: '/entry/mark/ / /'+id+'/togglemarked', success:function(html){
@@ -117,26 +108,17 @@ function toggleMark(id)
 		try{document.getElementById('FMARKPIC-'+id).innerHTML=html;}catch(err){}
 	}})
 }
-function reportError(request) 
-{
-	alert("There was a problem");
+function set_unread_count(fc,id,ct) {
+    var name_div=fc=='feed'?"FEEDROW-"+id:"CATROW-"+id;
+    var oddness = ct >=1 ? 'oddUnread' : 'odd';
+    try{document.getElementById('FEEDU-'+id).innerHTML=ct;}catch (err){}
+    try{document.getElementById(name_div).className=oddness;}catch (err){}
 }
-// Set the current_view_id to look read, and the number unread to zero.  
-// Could throw errors if the div has since been hidden or removed.
-function empty_count()
-{
-	if(current_view == 'feed')
-		{name_div='FEEDROW-'+current_view_id;}
-	else
-		{name_div='CATROW-'+current_view_id;}
-	var unread_div='FEEDU-'+current_view_id;
-	// These are expected errors and should not print errors.
-	// expected because the div could have been hidden.
-	try{document.getElementById(unread_div).innerHTML='0';}catch (err){}
-	try{document.getElementById(name_div).className='odd';}catch (err){}
+function entries_length() {
+    var table = document.getElementById('headlinesList')
+    return table.rows.length;
 }
-function update_count(fc,id)
-{
+function update_count(fc,id) {
 	if(fc == 'feed')
 		{name_div='FEEDROW-'+current_view_id;}
 	else
@@ -149,19 +131,27 @@ function update_count(fc,id)
 		try{document.getElementById(name_div).className=eo;}catch (err){}
 	}})
 }
-// Lowers the unread count for the current_view_id by one - if that zeroes, calls empty_count.
-function decrement_count(dc)
-{
+function all_entry_ids() {
+    var table=document.getElementById('headlinesList');
+    var all_entries = new Array;
+    for(var i=0;i<table.rows.length;i++) {
+        var row=table.rows[i];
+        var ri=row.id.replace("RROW-","");
+        all_entries.push(ri);
+    }
+    console.log(all_entries);
+    return all_entries;
+}
+// Lowers the unread count for the current_view_id by one.
+function decrement_count(dc) {
     dc= dc || 1;
 	var cr_view_div='FEEDU-'+current_view_id;
 	var current_value=document.getElementById(cr_view_div).innerHTML;
 	current_value=current_value-dc;
-	document.getElementById(cr_view_div).innerHTML=current_value;
-	if(current_value<=0){empty_count();}
+    set_unread_count(current_view,current_view_id,current_value);
 }
 //Set the height of the content and entry divs 
-function set_entryview()
-{
+function set_entryview() {
 	// If the entries list is hidden, we have to change the height or it's irritating
 	if($('#entries_list_div').is(":hidden")){
 		$('#content_container').css("height","95%");
@@ -172,8 +162,7 @@ function set_entryview()
 	}
 }
 // Populates view_div with the content for a given id.
-function show_entry(id)
-{
+function show_entry(id) {
 	list_row=document.getElementById('RROW-'+id);
 	current_entry_id=id;
 	$.ajax({type: "GET",url: "/entry/"+id, success:function(html){
@@ -185,42 +174,39 @@ function show_entry(id)
 	try{list_row.className=list_row.className.replace("unread","");}catch(err){}
 }
 // Populates the feeds_div with a list of feeds.
-function feedList()
-{
+function feedList() {
 	document.getElementById('feeds_status').innerHTML='<img src="static/mozilla_giallo.gif" height="10">';
 	current_view='feed';
 	$.ajax({type: "GET",url: '/feed/list/', success:function(html){$('#feeds_div').html(html);document.getElementById('feeds_status').innerHTML='';}})
 }
 
-function mark_list_read(fc, id)
-{
-	data=$("#entries_form").serialize();
-	ndata=data.replace(/id%5B%5D=/g,',')
-	data=ndata.replace(/&/g,'')
-	var table=document.getElementById('headlinesList')
-    if(table == null){return;}
-    var rowLength= table.rows.length;
-	$.ajax({
-	    type: "GET",
-	    url: '/entry/mark/'+fc+'/'+id+'/'+data+'/read',
-	    success:function(html){
-	        $('#entries_list_div').html(html);
-	        $('#menu_status').html('');
-	        decrement_count(rowLength);
-	    }
-	});
+function mark_list_read(fc, id) {
+    var ids=all_entry_ids();
+    while (ids.length > 0) {
+        var temparr = ids.slice(0,500);
+        ids=ids.slice(500);
+        data=temparr.join();
+        console.log("marking"+data)
+        $.ajax({
+            type: "GET",
+            url: '/entry/mark/'+fc+'/'+id+'/'+data+'/read',
+            success:function(html){
+                $('#entries_list_div').html(html);
+                $('#menu_status').html('');
+                decrement_count(entries_length());
+            }
+        });
+    }
 }
 // Populates the feeds_div with a list of categories.
 // If id is given, shows the feeds inside that category
-function categoryList(id)
-{
+function categoryList(id) {
 	document.getElementById('feeds_status').innerHTML='<img src="static/mozilla_giallo.gif" height="10">';
 	current_view='category';
 	$.ajax({type: "GET",url: "/categoryList/"+id, success:function(html){$('#feeds_div').html(html);	document.getElementById('feeds_status').innerHTML='';
 }})
 }
-function search(feedcat,id,form)
-{
+function search(feedcat,id,form) {
 	try{val = form.val.value;}catch(err){alert(err);}
 	var index=form.search_select.selectedIndex;
     var selvalue=form.search_select.options[index].value;
@@ -244,11 +230,14 @@ function search(feedcat,id,form)
 		}
 	});
 }
-function entries(feedcat,id,mode)
-{
+function entries(feedcat,id,mode) {
 	current_view=feedcat;
 	current_view_id=id;
 	path=feedcat+"/"+id+"/"+mode;
+    if(feedcat == 'feed')
+        {name_div='FEEDROW-'+current_view_id;}
+    else
+        {name_div='CATROW-'+current_view_id;}
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
 	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
 	$.ajax({
@@ -262,11 +251,13 @@ function entries(feedcat,id,mode)
 			}
 			scrollup('entries_list_div');
 			current_entry_id='';
+			if(mode=="unread") {
+			    set_unread_count(feedcat,id,entries_length());
+			}
 		}
 	});
 }
-function customize(form)
-{
+function customize(form) {
 	document.getElementById('menu_status').innerHTML='Loading...';
 	var index=form.select.selectedIndex;
 	var selvalue=form.select.options[index].value;
@@ -286,8 +277,7 @@ function customize(form)
 		$.ajax({type: "GET",url: '/menu/select/'+current_view_id,success:function(html){$('#customize_dropdown').html(html);}})
 	}})
 }
-function add_category(form)
-{
+function add_category(form) {
 	$('menu_status').innerHTML='Adding...';
 	var newcat =form.add_category_text.value;
 	$.ajax({type: "GET",url: '/category/ /new/'+newcat,success:function(html)
@@ -297,8 +287,7 @@ function add_category(form)
 		if(current_view == 'category') { categoryList(); }
 	}})
 }
-function add_feed(form)
-{
+function add_feed(form) {
 	$('menu_status').innerHTML='Adding...';
 	var newfeed	=form.add_feed_text.value;
 	newfeed		=encodeURIComponent(newfeed);
@@ -312,11 +301,9 @@ function add_feed(form)
 	}})
 }
 //Just for scrolling to the top when loading something
-function scrollup(id)
-{
+function scrollup(id) {
 	try{document.getElementById(id).scrollTop=0;}catch(err){}
 }
-function scrollto(id,to)
-{
+function scrollto(id,to) {
 	try{document.getElementById(id).scrollTop=to;}catch(err){}
 }
