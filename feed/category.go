@@ -99,7 +99,10 @@ func (c Category) Insert(userName string) (err error) {
 	if err != nil {
 		glog.Errorf("stmtAddCat.Exec(%s,%s): %s", userName, c.Name, err)
 	}
-	mc.Delete("CategoryList_" + userName)
+	err = mc.Delete("CategoryList_" + userName)
+	if err != nil && err.Error() != "memcache: cache miss" {
+		glog.Errorf("mc.Delete(CategoryList_%s): %s", userName, err)
+	}
 	mc.Delete("CategoryList")
 	return err
 }
@@ -122,7 +125,10 @@ func (c Category) Delete() (err error) {
 func (c Category) Update() {
 	fl := c.Feeds()
 	for _, i := range fl {
-		i.Update()
+		err := i.Update()
+		if err != nil {
+			glog.Errorf("feed(%v).Update: %s", i.ID, err)
+		}
 	}
 	c.ClearCache()
 }
@@ -138,12 +144,19 @@ func (c Category) ClearCache() {
 }
 func (c Category) Unread() (count int) {
 	t0 := time.Now()
-	mc.GetOr("Category"+u.Tostr(c.ID)+"_UnreadCount", &count, func() {
+	mcf := "Category" + u.Tostr(c.ID) + "_UnreadCount"
+	err := mc.Get(mcf, &count)
+	switch {
+	case err != nil && err.Error() == "memcache: cache miss":
 		for _, f := range c.Feeds() {
 			count = count + f.Unread()
 		}
-	})
-	fmt.Printf("Category(%v).Unread(): %s", c.ID, time.Now().Sub(t0))
+		go mc.Set(mcf, count)
+	case err != nil:
+		glog.Errorf("mc.Get(%s): %s", mcf, err)
+		return 0
+	}
+	fmt.Printf("\t\t\t\tCategory(%v).Unread(): %s\n", c.ID, time.Now().Sub(t0))
 	return count
 }
 func (c Category) Class() string {
@@ -215,10 +228,10 @@ func (c Category) MarkedEntries() (el []Entry) {
 			el = append(el, f.MarkedEntries()...)
 		}
 		sort.Sort(EntryList(el))
-		fmt.Printf("Search Feeds: %v", time.Now().Sub(t0))
+		fmt.Printf("\t\t\t\tSearch Feeds: %v", time.Now().Sub(t0))
 		t0 = time.Now()
 		el = c.GetEntriesByParam("marked = 1")
-		fmt.Printf("By Category: %v", time.Now().Sub(t0))
+		fmt.Printf("\t\t\t\tBy Category: %v\n", time.Now().Sub(t0))
 	})
 	return el
 }
@@ -272,7 +285,7 @@ func (c Category) MarkEntriesRead(ids []string) (err error) {
 			return err
 		}
 		j := strings.Join(id_list, ",")
-		sql := "update ttrss_entries set unread=0 where id in (" + j + ")"
+		sql := "update ttrss_entries set unread='0' where id in (" + j + ")"
 		stmtUpdateMarkEntries, err := u.Sth(db, sql)
 		if err != nil {
 			glog.Errorf("Sth(db, %s): %s", sql, err)
@@ -280,7 +293,7 @@ func (c Category) MarkEntriesRead(ids []string) (err error) {
 		}
 		_, err = stmtUpdateMarkEntries.Exec()
 		if err != nil {
-			glog.Errorf("stmtUpdateMarkEntries.Exec: %s", err)
+			glog.Errorf("stmtUpdateMarkEntries.Exec: %s\n%s\n", err, sql)
 			return err
 		}
 		mc.Decrement("Category"+u.Tostr(c.ID)+"_UnreadCount", uint64(len(ids)))
@@ -325,28 +338,20 @@ func GetCategories(userName string) []Category {
 	var catids []int
 
 	//Try getting a category list from cache
-	err := mc.Get("CategoryList_"+userName, &catids)
+	rows, err := stmtGetCats.Query(userName)
 	if err != nil {
-		rows, err := stmtGetCats.Query(userName)
-		if err != nil {
-			err.Error()
-			return allCats
-		}
-		for rows.Next() {
-			var cat Category
-			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
-			allCats = append(allCats, cat)
-			catids = append(catids, cat.ID)
-			mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
-		}
-		mc.Set("CategoryList_"+userName, catids)
-	} else {
-		for _, i := range catids {
-			cat := GetCat(u.Tostr(i))
-			allCats = append(allCats, cat)
-		}
+		err.Error()
+		return allCats
 	}
-	fmt.Printf("GetCategories: %v\n", time.Now().Sub(t0))
+	for rows.Next() {
+		var cat Category
+		rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
+		allCats = append(allCats, cat)
+		catids = append(catids, cat.ID)
+		go mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
+	}
+	go mc.Set("CategoryList_"+userName, catids)
+	fmt.Printf("\t\t\tGetCategories: %v\n", time.Now().Sub(t0))
 	return allCats
 }
 func GetAllCategories() []Category {
@@ -364,9 +369,9 @@ func GetAllCategories() []Category {
 			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
 			allCats = append(allCats, cat)
 			catids = append(catids, cat.ID)
-			mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
+			go mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
 		}
-		mc.Set("CategoryList", allCats)
+		go mc.Set("CategoryList", allCats)
 	} else {
 		for _, i := range catids {
 			cat := GetCat(u.Tostr(i))

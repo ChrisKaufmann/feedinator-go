@@ -86,7 +86,8 @@ func GetEntry(id string, userName string) (e Entry) {
 		var e Entry
 		return e
 	}
-	return el[0]
+
+	//	return el[0]
 
 	if len(el) > 0 {
 		e = el[0]

@@ -267,7 +267,11 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.Delete()
 		fmt.Fprintf(w, "Deleted")
 	case "update":
-		f.Update()
+		err = f.Update()
+		if err != nil {
+			glog.Errorf("f.Update(): %s", err)
+			fmt.Fprintf(w, "Error updating")
+		}
 		fmt.Fprintf(w, "Updated")
 	case "unread":
 		fmt.Fprintf(w, strconv.Itoa(f.Unread()))
@@ -557,17 +561,13 @@ func handleCategoryList(w http.ResponseWriter, r *http.Request) {
 func handleEntries(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
 	var loggedin bool
+	var feedOrCat, id, mode, curID, modifier string
 	loggedin, userName = auth.LoggedIn(w, r)
 	if !loggedin {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	// format is /entries/{feed|category|marked}/<id>/{read|unread|marked|next|previous}[/{feed_id|cat_id}]
-	var feedOrCat string
-	var id string
-	var mode string
-	var curID string    //current entry id for next/previous or search term for search
-	var modifier string //secondary mode for next/previous/search (read/unread/marked/etc)
 	u.PathVars(r, "/entries/", &feedOrCat, &id, &mode, &curID, &modifier)
 	var el []feed.Entry
 	switch feedOrCat {

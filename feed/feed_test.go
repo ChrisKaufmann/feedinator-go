@@ -440,6 +440,20 @@ func TestFeed_ClearCache(t *testing.T) {
 	}
 
 }
+func TestFeed_HasError(t *testing.T) {
+	print("\tFeed.HasError()\n")
+	f := sf()
+	if f.HasError() == true {
+		t.Errorf("f.HasError() is true, should be false")
+	}
+	f.ErrorString = "new error"
+	f.Save()
+	g := ff()
+	if g.HasError() == false {
+		t.Errorf("f.HasError() is false, should be true")
+	}
+}
+
 func TestGetFeedsWithoutCats(t *testing.T) {
 	print("\tGetFeedsWithoutCats\n")
 	seed()

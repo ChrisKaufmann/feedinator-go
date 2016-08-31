@@ -75,11 +75,9 @@ function update_link(fc,id,form){
 	url                     ="url="+link
 	$.ajax({type: "POST",url: '/'+fc+'/'+id+'/link/', data: url,success:function(html){$('#menu_status').html(html);}})
 }
-function update(fc,id,todo,form) {
-	document.getElementById('menu_status').innerHTML='Updating...';
-	try{val = form.val.value;}catch(err){}
+function update(fc,id) {
 	try{val = encodeURIComponent(val);}catch(err){}
-	$.ajax({type: "GET",url: fc+"/"+id+"/"+todo+"/"+val, success:function(html){
+	$.ajax({type: "GET",url: fc+"/"+id+"/update/true", success:function(html){
 		$('#menu_status').html(html);
 		if(todo == "update"){update_count(fc,id);}
 	}})
@@ -193,6 +191,7 @@ function mark_list_read(fc, id) {
             success:function(html){
                 $('#entries_list_div').html(html);
                 $('#menu_status').html('');
+                set_unread_count(fc,id, 0);
             }
         });
     }
@@ -215,7 +214,6 @@ function search(feedcat,id,form) {
 	}
 	path=feedcat+"/"+id+"/search/"+val+"/"+selvalue;
 	try{document.getElementById('menu_status').innerHTML='Loading...';}catch(err){} // May be null
-	$.ajax({type: "GET",url: '/menu/'+path, success:function(html){$('#settings_div').html(html);}})
 	$.ajax({
 		type: "GET",
 		url: '/entries/'+path, 

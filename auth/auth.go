@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/goauth2/oauth"
 	"database/sql"
 	"encoding/json"
+	"flag"
 	u "github.com/ChrisKaufmann/goutils"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
@@ -76,6 +77,7 @@ func DB(d *sql.DB) {
 	}
 }
 func init() {
+	flag.Parse()
 	c, err := goconfig.ReadConfigFile("config")
 	if err != nil {
 		glog.Warningf("init(): readconfigfile(config)")

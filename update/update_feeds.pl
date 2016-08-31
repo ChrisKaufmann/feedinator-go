@@ -21,11 +21,13 @@ my %config={};
 read_config("../config", %config) or die("Couldn't read config file: $!");
 my $prefix=$config{'Web'}{'environment'};
 my $dbh=get_dbh(%config);
+
 my $feed_key="${prefix}FeedList";
 my $errors_key="${prefix}Errors";
 
 my %feeds=get_feeds();
 my $insert_entry_sth=$dbh->prepare("insert into ttrss_entries (title,guid,link,updated,content,content_hash,feed_id,comments,no_orig_date,date_entered,user_name) values (?,?,?,?,?,?,?,?,?,NOW(),?)") or die("Couldn't prepare insert_entry_sth: $!");
+my $err_sql=$dbh->prepare("update ttrss_feeds set error_string=? where id=? limit 1") || die("Couldn't prepare err_sql: $!");
 
 
 my %error_skips=();
@@ -59,11 +61,14 @@ sub update_feed
 	};
 	if($@ or !$feed)
 	{
-		print "\tNo data$1\n";
+		print "\tNo data$1 $@\n";
+		set_error($id, "No data: $1 $@");
 		set_last_updated($id);
 		$error_skips{"$id"}=1;
 		set($errors_key,\%error_skips);
 		return;
+	} else {
+	    set_error($id);
 	}
 	my @guids=();
 	foreach my $item($feed->entries)
@@ -146,8 +151,9 @@ sub get_feeds
 	my $cat_sth=$dbh->prepare($cat_sql) || die ($!);
 	while(my ($id,$link,$username,$title,$exclude,$excludedata,$last_updated,$category_id)=$sth->fetchrow_array)
 	{
-		$link=~s/http:\/\///;
-		$link='http://'.$link;
+	    if(!$link=~m/^[http|https]:\/\//) {
+		    $link='http://'.$link;
+	    }
 		$rethash{$id}{'link'}=$link;
 		$rethash{$id}{'excludes'}=$exclude;
 		$rethash{$id}{'last_updated'}=$last_updated;
@@ -232,4 +238,11 @@ sub try (&$) {
       local $_ = $@;
       &$catch;
    }
+}
+sub set_error() {
+    my $id=shift || return;
+    my $err_str=shift || "";
+    $err_sql->execute($err_str,$id) || die("couldn't execute set_err sql: $!");
+    $memd->delete("Feed${id}_");
+    return;
 }

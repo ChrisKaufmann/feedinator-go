@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	u "github.com/ChrisKaufmann/goutils"
+	"github.com/SlyMarbo/rss"
 	"github.com/golang/glog"
-	//	rss "github.com/jteeuwen/go-pkg-rss"
 	"html"
 	"html/template"
-	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -76,7 +74,7 @@ func Feedinit() {
 	if err != nil {
 		glog.Fatalf("stmtGetFeedsWithoutCats: %s", err)
 	}
-	stmtSaveFeed, err = u.Sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=? where id=? limit 1")
+	stmtSaveFeed, err = u.Sth(db, "update ttrss_feeds set title=?, feed_url=?,public=?,category_id=?,view_mode=?,autoscroll_px=?,exclude=?,exclude_data=?,expirey=?, error_string=? where id=? limit 1")
 	if err != nil {
 		glog.Fatalf("stmtSaveFeed: %s", err)
 	}
@@ -114,7 +112,7 @@ func (f Feed) Unread() (count int) {
 			glog.Errorf("stmtFeedUnread.QueryRow(%s): %s", f.ID, err)
 		}
 	})
-	fmt.Printf("feed(%v).Unread(): %v\n", f.ID, time.Now().Sub(t0))
+	fmt.Printf("\t\t\t\tfeed(%v).Unread(): %v\n", f.ID, time.Now().Sub(t0))
 	return count
 }
 func (f Feed) UnreadEntries() (el []Entry) {
@@ -164,7 +162,7 @@ func (f Feed) SearchTitles(s string, m string) (el []Entry) {
 			}
 		}
 	}
-	fmt.Printf("SearchTitles: %v\n", time.Now().Sub(t0))
+	fmt.Printf("\t\t\t\tSearchTitles: %v\n", time.Now().Sub(t0))
 	return el
 }
 func (f Feed) AllEntries() (el []Entry) {
@@ -199,7 +197,7 @@ func (f Feed) Print() {
 func (f Feed) Save() (err error) {
 	f.Exclude = html.EscapeString(f.Exclude)
 	if f.ID > 0 {
-		if _, err = stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID); err != nil {
+		if _, err = stmtSaveFeed.Exec(f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ErrorString, f.ID); err != nil {
 			glog.Errorf("stmtSaveFeed.Exec(%s,%s,%s,%s,%s,%s,%s,%s,%s,%v): %s", f.Title, f.Url, f.Public, f.CategoryID, f.ViewMode, f.AutoscrollPX, f.Exclude, f.ExcludeData, f.Expirey, f.ID, err)
 			return err
 		}
@@ -221,26 +219,51 @@ func (f Feed) Category() (c Category) {
 	c = GetCat(u.Tostr(f.CategoryID))
 	return c
 }
-func (f Feed) Update() {
-	os.Chdir("update")
-	out, err := exec.Command("perl", "update_feeds.pl", "feed_id="+u.Tostr(f.ID)).Output()
+func (f Feed) Update() (err error) {
+	fmt.Printf("Updating feed %v\t%s\n", f.ID, f.Title)
+	rssfeed, err := rss.Fetch(f.Url)
 	if err != nil {
-		glog.Errorf("exec.Command(%s,%s,%s): %s", "perl", "update_feeds.pl", "feed_id="+u.Tostr(f.ID), err)
-		return
+		glog.Errorf("rss.Fetch(%s): %s", f.Url, err)
+		f.ErrorString = err.Error()
+		_ = f.Save()
 	}
-	os.Chdir("..")
-	fmt.Printf("FeedUpdate: %q\n", out)
+	var guid_cache []string
+	var new_items []Entry
+	if rssfeed == nil {
+		return err
+	}
+	if len(rssfeed.Items) < 1 {
+		return err
+	}
+	for _, i := range rssfeed.Items {
+		var e Entry
+		e.Title = i.Title
+		e.Content = template.HTML(html.EscapeString(i.Content))
+		e.Date = fmt.Sprintf("%s", i.Date)
+		e.FeedID = f.ID
+		e.GUID = Escape_guid(i.Link)
+		e.Link = i.Link
+		e.Marked = "0"
+		e.Unread = true
+		guid_cache = append(guid_cache, e.GUID)
+		new_items = append(new_items, e)
+	}
+	existing_entries := make(map[string]Entry)
+	for _, e := range f.GetEntriesByParam(" guid in ('" + strings.Join(guid_cache, "', '") + "')") {
+		existing_entries[e.GUID] = e
+	}
+	for _, e := range new_items {
+		if _, ok := existing_entries[e.GUID]; ok {
+			print(".")
+			continue
+		}
+		print("+")
+		e.Normalize()
+		e.Save(f.UserName)
+	}
+	print("\n")
 	f.ClearCache()
-
-	f.Category().ClearCache()
-
-	// Note actual work is done in makeItemHandler function
-	// I just don't like the way this works as much. Personal taste.
-	//	feed := rss.New(5, true, chanHandler, makeItemHandler(f))
-	//	if err := feed.Fetch(f.Url, nil); err != nil {
-	//		err.Error()
-	//	}
-
+	return err
 }
 func (f Feed) ClearEntries() {
 	var err error
@@ -306,7 +329,7 @@ func (f Feed) ClearCache() {
 func (f Feed) DeleteExcludes() {
 	el := f.Excludes()
 	for _, e := range el {
-		e = escape_guid(e)
+		e = Escape_guid(e)
 		if len(e) < 1 {
 			continue
 		}
@@ -322,7 +345,7 @@ func (f Feed) DeleteExcludes() {
 	}
 	ed := f.ExcludesData()
 	for _, e := range ed {
-		e = escape_guid(e)
+		e = Escape_guid(e)
 		if len(e) < 1 {
 			continue
 		}
@@ -390,6 +413,12 @@ func (f Feed) Delete() (err error) {
 	f.ClearCache()
 	return err
 }
+func (f Feed) HasError() bool {
+	if f.ErrorString == "" {
+		return false
+	}
+	return true
+}
 
 func GetFeeds(userName string) (allFeeds []Feed) {
 	mc.GetOr("AllFeeds"+userName+"_", &allFeeds, func() {
@@ -406,7 +435,7 @@ func GetFeeds(userName string) (allFeeds []Feed) {
 			}
 			feed.Title = html.UnescapeString(feed.Title)
 			allFeeds = append(allFeeds, feed)
-			mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
+			go mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
 		}
 	})
 	return allFeeds
@@ -437,7 +466,7 @@ func GetAllFeeds() []Feed {
 		feed.Title = html.UnescapeString(feed.Title)
 		allFeeds = append(allFeeds, feed)
 		feedids = append(feedids, feed.ID)
-		mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
+		go mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
 	}
 	mc.Set("FeedList", feedids)
 	return allFeeds
@@ -501,7 +530,7 @@ func GetFeed(id int) (feed Feed, err error) {
 	return feed, err
 }
 
-func escape_guid(s string) string {
+func Escape_guid(s string) string {
 	var htmlCodes = map[string]string{
 		"&#34;":   "\"",
 		"&#47;":   "/",
@@ -530,17 +559,25 @@ func chanHandler(feed *rss.Feed, newchannels []*rss.Channel) {
 	//println(len(newchannels), "new channel(s) in", feed.Url)
 	//We're currently ignoring channels
 }
-*/
 
-/*
-func makeItemHandler(f Feed) rss.ItemHandler {
+func MakeHandler(f Feed) rss.ItemHandler {
+	return func(feed *rss.Feed, ch *rss.Channel, newitems []*rss.Item) {
+		for i := 0; i < len(newitems); i++ {
+			fmt.Println(newitems[i].Title)
+			// Accessed via closure:
+//			db.InsertArticle(newitems[i])
+		}
+	}
+}
+
+func MakeItemHandler(f Feed) rss.ItemHandler {
 	return func(feed *rss.Feed, ch *rss.Channel, newitems []*rss.Item) {
 		println(len(newitems), "new item(s) in", ch.Title)
 		var guid_cache []string
 		excludes := f.Excludes()
 		for _, i := range newitems {
 			// access f as feed here
-			guid_cache = append(guid_cache, escape_guid(i.Links[0].Href))
+			guid_cache = append(guid_cache, Escape_guid(i.Links[0].Href))
 		}
 		existing_entries := make(map[string]Entry)
 		for _, e := range f.GetEntriesByParam(" guid in ('" + strings.Join(guid_cache, "', '") + "')") {
@@ -548,7 +585,7 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 		}
 		for _, i := range newitems {
 			// Check for existing entries in the guid cache and if so, skip
-			guid := escape_guid(i.Links[0].Href)
+			guid := Escape_guid(i.Links[0].Href)
 			if _, ok := existing_entries[guid]; ok {
 				print(".")
 				continue
@@ -572,18 +609,19 @@ func makeItemHandler(f Feed) rss.ItemHandler {
 			e.FeedID = f.ID
 			if i.Content != nil {
 				e.Content = template.HTML(html.EscapeString(i.Content.Text))
-				e.ContentHash = getHash(i.Content.Text)
+				e.ContentHash = u.GetHash(i.Content.Text)
 			} else {
 				e.Content = template.HTML(html.EscapeString(i.Description))
-				e.ContentHash = getHash(i.Description)
+				e.ContentHash = u.GetHash(i.Description)
 			}
 			e.GUID = guid
 			e.Unread = true
 			e.Normalize()
-			e.Save()
+			e.Save(f.UserName)
 			print("+")
 		}
 		f.ClearCache()
 	}
 }
+
 */

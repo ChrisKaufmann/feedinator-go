@@ -7,6 +7,7 @@ import (
 	u "github.com/ChrisKaufmann/goutils"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
+	"os/exec"
 	"testing"
 )
 
@@ -327,6 +328,7 @@ func TestGetCategories(t *testing.T) {
 	nl := len(GetCategories("test"))
 	if nl != 5 {
 		t.Errorf("GetCategories(test) len 5 <=> %v", nl)
+		dumptable("ttrss_categories")
 	}
 }
 func TestCategory_MarkEntriesRead(t *testing.T) {
@@ -462,4 +464,11 @@ func seed() {
 	if err := mc.DeleteAll(); err != nil {
 		glog.Errorf("Could not clear memcache")
 	}
+}
+func dumptable(t string) {
+	out, err := exec.Command("mysqldump", "-uroot", "feedinator_test", t).Output()
+	if err != nil {
+		glog.Errorf("%s", err)
+	}
+	fmt.Printf("----------------------\n%s----------------------\n", out)
 }
