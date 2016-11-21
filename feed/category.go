@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Category struct {
@@ -143,7 +142,6 @@ func (c Category) ClearCache() {
 	mc.Delete(mcl...)
 }
 func (c Category) Unread() (count int) {
-	t0 := time.Now()
 	mcf := "Category" + u.Tostr(c.ID) + "_UnreadCount"
 	err := mc.Get(mcf, &count)
 	switch {
@@ -156,7 +154,6 @@ func (c Category) Unread() (count int) {
 		glog.Errorf("mc.Get(%s): %s", mcf, err)
 		return 0
 	}
-	fmt.Printf("\t\t\t\tCategory(%v).Unread(): %s\n", c.ID, time.Now().Sub(t0))
 	return count
 }
 func (c Category) Class() string {
@@ -223,15 +220,11 @@ func (c Category) SearchTitles(s string, m string) (el []Entry) { //s=search str
 }
 func (c Category) MarkedEntries() (el []Entry) {
 	mc.GetOr("Category"+u.Tostr(c.ID)+"_markedentries", &el, func() {
-		t0 := time.Now()
 		for _, f := range c.Feeds() {
 			el = append(el, f.MarkedEntries()...)
 		}
 		sort.Sort(EntryList(el))
-		fmt.Printf("\t\t\t\tSearch Feeds: %v", time.Now().Sub(t0))
-		t0 = time.Now()
 		el = c.GetEntriesByParam("marked = 1")
-		fmt.Printf("\t\t\t\tBy Category: %v\n", time.Now().Sub(t0))
 	})
 	return el
 }
@@ -333,7 +326,6 @@ func GetCat(id string) Category {
 	return cat
 }
 func GetCategories(userName string) []Category {
-	t0 := time.Now()
 	var allCats []Category
 	var catids []int
 
@@ -351,7 +343,6 @@ func GetCategories(userName string) []Category {
 		go mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
 	}
 	go mc.Set("CategoryList_"+userName, catids)
-	fmt.Printf("\t\t\tGetCategories: %v\n", time.Now().Sub(t0))
 	return allCats
 }
 func GetAllCategories() []Category {

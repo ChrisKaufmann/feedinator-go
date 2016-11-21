@@ -11,7 +11,7 @@ import (
 	"html/template"
 	"strconv"
 	"strings"
-	"time"
+	"regexp"
 )
 
 type Feed struct {
@@ -105,14 +105,12 @@ func (f Feed) IncrementUnread() {
 	return
 }
 func (f Feed) Unread() (count int) {
-	t0 := time.Now()
 	mc.GetOr("Feed"+u.Tostr(f.ID)+"_UnreadCount", &count, func() {
 		err := stmtFeedUnread.QueryRow(f.ID).Scan(&count)
 		if err != nil {
 			glog.Errorf("stmtFeedUnread.QueryRow(%s): %s", f.ID, err)
 		}
 	})
-	fmt.Printf("\t\t\t\tfeed(%v).Unread(): %v\n", f.ID, time.Now().Sub(t0))
 	return count
 }
 func (f Feed) UnreadEntries() (el []Entry) {
@@ -138,7 +136,6 @@ func (f Feed) ReadEntries() (el []Entry) {
 	return el
 }
 func (f Feed) SearchTitles(s string, m string) (el []Entry) {
-	var t0 = time.Now()
 	var ul []Entry
 	var ss string
 	switch m {
@@ -162,7 +159,6 @@ func (f Feed) SearchTitles(s string, m string) (el []Entry) {
 			}
 		}
 	}
-	fmt.Printf("\t\t\t\tSearchTitles: %v\n", time.Now().Sub(t0))
 	return el
 }
 func (f Feed) AllEntries() (el []Entry) {
@@ -219,6 +215,19 @@ func (f Feed) Category() (c Category) {
 	c = GetCat(u.Tostr(f.CategoryID))
 	return c
 }
+func (f Feed) SkippableEntry(e Entry) (yn bool, err error) {
+	for _, exc := range f.Excludes() {
+		re, err := regexp.Compile(exc)
+		if err != nil {
+			glog.Errorf("regexp.Compile(%s): %s", exc, err)
+			return false, err
+		}
+		if re.Match([]byte(strings.ToLower(e.Title))) {
+			return true, err
+		}
+	}
+	return false, err
+}
 func (f Feed) Update() (err error) {
 	fmt.Printf("Updating feed %v\t%s\n", f.ID, f.Title)
 	rssfeed, err := rss.Fetch(f.Url)
@@ -235,9 +244,18 @@ func (f Feed) Update() (err error) {
 	if len(rssfeed.Items) < 1 {
 		return err
 	}
+
 	for _, i := range rssfeed.Items {
 		var e Entry
 		e.Title = i.Title
+		skippable, err := f.SkippableEntry(e)
+		if err != nil {
+			glog.Errorf("f.SkippableEntry(entry %s): %s", e.Title, err)
+			skippable = false
+		}
+		if skippable {
+			continue
+		}
 		e.Content = template.HTML(html.EscapeString(i.Content))
 		e.Date = fmt.Sprintf("%s", i.Date)
 		e.FeedID = f.ID
@@ -254,6 +272,15 @@ func (f Feed) Update() (err error) {
 	}
 	for _, e := range new_items {
 		if _, ok := existing_entries[e.GUID]; ok {
+			print(".")
+			continue
+		}
+		skippable, err := f.SkippableEntry(e)
+		if err != nil {
+			glog.Errorf("f.SkippableEntry(e): %s", e, err)
+			continue
+		}
+		if skippable {
 			print(".")
 			continue
 		}
@@ -377,14 +404,14 @@ func (f Feed) MarkEntriesRead(ids []string) (err error) {
 			return fmt.Errorf("Not enough valid ids passed")
 		}
 		j := strings.Join(id_list, ",")
-		sql := "update ttrss_entries set unread=0 where feed_id=" + u.Tostr(f.ID) + " and id in (" + j + ")"
+		sql := "update ttrss_entries set unread='0' where feed_id=" + u.Tostr(f.ID) + " and id in (" + j + ")"
 		stmtUpdateMarkEntries, err := u.Sth(db, sql)
 		if err != nil {
 			glog.Errorf("u.Sth(db,%s): %s", sql, err)
 			return err
 		}
 		if _, err = stmtUpdateMarkEntries.Exec(); err != nil {
-			glog.Errorf("stmtUpdateMarkEntries.Exec(): %s", err)
+			glog.Errorf("stmtUpdateMarkEntries.Exec(%s): %s", sql, err)
 		}
 		mc.Decrement("Category"+u.Tostr(f.CategoryID)+"_UnreadCount", uint64(len(ids)))
 		mc.Decrement("Feed"+u.Tostr(f.ID)+"_UnreadCount", uint64(len(ids)))

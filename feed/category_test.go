@@ -9,6 +9,7 @@ import (
 	"github.com/golang/glog"
 	"os/exec"
 	"testing"
+	"github.com/stvp/assert"
 )
 
 var (
@@ -38,13 +39,13 @@ func init() {
 	if d_fe, err = u.Sth(db, "delete from ttrss_feeds"); err != nil {
 		glog.Fatalf("delete from feeds: %s", err)
 	}
-	if p_fe, err = u.Sth(db, "insert into ttrss_feeds (id,title,feed_url,user_name,category_id) values (1,'test1','http://blah','test',1),(2,'test2','http://blah','test',1),(3,'test3','http://blah','other',2),(4,'test4','http://blah','other',NULL),(5,'feed','http://blah','test',NULL),(6,'feed2','http://blah','test',NULL),(7,'feed3','http://blah','other',NULL),(8,'feed4','http://blah','other',NULL)"); err != nil {
+	if p_fe, err = u.Sth(db, "insert into ttrss_feeds (id,title,feed_url,user_name,category_id,view_mode) values (1,'test1','http://blah','test',1,'default'),(2,'test2','http://blah','test',1,'default'),(3,'test3','http://blah','other',2,'default'),(4,'test4','http://blah','other',NULL,'default'),(5,'feed','http://blah','test',NULL,'default'),(6,'feed2','http://blah','test',NULL,'default'),(7,'feed3','http://blah','other',NULL,'default'),(8,'feed4','http://blah','other',NULL,'default')"); err != nil {
 		glog.Fatalf("Seed feeds: %s", err)
 	}
 	if d_en, err = u.Sth(db, "delete from ttrss_entries"); err != nil {
 		glog.Fatalf("delete from entries: %s", err)
 	}
-	if p_en, err = u.Sth(db, "insert into ttrss_entries(id,feed_id,guid,content_hash,title,user_name,link) values (1,1,1,1,'asdf','test','link'),(2,2,2,2,'asdf','test','link'),(3,1,3,3,NULL,'other','link'),(4,1,4,4,NULL,'other','link'),(5,5,5,5,NULL,'yetanother','link')"); err != nil {
+	if p_en, err = u.Sth(db, "insert into ttrss_entries(id,feed_id,guid,content_hash,title,user_name,link,content) values (1,1,1,1,'asdf','test','link','content1'),(2,2,2,2,'asdf','test','link','content2'),(3,1,3,3,'another','other','link','content3'),(4,1,4,4,'another','other','link','content4'),(5,5,5,5,'title','yetanother','link','content5')"); err != nil {
 		glog.Fatalf("insert into entries: %s", err)
 	}
 	Categoryinit(db, mc)
@@ -52,305 +53,164 @@ func init() {
 	Entryinit()
 }
 func TestCategory_GetAllCategories(t *testing.T) {
-	fmt.Printf("\tCategory.GetAllCategories\n")
 	seed()
-	print("\t\tInitial\n")
-	el := cl()
-	if el != 8 {
-		t.Errorf("GetAllCategories expected len 8, got %v", el)
-	}
-	print("\t\tAdding\n")
+	assert.Equal(t,8,cl())
 	var cn Category
 	cn.Name = "newcat"
 	cn.Insert("test")
-	il := cl()
-	if il != 9 {
-		t.Errorf("GetAllCategories() len 9 <=> %v", il)
-	}
-	print("\t\tDeleting\n")
+	assert.Equal(t, 9, cl())
 	c1 := GetCat("1")
 	c1.Delete()
 	c2 := GetCat("2")
 	c2.Delete()
-	dl := cl()
-	if dl != 7 {
-		t.Errorf("GetAllCategories() len 7 <=> %v", dl)
-	}
+	assert.Equal(t, 7, cl())
 }
 func TestCategory_Save(t *testing.T) {
-	print("\tCategory.Save()\n")
 	seed()
 	c := GetCat("1")
 	c.Name = "NewCat0"
 	c.Save()
 	d := GetCat("1")
-	if d.Name != "NewCat0" {
-		t.Errorf("Cat save didn't work, expected NewCat0, got %s", d.Name)
-	}
+	assert.Equal(t, "NewCat0", d.Name)
 }
 func TestCategory_Insert(t *testing.T) {
-	print("\tCategory.Insert()\n")
 	seed()
 	ctl := cl()
 	var c Category
 	c.Name = "New Category"
 	c.Insert("test")
-	if cl() != ctl+1 {
-		t.Errorf("Length of category list did not increase")
-	}
+	assert.Equal(t, cl(), ctl+1)
 }
 func TestCategory_Delete(t *testing.T) {
-	print("\tCategory.Delete()\n")
 	seed()
 	c := GetCat("1")
 	ctl := cl()
 	c.Delete()
-	if cl() != ctl-1 {
-		t.Errorf("Length of GetAllCategories did not decrease")
-	}
+	assert.Equal(t, cl(), ctl-1)
 }
 func TestCategory_Unread(t *testing.T) {
-	print("\tCategory.Unread()\n")
 	seed()
 	c1 := GetCat("1")
-	if c1.Unread() != 4 {
-		t.Errorf("Category Unread 4 <=> %v", c1.Unread())
-	}
+	assert.Equal(t, 4, c1.Unread())
 }
 func TestCategory_Class(t *testing.T) {
-	print("\tCategory.Class\n")
-	print("\t\tUnread\n")
 	seed()
-	c1 := GetCat("1")
-	if c1.Class() != "oddUnread" {
-		t.Errorf("Category1.Class not oddUnread: %s", c1.Class())
-	}
-	print("\t\tRead\n")
-	c2 := GetCat("2")
-	if c2.Class() != "odd" {
-		t.Errorf("Category2.Class not odd: %s", c2.Class())
-	}
+	assert.Equal(t, "oddUnread", GetCat("1").Class())
+	assert.Equal(t, "odd", GetCat("2").Class())
 }
 func TestCategory_Excludes(t *testing.T) {
-	print("\tCategory.Excludes\n")
 	seed()
 	c1 := GetCat("1")
-	if len(c1.Excludes()) != 0 {
-		t.Errorf("c1.Excludes len 0 <=> %v", len(c1.Excludes()))
-	}
+	assert.Equal(t, 0, len(c1.Excludes()))
 	c1.Exclude = "a,b,c,d,"
 	c1.Save()
-	if len(c1.Excludes()) != 4 {
-		t.Errorf("C1.Excludes len: 4 <=> %v", len(c1.Excludes()))
-	}
+	assert.Equal(t, 4,  len(c1.Excludes()))
 }
 func TestCategory_DeleteExcludes(t *testing.T) {
-	print("\tCategory.DeleteExcludes\n")
 	seed()
 	c1 := GetCat("1")
 	c1.DeleteExcludes()
-	print("\t\tDon't delete any if excludes is blank\n")
-	if c1.Unread() != 4 {
-		t.Errorf("DeleteExcludes unread: 4 <=> %v", c1.Unread())
-	}
-	print("\t\tDelete when excludes is populated\n")
+	assert.Equal(t, 4, c1.Unread())
 	c1.Exclude = "asdf"
 	c1.DeleteExcludes()
-	if c1.Unread() != 2 {
-		t.Errorf("DeleteExcludes after delete: 2 <=> %v", c1.Unread())
-	}
+	assert.Equal(t, 2, c1.Unread())
 }
 func TestCategory_SearchTitles(t *testing.T) {
-	print("\tCategory.SearchTitles\n")
 	seed()
 	c1 := GetCat("1")
-	print("\t\tUnread\n")
-	sl := len(c1.SearchTitles("asdf", "unread"))
-	if sl != 2 {
-		t.Errorf("category.Search(asdf,unread) len: 2 <=> %v", sl)
-	}
-	print("\t\tAll\n")
-	al := len(c1.SearchTitles("asdf", "all"))
-	if al != 2 {
-		t.Errorf("category.Search(asdf,all) len: 2 <=> %v", al)
-	}
-	print("\t\tRead\n")
+	assert.Equal(t, 2, len(c1.SearchTitles("asdf", "unread")))
+	assert.Equal(t, 2, len(c1.SearchTitles("asdf", "all")))
 	e1 := GetEntry("1", "test")
-	if err := e1.MarkRead(); err != nil {
-		t.Errorf("entry(1).MarkRead(): %s", err)
-	}
-	rl := len(c1.SearchTitles("asdf", "read"))
-	if rl != 1 {
-		t.Errorf("category.Search(asdf,read) len: 1 <=> %v", rl)
-	}
-	print("\t\tMarked\n")
-	if err := e1.Mark(); err != nil {
-		t.Errorf("entry(1).Mark(): %s", err)
-	}
-	ml := len(c1.SearchTitles("asdf", "marked"))
-	if ml != 1 {
-		t.Errorf("category.Search(asdf,marked) len 1 <=> %v", ml)
-	}
+	err := e1.MarkRead()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(c1.SearchTitles("asdf", "read")))
+	err = e1.Mark()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(c1.SearchTitles("asdf", "marked")))
 }
 func TestCategory_MarkedEntries(t *testing.T) {
-	print("\tCategory.MarkedEntries()\n")
 	seed()
 	c1 := GetCat("1")
-	print("\t\tEmpty\n")
-	if el := len(c1.MarkedEntries()); el != 0 {
-		t.Errorf("category.MarkedEntries() len 0 <=> %v", el)
-	}
-	print("\t\tNon-empty\n")
+	assert.Equal(t, 0, len(c1.MarkedEntries()))
 	e1 := GetEntry("1", "test")
-	if err := e1.Mark(); err != nil {
-		t.Errorf("entry(1).Mark(): %s", err)
-	}
-	if ml := len(c1.MarkedEntries()); ml != 1 {
-		t.Errorf("category(1).MarkedEntries() len 1 <=> %v", ml)
-	}
+	err := e1.Mark()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(c1.MarkedEntries()))
 }
 func TestCategory_UnreadEntries(t *testing.T) {
-	print("\tCategory.UnreadEntries()\n")
 	seed()
 	c1 := GetCat("1")
-	print("\t\tInitial\n")
-	if il := len(c1.UnreadEntries()); il != 4 {
-		t.Errorf("category(1).UnreadEntries() len 4 <=> %v", il)
-	}
-	print("\t\tAfter change\n")
+	assert.Equal(t, 4, len(c1.UnreadEntries()))
 	e1 := GetEntry("1", "test")
-	if err := e1.MarkRead(); err != nil {
-		t.Errorf("entry(1).MarkRead(): %s", err)
-	}
-	if cl := len(c1.UnreadEntries()); cl != 3 {
-		t.Errorf("category(1).UnreadEntries() len 3 <=> %v", cl)
-	}
-
+	err := e1.MarkRead()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(c1.UnreadEntries()))
 }
 func TestCategory_ReadEntries(t *testing.T) {
-	print("\tCategory.ReadEntries()\n")
 	seed()
 	c1 := GetCat("1")
-	print("\t\tInitial\n")
-	if il := len(c1.ReadEntries()); il != 0 {
-		t.Errorf("category(1).ReadEntries() len 0 <=> %v", il)
-	}
-	print("\t\tAfter change\n")
+	assert.Equal(t, 0, len(c1.ReadEntries()))
 	e1 := GetEntry("1", "test")
-	if err := e1.MarkRead(); err != nil {
-		t.Errorf("Error marking read: %s", err)
-	}
-	if rl := len(c1.ReadEntries()); rl != 1 {
-		t.Errorf("category(1).ReadEntries() len 1 <=> %v", rl)
-	}
+	err := e1.MarkRead()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(c1.ReadEntries()))
 }
 func TestCategory_AllEntries(t *testing.T) {
-	print("\tCategory.AllEntries()\n")
 	seed()
 	c1 := GetCat("1")
-	if el := len(c1.AllEntries()); el != 4 {
-		t.Errorf("category(1).AllEntries() len 4 <=> %v", el)
-	}
-
+	assert.Equal(t, 4, len(c1.AllEntries()))
 }
 func TestCategory_GetEntriesByParam(t *testing.T) {
-	print("\tCategory.GetEntriesByParam()\n")
 	seed()
 	c1 := GetCat("1")
-	if el := len(c1.GetEntriesByParam("1=1")); el != 4 {
-		t.Errorf("category(1).GetEntriesByParam(1=1) len 4 <=> %v", el)
-	}
+	assert.Equal(t, 4, len(c1.GetEntriesByParam("1=1")))
 }
 func TestGetCat(t *testing.T) {
-	print("\tCategory.GetCat()\n")
 	seed()
 	c1 := GetCat("1")
-	if c1.ID != 1 {
-		t.Errorf("GetCat(1).ID(%v) != 1)", c1.ID)
-	}
+	assert.Equal(t,1, c1.ID)
 }
 func TestCategory_Feeds(t *testing.T) {
-	print("\tCategory.Feeds()\n")
 	seed()
-	print("\t\tInitial\n")
 	c1 := GetCat("1")
-	lf := len(c1.Feeds())
-	if lf != 2 {
-		t.Errorf("c1.Feeds() len 2 <=> %v", lf)
-	}
-	print("\t\tAdding\n")
+	assert.Equal(t, 2, len(c1.Feeds()))
 	f4, err := GetFeed(4)
-	if err != nil {
-		t.Errorf("GetFeed: %s", err)
-	}
+	assert.Nil(t, err)
 	f4.CategoryID = 1
 	f4.Save()
-	ls := len(c1.Feeds())
-	if ls != 3 {
-		t.Errorf("c1.Feeds() len 3 <=> %v", ls)
-	}
+	assert.Equal(t, 3, len(c1.Feeds()))
 }
 func TestCategory_FeedsStr(t *testing.T) {
-	print("\tCategory.FeedsStr()\n")
 	seed()
-	print("\t\tInitial\n")
 	c1 := GetCat("1")
-	lf := len(c1.FeedsStr())
-	if lf != 2 {
-		t.Errorf("c1.FeedsStr() len 2 <=> %v", lf)
-	}
-	print("\t\tAdding\n")
+	assert.Equal(t, 2, len(c1.FeedsStr()))
 	f4, err := GetFeed(4)
-	if err != nil {
-		t.Errorf("GetFeed: %s", err)
-	}
+	assert.Nil(t, err)
 	f4.CategoryID = 1
 	f4.Save()
-	lf = len(c1.FeedsStr())
-	if lf != 3 {
-		t.Errorf("c1.FeedsStr() len 3 <=> %v", lf)
-	}
+	assert.Equal(t, 3, len(c1.FeedsStr()))
 }
 func TestGetCategories(t *testing.T) {
-	print("\tCategory.GetCategories(username)\n")
 	seed()
-	print("\t\tInitial\n")
-	il := len(GetCategories("test"))
-	if il != 4 {
-		t.Errorf("GetCategories(test) len 4 <=> %v", il)
-	}
+	assert.Equal(t, 4, len(GetCategories("test")))
 	var newcat Category
 	newcat.Name = "newest!"
 	newcat.UserName = "test"
 	newcat.Insert("test")
-
-	print("\t\tAfterAddition\n")
-	nl := len(GetCategories("test"))
-	if nl != 5 {
-		t.Errorf("GetCategories(test) len 5 <=> %v", nl)
-		dumptable("ttrss_categories")
-	}
+	assert.Equal(t, 5, len(GetCategories("test")))
 }
 func TestCategory_MarkEntriesRead(t *testing.T) {
-	print("\tCategory.MarkEntriesRead()\n")
 	seed()
 	c1 := GetCat("1")
 	el := []string{"1", "2"}
 	err := c1.MarkEntriesRead(el)
-	if err != nil {
-		t.Errorf("c1.markEntriesRead([1,2]): %s", err)
-	}
-	lue := len(c1.UnreadEntries())
-	if lue != 2 {
-		t.Errorf("c1.UnreadEntries() len 2 <=> %v", lue)
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(c1.UnreadEntries()))
 }
 func TestCacheAllCats(t *testing.T) {
-	print("\tCacheAllCats\n")
 	seed()
 	var c Category
 	var cc int
-	print("\t\tInitial\n")
 	err := mc.Get("Category1_", &c)
 	if err == nil {
 		t.Errorf("mc.Get(Category1_) did not error")
@@ -359,7 +219,6 @@ func TestCacheAllCats(t *testing.T) {
 	if err == nil {
 		t.Errorf("mc.Get(Category1_UnreadCount) did not error")
 	}
-	print("\t\tAfterCaching\n")
 	CacheAllCats()
 	err = mc.Get("Category1_", &c)
 	if err != nil {
@@ -374,7 +233,6 @@ func TestCategory_ClearCache(t *testing.T) {
 	seed()
 	var c Category
 	var cc int
-	print("\t\tInitial\n")
 	err := mc.Get("Category1_", &c)
 	if err == nil {
 		t.Errorf("mc.Get(Category1_) did not error")
@@ -383,7 +241,6 @@ func TestCategory_ClearCache(t *testing.T) {
 	if err == nil {
 		t.Errorf("mc.Get(Category1_UnreadCount) did not error")
 	}
-	print("\t\tAfterCaching\n")
 	CacheAllCats()
 	err = mc.Get("Category1_", &c)
 	if err != nil {
@@ -394,24 +251,20 @@ func TestCategory_ClearCache(t *testing.T) {
 		t.Errorf("mc.Get(Category1_UnreadCount): %s", err)
 	}
 	c.ClearCache()
-	print("\t\tAfter Clearing Cache\n")
 	err = mc.Get("Category1_", &c)
 	if err == nil {
 		t.Errorf("mc.Get(Category1_) did not error")
 	}
 	err = mc.Get("Category1_UnreadCount", &cc)
+	assert.NotNil(t, err)
 	if err == nil {
 		t.Errorf("mc.Get(Category1_UnreadCount) did not error")
 	}
 
 }
 func TestGetAllCategories(t *testing.T) {
-	print("\tGetAllCategories\n")
 	seed()
-	ael := len(GetAllCategories())
-	if ael != 8 {
-		t.Errorf("len(getallCategories()) 8 <=> %v", ael)
-	}
+	assert.Equal(t, 8, len(GetAllCategories()))
 }
 
 func cl() int {
