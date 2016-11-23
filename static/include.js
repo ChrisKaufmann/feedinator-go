@@ -75,14 +75,19 @@ function update_link(fc,id,form){
 	url                     ="url="+link
 	$.ajax({type: "POST",url: '/'+fc+'/'+id+'/link/', data: url,success:function(html){$('#menu_status').html(html);}})
 }
-function update(fc,id) {
-	try{val = encodeURIComponent(val);}catch(err){}
-	$.ajax({type: "GET",url: fc+"/"+id+"/update/true", success:function(html){
+function update(fc, id, todo, form) {
+	try{val = encodeURIComponent(form.val.value);}catch(err){}
+	$.ajax({type: "GET",url: fc+"/"+id+"/"+todo+"/"+val, success:function(html){
 		$('#menu_status').html(html);
-		if(todo == "update"){update_count(fc,id);}
 	}})
 }
 
+function update_entries(fc, id) {
+    $.ajax({type: "GET", url: fc+"/"+id+"/update/true",  success:function(html){
+        $('#menu_status').html(html);
+        update_count(fc,id);
+    }})
+}
 //toggle the visibility of a given passed div id
 function toggle_visible(id) {
 	$('#'+id).toggle();

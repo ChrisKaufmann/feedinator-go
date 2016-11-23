@@ -282,8 +282,8 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 		f.ClearCache()
 		fmt.Fprintf(w, "Cleared Cache")
 	}
+	fmt.Printf("handleFeed /feed/%s/%s/%s %v\n", id, todo, val, time.Now().Sub(t0))
 	return
-	fmt.Printf("handleFeed %v\n", time.Now().Sub(t0))
 }
 func handleMarkEntry(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
