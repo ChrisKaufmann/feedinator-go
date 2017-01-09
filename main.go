@@ -269,10 +269,11 @@ func handleFeed(w http.ResponseWriter, r *http.Request) {
 	case "update":
 		err = f.Update()
 		if err != nil {
-			glog.Errorf("f.Update(): %s", err)
+			glog.Errorf("f.Update() (url: %s): %s", f.Url, err)
 			fmt.Fprintf(w, "Error updating")
+		} else {
+			fmt.Fprintf(w, "Updated")
 		}
-		fmt.Fprintf(w, "Updated")
 	case "unread":
 		fmt.Fprintf(w, strconv.Itoa(f.Unread()))
 	case "deleteexcludes":
@@ -370,7 +371,6 @@ func handleEntry(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("feed.GetFeed(%s): %s", e.FeedID, err)
 	}
 	e.FeedName = f.Title
-	print("after getentry and getfeed\n")
 	switch e.ViewMode() {
 	case "link":
 		e.Link = html.UnescapeString(e.Link)

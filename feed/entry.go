@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -222,9 +221,20 @@ func (e Entry) ToggleMark() (retstr string, err error) {
 }
 func (e Entry) ProxyLink() (h template.HTML, err error) {
 	//Retrieve url content
-	res, err := http.Get(html.UnescapeString(e.Link))
+        //	res, err := http.Get(html.UnescapeString(e.Link))
+	//Get the actual domain and attempt to replace any img links that are relative
+	url, err := url.Parse(e.Link)
 	if err != nil {
-		glog.Errorf("htt.Get(%s): %s", e.Link, err)
+		glog.Errorf("url.Parse(%s): %s", e.Link, err)
+	}
+
+	proxy_username := "Fe3Akmcf4wRWN0mXUZF1Z2SK8lCxYQWs"
+	proxy_pass := "UC8sw7exsQ7guoNleEnZy4y28UqUS9tW"
+	link := fmt.Sprintf("https://%s:%s@proxy.chriskaufmann.com/nph-proxy.pl/en/20/%s/%s%s", proxy_username, proxy_pass, url.Scheme, url.Host, url.RequestURI() )
+	fmt.Printf("link: %s", link)
+	res, err := http.Get(html.UnescapeString(link))
+	if err != nil {
+		glog.Errorf("http.Get(html.UnescapeString(%s)): %s", link, err)
 		return h, err
 	}
 	content, err := ioutil.ReadAll(res.Body)
@@ -233,12 +243,34 @@ func (e Entry) ProxyLink() (h template.HTML, err error) {
 		return h, err
 	}
 	res.Body.Close()
-	c := fmt.Sprintf("%s", content)
-	//Get the actual domain and attempt to replace any img links that are relative
-	url, err := url.Parse(e.Link)
+	h = template.HTML(content)
+	return h, err
+
+/*
+	ht := fmt.Sprintf("<iframe id='view_iframe' src=\"%s\" style='overflow:auto;height:1000%%;frameborder:0;width:100%%' ></iframe>", link)
+	return template.HTML(ht), err
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", e.Link, nil)
 	if err != nil {
-		glog.Errorf("url.Parse(%s): %s", e.Link, err)
+		glog.Errorf("http.NewRuquest(%s): %s", e.Link, err)
 	}
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36")
+	res, err := client.Do(req)
+	if err != nil {
+		glog.Errorf("http.Get(%s): %s", e.Link, err)
+		return h, err
+	}
+*/
+
+/*
+	content, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		glog.Errorf("ioutil.ReadAll(): %s", err)
+		return h, err
+	}
+	res.Body.Close()
+	c := fmt.Sprintf("url: %s\n Content: %s", e.Link, content)
 	imgregex, err := regexp.Compile("img\\s+src\\s{0,}=\\s{0,}(['\"])/")
 	if err != nil {
 		glog.Errorf("regexp.compile(): %s")
@@ -258,6 +290,7 @@ func (e Entry) ProxyLink() (h template.HTML, err error) {
 	fmt.Printf("html: %s", fmt.Sprintf(" %s ", c))
 	h = template.HTML(c)
 	return h, err
+*/
 }
 
 func getEntriesFromSql(s string) []Entry {

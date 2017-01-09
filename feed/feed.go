@@ -256,6 +256,7 @@ func (f Feed) Update() (err error) {
 		if skippable {
 			continue
 		}
+		fmt.Printf("%s", i)
 		e.Content = template.HTML(html.EscapeString(i.Content))
 		e.Date = fmt.Sprintf("%s", i.Date)
 		e.FeedID = f.ID
