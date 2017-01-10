@@ -7,8 +7,6 @@ import (
 	"github.com/golang/glog"
 	"html"
 	"html/template"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strings"
 )
@@ -230,13 +228,37 @@ func (e Entry) ProxyLink() (h template.HTML, err error) {
 
 	proxy_username := "Fe3Akmcf4wRWN0mXUZF1Z2SK8lCxYQWs"
 	proxy_pass := "UC8sw7exsQ7guoNleEnZy4y28UqUS9tW"
+
+
 	link := fmt.Sprintf("https://%s:%s@proxy.chriskaufmann.com/nph-proxy.pl/en/20/%s/%s%s", proxy_username, proxy_pass, url.Scheme, url.Host, url.RequestURI() )
 	fmt.Printf("link: %s", link)
+
+	ht := fmt.Sprintf("<iframe id='view_iframe' src=\"%s\" style='overflow:auto;height:1000%%;frameborder:0;width:100%%' ></iframe>", link)
+	return template.HTML(ht), err
+/*
 	res, err := http.Get(html.UnescapeString(link))
 	if err != nil {
 		glog.Errorf("http.Get(html.UnescapeString(%s)): %s", link, err)
 		return h, err
 	}
+*/
+
+/*
+	client := &http.Client{}
+
+	link := fmt.Sprintf("https://proxy.chriskaufmann.com/nph-proxy.pl/en/20/%s/%s%s",  url.Scheme, url.Host, url.RequestURI() )
+	fmt.Printf("link: %s", link)
+	req, err := http.NewRequest("GET", link, nil)
+	if err != nil {
+		glog.Errorf("http.NewRuquest(%s): %s", e.Link, err)
+	}
+	req.SetBasicAuth(proxy_username, proxy_pass)
+	res, err := client.Do(req)
+	if err != nil {
+		glog.Errorf("http.Get(%s): %s", e.Link, err)
+		return h, err
+	}
+
 	content, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		glog.Errorf("ioutil.ReadAll(): %s", err)
@@ -246,22 +268,23 @@ func (e Entry) ProxyLink() (h template.HTML, err error) {
 	h = template.HTML(content)
 	return h, err
 
-/*
-	ht := fmt.Sprintf("<iframe id='view_iframe' src=\"%s\" style='overflow:auto;height:1000%%;frameborder:0;width:100%%' ></iframe>", link)
-	return template.HTML(ht), err
-
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", e.Link, nil)
-	if err != nil {
-		glog.Errorf("http.NewRuquest(%s): %s", e.Link, err)
-	}
-	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36")
-	res, err := client.Do(req)
-	if err != nil {
-		glog.Errorf("http.Get(%s): %s", e.Link, err)
-		return h, err
-	}
 */
+	/*
+		ht := fmt.Sprintf("<iframe id='view_iframe' src=\"%s\" style='overflow:auto;height:1000%%;frameborder:0;width:100%%' ></iframe>", link)
+		return template.HTML(ht), err
+
+		client := &http.Client{}
+		req, err := http.NewRequest("GET", e.Link, nil)
+		if err != nil {
+			glog.Errorf("http.NewRuquest(%s): %s", e.Link, err)
+		}
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36")
+		res, err := client.Do(req)
+		if err != nil {
+			glog.Errorf("http.Get(%s): %s", e.Link, err)
+			return h, err
+		}
+	*/
 
 /*
 	content, err := ioutil.ReadAll(res.Body)
