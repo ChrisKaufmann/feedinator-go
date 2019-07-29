@@ -163,6 +163,7 @@ func (e Entry) Save(userName string) (err error) {
 		if e.Unread == false {
 			unread = "0"
 		}
+		e.Link = strings.TrimSpace(e.Link)
 		_, err = stmtSaveEntry.Exec(e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID)
 		if err != nil {
 			glog.Errorf("stmtSaveEntry.Exec(%s,%s,%s,%s,%s,%s,%s,%s): %s", e.Title, e.Link, e.Date, e.FeedID, e.Marked, unread, u.Tostr(e.Content), e.ID, err)
@@ -221,16 +222,13 @@ func (e Entry) ProxyLink() (h template.HTML, err error) {
 	//Retrieve url content
         //	res, err := http.Get(html.UnescapeString(e.Link))
 	//Get the actual domain and attempt to replace any img links that are relative
+	e.Link = strings.TrimSpace(e.Link)
 	url, err := url.Parse(e.Link)
 	if err != nil {
 		glog.Errorf("url.Parse(%s): %s", e.Link, err)
 	}
 
-	proxy_username := "Fe3Akmcf4wRWN0mXUZF1Z2SK8lCxYQWs"
-	proxy_pass := "UC8sw7exsQ7guoNleEnZy4y28UqUS9tW"
-
-
-	link := fmt.Sprintf("https://%s:%s@proxy.chriskaufmann.com/nph-proxy.pl/en/20/%s/%s%s", proxy_username, proxy_pass, url.Scheme, url.Host, url.RequestURI() )
+	link := fmt.Sprintf("https://proxy.chriskaufmann.com/nph-proxy.pl/en/00/%s/%s%s", url.Scheme, url.Host, url.RequestURI() )
 	fmt.Printf("link: %s", link)
 
 	ht := fmt.Sprintf("<iframe id='view_iframe' src=\"%s\" style='overflow:auto;height:1000%%;frameborder:0;width:100%%' ></iframe>", link)
