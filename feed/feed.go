@@ -469,8 +469,8 @@ func GetFeeds(userName string) (allFeeds []Feed) {
 			}
 			feed.Title = html.UnescapeString(feed.Title)
 			allFeeds = append(allFeeds, feed)
-			go mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
-			go mc.Set("Feed"+u.Tostr(feed.ID)+"_UnreadCount", uc)
+			mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
+			mc.Set("Feed"+u.Tostr(feed.ID)+"_UnreadCount", uc)
 		}
 	})
 	return allFeeds
@@ -501,7 +501,7 @@ func GetAllFeeds() []Feed {
 		feed.Title = html.UnescapeString(feed.Title)
 		allFeeds = append(allFeeds, feed)
 		feedids = append(feedids, feed.ID)
-		go mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
+		mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
 	}
 	mc.Set("FeedList", feedids)
 	return allFeeds

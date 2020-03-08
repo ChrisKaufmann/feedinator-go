@@ -149,7 +149,7 @@ func (c Category) Unread() (count int) {
 		for _, f := range c.Feeds() {
 			count = count + f.Unread()
 		}
-		go mc.Set(mcf, count)
+		mc.Set(mcf, count)
 	case err != nil:
 		glog.Errorf("mc.Get(%s): %s", mcf, err)
 		return 0
@@ -340,9 +340,9 @@ func GetCategories(userName string) []Category {
 		rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
 		allCats = append(allCats, cat)
 		catids = append(catids, cat.ID)
-		go mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
+		mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
 	}
-	go mc.Set("CategoryList_"+userName, catids)
+	mc.Set("CategoryList_"+userName, catids)
 	return allCats
 }
 func GetAllCategories() []Category {
@@ -360,9 +360,9 @@ func GetAllCategories() []Category {
 			rows.Scan(&cat.Name, &cat.UserName, &cat.Description, &cat.ID, &cat.Exclude)
 			allCats = append(allCats, cat)
 			catids = append(catids, cat.ID)
-			go mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
+			mc.Set("Category"+u.Tostr(cat.ID)+"_", cat)
 		}
-		go mc.Set("CategoryList", allCats)
+		mc.Set("CategoryList", allCats)
 	} else {
 		for _, i := range catids {
 			cat := GetCat(u.Tostr(i))
