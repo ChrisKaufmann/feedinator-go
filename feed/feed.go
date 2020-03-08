@@ -9,9 +9,9 @@ import (
 	"github.com/golang/glog"
 	"html"
 	"html/template"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
 )
 
 type Feed struct {
@@ -36,19 +36,20 @@ type Feed struct {
 }
 
 var (
-	stmtFeedUnread          *sql.Stmt
-	stmtGetFeedsWithoutCats *sql.Stmt
-	stmtGetFeed             *sql.Stmt
-	stmtGetFeeds            *sql.Stmt
-	stmtGetAllFeeds         *sql.Stmt
-	stmtSaveFeed            *sql.Stmt
-	stmtInsertFeed          *sql.Stmt
-	stmtDeleteFeedEntries   *sql.Stmt
-	stmtDeleteFeed          *sql.Stmt
+	stmtFeedUnread            *sql.Stmt
+	stmtGetFeedsWithoutCats   *sql.Stmt
+	stmtGetFeed               *sql.Stmt
+	stmtGetFeeds              *sql.Stmt
+	stmtGetAllFeeds           *sql.Stmt
+	stmtSaveFeed              *sql.Stmt
+	stmtInsertFeed            *sql.Stmt
+	stmtDeleteFeedEntries     *sql.Stmt
+	stmtDeleteFeed            *sql.Stmt
+	stmtGetAllFeedsWithUnread *sql.Stmt
 )
 
 func Feedinit() {
-	var selecttxt string = " id, IFNULL(title,'--untitled--'), IFNULL(feed_url,''), IFNULL(last_updated,''), IFNULL(user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
+	var selecttxt string = " ttrss_feeds.id, IFNULL(ttrss_feeds.title,'--untitled--'), IFNULL(ttrss_feeds.feed_url,''), IFNULL(last_updated,''), IFNULL(ttrss_feeds.user_name,''), IFNULL(public,''),  IFNULL(category_id,0), IFNULL(view_mode,''), IFNULL(autoscroll_px,0), IFNULL(exclude,''),IFNULL(exclude_data,''), IFNULL(error_string,''), IFNULL(expirey,'') "
 	var err error
 	stmtInsertFeed, err = u.Sth(db, "insert into ttrss_feeds (feed_url,user_name,title) values (?,?,?)")
 	if err != nil {
@@ -85,6 +86,10 @@ func Feedinit() {
 	stmtDeleteFeed, err = u.Sth(db, "delete from ttrss_feeds where id=? limit 1")
 	if err != nil {
 		glog.Fatalf("stmtDeleteFeed: %s", err)
+	}
+	stmtGetAllFeedsWithUnread, err = u.Sth(db, "select "+selecttxt+" , count(ttrss_entries.id) from ttrss_feeds left  join ttrss_entries on ttrss_entries.feed_id=ttrss_feeds.id   and ttrss_entries.unread='1' where ttrss_feeds.user_name=?  group by ttrss_feeds.id")
+	if err != nil {
+		glog.Fatalf("stmtGetAllFeedsWithUnread: %s", err)
 	}
 }
 
@@ -449,21 +454,23 @@ func (f Feed) HasError() bool {
 }
 
 func GetFeeds(userName string) (allFeeds []Feed) {
-	mc.GetOr("AllFeeds"+userName+"_", &allFeeds, func() {
-		rows, err := stmtGetFeeds.Query(userName)
+	mc.GetOr("AllFeedsUnread"+userName+"_", &allFeeds, func() {
+		rows, err := stmtGetAllFeedsWithUnread.Query(userName)
 		if err != nil {
 			glog.Errorf("stmtGetFeeds.Query(%s): %s", userName, err)
 			return
 		}
 		for rows.Next() {
 			var feed Feed
-			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey)
+			var uc int
+			rows.Scan(&feed.ID, &feed.Title, &feed.Url, &feed.LastUpdated, &feed.UserName, &feed.Public, &feed.CategoryID, &feed.ViewMode, &feed.AutoscrollPX, &feed.Exclude, &feed.ExcludeData, &feed.ErrorString, &feed.Expirey, &uc)
 			if feed.Title == "" {
 				feed.Title = "--untitled--"
 			}
 			feed.Title = html.UnescapeString(feed.Title)
 			allFeeds = append(allFeeds, feed)
 			go mc.Set("Feed"+u.Tostr(feed.ID)+"_", feed)
+			go mc.Set("Feed"+u.Tostr(feed.ID)+"_UnreadCount", uc)
 		}
 	})
 	return allFeeds
