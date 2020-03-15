@@ -8,11 +8,15 @@
 				<div id='menu_status' style='height:20px;width:140px'></div>
 			</td>
 			<td align='right'>
+				<form name='feed_search_form'>
+					<input type="hidden" name="feedcat" value="category">
+					<input type="hidden" name="id" value="{{.ID}}"
 					<input type='text'  name='val' value='{{.Search}}' size=20>
 					<select name='search_select'>
 						{{.SearchSelect}}
 					</select>
 					<input type='button' value='Search' onclick='search("category",{{.ID}},this.form)'>
+				</form>
 			</td>
 			<td align='right'>
 				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
