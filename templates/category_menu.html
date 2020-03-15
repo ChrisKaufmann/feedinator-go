@@ -18,7 +18,7 @@
 					<input type='button' value='Search' onclick='search("category",{{.ID}},this.form)'>
 				</form>
 				<script>
-					document.getElementById('val').onsubmit = function() {
+					document.getElementById('feed_search_form').onsubmit = function() {
 						var searchValue = this.val.value;
 						feedcat = this.feedcat.value;
 						id = this.id.value;
