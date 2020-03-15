@@ -17,6 +17,16 @@
 					</select>
 					<input type='button' value='Search' onclick='search("category",{{.ID}},this.form)'>
 				</form>
+				<script>
+					document.getElementById('val').onsubmit = function() {
+						var searchValue = this.val.value;
+						feedcat = this.feedcat.value;
+						id = this.id.value;
+						search(feedcat,id,self);
+						// process
+						return false;
+					}
+				</script>
 			</td>
 			<td align='right'>
 				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
