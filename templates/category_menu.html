@@ -22,16 +22,13 @@
 						var searchValue = this.val.value;
 						feedcat = this.feedcat.value;
 						id = this.id.value;
-						search(feedcat,id,self);
-						// process
-						return false;
-					}
+//						search(feedcat,id,self);					}
 				</script>
 			</td>
 			<td align='right'>
 				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
 				<a href='javascript:entries("category","{{.ID}}","marked/");'>Starred</a>&nbsp;
-				<a href='javascript:entries("category","{{.ID}}","read/");'>Read</a>&nbsp;</a>
+				<a href='javascript:entries("category","{{.ID}}","read/");'>Read</a>
 				<a href='javascript:update("category","{{.ID}}");'>Update</a>&nbsp;
 				<a href='javascript:mark_list_read("category",{{.ID}});'>Mark all read</a>
 			</td>
