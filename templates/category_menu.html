@@ -20,7 +20,9 @@
 				<script>
                     $(document).ready( function() {
                         $('#feed_search_form').submit( function() {
-                            alert('form submitted');
+                            f = document.getElementById("feed_search_form");
+
+                            alert('form submitted' + f.id.value);
                             return false;
                         });
                     });
