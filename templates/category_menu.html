@@ -18,14 +18,13 @@
 					<input type='button' value='Search' onclick='search("category",{{.ID}},this.form)'>
 				</form>
 				<script>
-					document.getElementById('feed_search_form').onsubmit = function() {
-//						var searchValue = this.val.value;
-//						feedcat = this.feedcat.value;
-//						id = this.id.value;
-//						search(feedcat,id,self);
-                        return false;
-					}
-				</script>
+                    $(document).ready( function() {
+                        $('#feed_search_form').submit( function() {
+                            alert('form submitted');
+                            return false;
+                        });
+                    });
+                    </script>
 			</td>
 			<td align='right'>
 				<a href='javascript:toggle_visible("entries_list_div")'>Show/Hide</a>
