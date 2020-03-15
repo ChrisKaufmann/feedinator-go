@@ -48,7 +48,7 @@ document.getElementById('val').onsubmit = function() {
     var searchValue = this.val.value;
     feedcat = this.feedcat.value;
     id = this.id.value;
-    search(feedcat,id,self)
+    search(feedcat,id,self);
     // process
     return false;
 }
